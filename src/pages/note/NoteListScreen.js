@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import {
     FlatList,
+    Modal,
     StatusBar,
     StyleSheet,
     Text,
@@ -24,10 +25,21 @@ const dummyData = new Array(20).fill(0).map((_, i) => ({
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
+    const mdName = 'Notes';
 
     const [page, setPage] = useState(1);
-    const totalPages = 10; // Thay bằng số thật nếu có
+    const totalPages = 10;
     const [startPage, setStartPage] = useState(1);
+
+    // State cho dropdown
+    const [selectedType1, setSelectedType1] = useState('All');
+    const [selectedType2, setSelectedType2] = useState('All');
+    const [showDropdown1, setShowDropdown1] = useState(false);
+    const [showDropdown2, setShowDropdown2] = useState(false);
+
+    // Options cho dropdown
+    const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
+    const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
 
     // Tính danh sách trang hiển thị (tối đa 3 trang)
     const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
@@ -65,29 +77,82 @@ export default function NoteListScreen() {
         </View>
     );
 
+    // Component Dropdown
+    const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
+        <Modal
+            transparent={true}
+            visible={visible}
+            animationType="fade"
+            onRequestClose={onClose}
+        >
+            <TouchableOpacity 
+                style={styles.modalOverlay} 
+                activeOpacity={1} 
+                onPress={onClose}
+            >
+                <View style={styles.dropdownContainer}>
+                    {options.map((option, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.dropdownItem,
+                                option === selectedValue && styles.selectedItem
+                            ]}
+                            onPress={() => {
+                                onSelect(option);
+                                onClose();
+                            }}
+                        >
+                            <Text style={[
+                                styles.dropdownText,
+                                option === selectedValue && styles.selectedText
+                            ]}>
+                                {option}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
-                <TopNavigation />
+                
+                <TopNavigation moduleName="Notes" navigation={navigation}/>
+
                 <View style={styles.content}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
                         {/* Search Form */}
                         <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                             <View style={styles.searchBar}>
                                 <TextInput style={styles.input} placeholder="Key search" />
                             </View>
                             <View style={styles.searchFormOptions}>
-                                <TouchableOpacity style={styles.select}><Text>Type</Text></TouchableOpacity>
-                                <TouchableOpacity style={styles.select}><Text>Type</Text></TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={styles.select} 
+                                    onPress={() => setShowDropdown1(true)}
+                                >
+                                    <Text>{selectedType1}</Text>
+                                    <Text style={styles.dropdownArrow}>▼</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={styles.select} 
+                                    onPress={() => setShowDropdown2(true)}
+                                >
+                                    <Text>{selectedType2}</Text>
+                                    <Text style={styles.dropdownArrow}>▼</Text>
+                                </TouchableOpacity>
                                 <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                                    <Text style={{ color: '#fff' }}>Search</Text>
+                                    <Text style={{ color: '#fff' }}>Tìm</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
 
                         {/* Add new "+" */}
-                        <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
                                 onPress={() => {
                                     // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
@@ -97,7 +162,7 @@ export default function NoteListScreen() {
                             >
                                 <Text style={styles.plusText}>+</Text>
                             </TouchableOpacity>
-                            <Text style={{ marginTop: 2 }}>Thêm mới</Text>
+                            <Text>Thêm</Text>
                         </View>
                     </View>
 
@@ -150,7 +215,24 @@ export default function NoteListScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+                
                 <BottomNavigation />
+
+                {/* Dropdown Modals */}
+                <DropdownSelect
+                    options={typeOptions1}
+                    selectedValue={selectedType1}
+                    onSelect={setSelectedType1}
+                    visible={showDropdown1}
+                    onClose={() => setShowDropdown1(false)}
+                />
+                <DropdownSelect
+                    options={typeOptions2}
+                    selectedValue={selectedType2}
+                    onSelect={setSelectedType2}
+                    visible={showDropdown2}
+                    onClose={() => setShowDropdown2(false)}
+                />
             </SafeAreaProvider>
         </SafeAreaView>
     );
@@ -187,7 +269,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         padding: 6,
         flex: 1,
-        minWidth: '70%',
+        minWidth: '80%',
         backgroundColor: '#fff',
     },
     select: {
@@ -195,6 +277,15 @@ const styles = StyleSheet.create({
         padding: 6,
         backgroundColor: '#eee',
         minWidth: 60,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderRadius: 4,
+    },
+    dropdownArrow: {
+        fontSize: 10,
+        marginLeft: 5,
+        color: '#666',
     },
     searchButton: {
         backgroundColor: '#4B84FF',
@@ -213,7 +304,7 @@ const styles = StyleSheet.create({
     },
     tableRow: {
         flexDirection: 'row',
-        padding: 8,
+        padding: 11,
         backgroundColor: '#F3F0EF',
         borderBottomWidth: 1,
         borderColor: '#ddd',
@@ -221,7 +312,7 @@ const styles = StyleSheet.create({
     cell: { flex: 1 },
     pagination: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'center', 
         paddingVertical: 10,
         gap: 6,
     },
@@ -257,5 +348,39 @@ const styles = StyleSheet.create({
     list: {
         flexGrow: 0, // Đảm bảo không chiếm toàn bộ không gian
         maxHeight: 500, // Chiều cao list
+    },
+    // Dropdown styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dropdownContainer: {
+        backgroundColor: 'white',
+        minWidth: 150,
+        maxHeight: 200,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        }
+    },
+    dropdownItem: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    selectedItem: {
+        backgroundColor: '#4B84FF',
+    },
+    dropdownText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    selectedText: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });
