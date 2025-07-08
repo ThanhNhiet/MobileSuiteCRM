@@ -2,10 +2,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AlertModal from '../modals/AlertModal';
 import HamburgerModal from '../modals/HamburgerModal';
 
 const TopNavigation = ({ moduleName, navigation }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
 
   return (
     <>
@@ -16,7 +18,7 @@ const TopNavigation = ({ moduleName, navigation }) => {
 
         <Text style={styles.title}>{moduleName}</Text>
 
-        <TouchableOpacity onPress={() => console.log('Notifications pressed')}>
+        <TouchableOpacity onPress={() => setShowAlert(true)}>
           <Ionicons name="notifications" size={30} color="black" />
         </TouchableOpacity>
       </View>
@@ -26,6 +28,13 @@ const TopNavigation = ({ moduleName, navigation }) => {
         onClose={() => setShowMenu(false)}
         navigation={navigation}
       />
+
+      <AlertModal
+        visible={showAlert}
+        onClose={() => setShowAlert(false)}
+        navigation={navigation}
+      />
+
     </>
   );
 };

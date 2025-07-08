@@ -25,7 +25,7 @@ const dummyData = new Array(20).fill(0).map((_, i) => ({
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
-    const mdName = 'Notes';
+    const mdName = 'Ghi chú';
 
     const [page, setPage] = useState(1);
     const totalPages = 10;
@@ -70,11 +70,11 @@ export default function NoteListScreen() {
     };
 
     const renderItem = ({ item }) => (
-        <View style={styles.tableRow}>
+        <TouchableOpacity style={styles.tableRow}>
             <Text style={styles.cell}>{item.name}</Text>
             <Text style={styles.cell}>{item.date_entered}</Text>
             <Text style={styles.cell}>{item.description}</Text>
-        </View>
+        </TouchableOpacity>
     );
 
     // Component Dropdown
@@ -121,7 +121,7 @@ export default function NoteListScreen() {
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
                 
-                <TopNavigation moduleName="Notes" navigation={navigation}/>
+                <TopNavigation moduleName={mdName} navigation={navigation}/>
 
                 <View style={styles.content}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
