@@ -9,7 +9,7 @@ const BottomNavigation = ({ navigation }) => {
         <Ionicons name="home-outline" size={24} color="black" />
         <Text>Trang chủ</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item}>
+      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('ProfileScreen')}>
         <Ionicons name="person-circle-outline" size={24} color="black" />
         <Text>Hồ sơ của tôi</Text>
       </TouchableOpacity>
