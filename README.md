@@ -15,6 +15,10 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    ```bash
    npx expo start
    ```
+   Or (I recommend you the second commandline)
+   ```bash
+   set REACT_NATIVE_PACKAGER_HOSTNAME=your_ip_address && npx expo start
+   ```
 
 In the output, you'll find options to open the app in a
 

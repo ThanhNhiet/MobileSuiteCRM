@@ -107,28 +107,28 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('NoteListScreen')}
+                            onPress={() => navigateTo('NoteListScreen')}
                         >
                             <Text style={styles.menuText}>Ghi chú</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('TaskListScreen')}
+                            onPress={() => navigateTo('TaskListScreen')}
                         >
                             <Text style={styles.menuText}>Công việc</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('MeetingListScreen')}
+                            onPress={() => navigateTo('MeetingListScreen')}
                         >
                             <Text style={styles.menuText}>Cuộc họp</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('CalendarScreen')}
+                            onPress={() => navigateTo('CalendarScreen')}
                         >
                             <Text style={styles.menuText}>Lịch của tôi</Text>
                         </TouchableOpacity>
