@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 
 const ChangePasswordScreen = () => {
+    const navigation = useNavigation();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,6 +53,7 @@ const ChangePasswordScreen = () => {
 
         // TODO: Gửi yêu cầu đổi mật khẩu lên server
         Alert.alert('Thành công', 'Mật khẩu đã được đổi.');
+        navigation.goBack();
     };
 
     const renderPasswordInput = ( label,value,setValue,show,setShow,errorMsg,isNewPasswordField = false) => (
@@ -99,12 +102,6 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         backgroundColor: '#fff',
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        marginVertical: 20,
-        textAlign: 'center',
     },
     inputContainer: {
         marginBottom: 15,

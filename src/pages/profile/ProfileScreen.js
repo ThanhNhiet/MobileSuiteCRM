@@ -14,6 +14,8 @@ export default function ProfileScreen({ navigation }) {
     const profileData = {
         id: '12345',
         name: 'john_doe',
+        first_name: 'John',
+        last_name: 'Doe',
         full_name: 'John Doe',
         description: 'Senior Sales Manager',
         date_entered: '2023-01-15',
@@ -36,12 +38,12 @@ export default function ProfileScreen({ navigation }) {
 
     const handleEditProfile = () => {
         console.log('Navigate to Edit Profile');
-        navigation.navigate('UpdateProfile', { profileData });
+        navigation.navigate('UpdateProfileScreen', { profileData });
     };
 
     const handleChangePassword = () => {
         console.log('Navigate to Change Password');
-        navigation.navigate('ChangePassword');
+        navigation.navigate('ChangePasswordScreen');
     };
 
     const ProfileField = ({ label, value, icon }) => (

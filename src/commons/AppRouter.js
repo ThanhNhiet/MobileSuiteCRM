@@ -27,12 +27,10 @@ export default function AppRouter() {
 
                 {/*Profile Screen*/}
                 <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Thông tin hồ sơ" }} />
-
                 {/*Update Profile Screen*/}
-                <Stack.Screen name="UpdateProfile" component={UpdateProfileScreen} options={{ headerShown: false }} />
-
+                <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Chỉnh sửa thông tin" }} />
                 {/*Change Password Screen*/}
-                <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true, title: "Đổi mật khẩu" }} />
+                <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Đổi mật khẩu" }} />
 
                 {/* <Stack.Screen
                     name="MessageStackNavigator"
