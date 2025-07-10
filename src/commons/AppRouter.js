@@ -1,6 +1,8 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import CalendarScreen from "../pages/calendar/CalendarScreen";
+import TimetableScreen from "../pages/calendar/TimetableScreen";
 import LoginScreen from "../pages/login/LoginScreen";
 import NoteListScreen from "../pages/note/NoteListScreen";
 import ChangePasswordScreen from "../pages/profile/ChangePasswordScreen";
@@ -31,6 +33,11 @@ export default function AppRouter() {
                 <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Chỉnh sửa thông tin" }} />
                 {/*Change Password Screen*/}
                 <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Đổi mật khẩu" }} />
+
+                {/*Calendar Screen*/}
+                <Stack.Screen name="CalendarScreen" component={CalendarScreen} options={{ headerShown: false }} />
+                {/*Timetable Screen*/}
+                <Stack.Screen name="TimetableScreen" component={TimetableScreen} options={{ headerShown: false }} />
 
                 {/* <Stack.Screen
                     name="MessageStackNavigator"
