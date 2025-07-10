@@ -100,7 +100,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                     >
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateTo('AccountListScreen')}
+                            onPress={() => navigateToModule('AccountListScreen')}
                         >
                             <Text style={styles.menuText}>Khách hàng</Text>
                         </TouchableOpacity>
