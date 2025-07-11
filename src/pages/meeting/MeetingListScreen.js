@@ -217,7 +217,7 @@ export default function MeetingListScreen() {
                     </View>
                 </View>
                 
-                <BottomNavigation />
+                <BottomNavigation navigation={navigation} />
 
                 {/* Dropdown Modals */}
                 <DropdownSelect

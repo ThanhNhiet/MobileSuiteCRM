@@ -237,7 +237,7 @@ export default function AccountListScreen() {
                     </View>
                 </View>
                 
-                <BottomNavigation />
+                <BottomNavigation  navigation={navigation}/>
 
                 {/* Dropdown Modals */}
                 <DropdownSelect

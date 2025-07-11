@@ -5,7 +5,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 const BottomNavigation = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.item}>
+      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('HomeScreen')}>
         <Ionicons name="home-outline" size={24} color="black" />
         <Text>Trang chủ</Text>
       </TouchableOpacity>

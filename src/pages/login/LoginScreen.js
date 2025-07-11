@@ -34,7 +34,7 @@ export default function LoginScreen() {
         }
         
         // Handle login logic here
-        navigation.navigate('NoteListScreen'); // Navigate to home after successful login
+        navigation.navigate('HomeScreen'); // Navigate to home after successful login
     };
 
     return (

@@ -8,6 +8,7 @@ import AccountListScreen from "../pages/account/AccountListScreen";
 import AccountUpdateScreen from "../pages/account/AccountUpdateScreen";
 import CalendarScreen from "../pages/calendar/CalendarScreen";
 import TimetableScreen from "../pages/calendar/TimetableScreen";
+import HomeScreen from "../pages/home/HomeScreen";
 import LoginScreen from "../pages/login/LoginScreen";
 import MeetingCreateScreen from "../pages/meeting/MeetingCreateScreen";
 import MeetingDetailScreen from "../pages/meeting/MeetingDetailScreen";
@@ -35,6 +36,12 @@ export default function AppRouter() {
                     options={{
                         headerShown: false,
                     }}
+                />
+                {/*Home Screen*/}
+                <Stack.Screen
+                    name="HomeScreen"
+                    component={HomeScreen}
+                    options={{ headerShown: false }}
                 />
 
                 {/*Home Screen - default is note list screen*/}
