@@ -14,6 +14,7 @@ export default function TopNavigationDetail({
   moduleName,
   navigation,
   rightIcon = { name: Platform.OS === 'ios' ? 'ellipsis-horizontal' : 'ellipsis-vertical' },
+  name,
 }) {
   // Chọn icon back theo platform
   const backIconName = Platform.select({
@@ -39,7 +40,7 @@ export default function TopNavigationDetail({
 
       {/* Nút bên phải (mặc định là “…”), truyền vào prop rightIcon nếu muốn khác */}
       <Pressable
-        onPress={()=>navigation.navigate('AccountUpdateScreen')}
+        onPress={()=>navigation.navigate(name)}
         hitSlop={12}
         android_ripple={{ borderless: true }}
         style={styles.iconBtn}
@@ -58,6 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 60,
+    marginTop:15
   },
   title: {
     fontWeight: 'bold',

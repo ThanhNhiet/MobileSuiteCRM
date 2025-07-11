@@ -16,6 +16,7 @@ const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 export default function AccountDetailScreen() {
     const mdName = 'Khách hàng';
+    const name = 'AccountUpdateScreen';
     const navigation = useNavigation();
     const data =[
         { id: '1', name: 'Khách hàng' },
@@ -67,7 +68,7 @@ export default function AccountDetailScreen() {
     return (
   <SafeAreaView style={styles.container}>
     <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
-      <TopNavigationDetail moduleName={mdName} navigation={navigation} />
+      <TopNavigationDetail moduleName={mdName} navigation={navigation} name={name} />
 
       {/* ---------- NỘI DUNG ---------- */}
       <View style={styles.content}>

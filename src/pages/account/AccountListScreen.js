@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     FlatList,
     Modal,
@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-
+import AccountData from '../../services/useApi/Account';
 const dummyData = new Array(20).fill(0).map((_, i) => ({
     id: i.toString(),
     name: `Name ${i}`,
@@ -30,6 +30,9 @@ export default function AccountListScreen() {
     const [page, setPage] = useState(1);
     const totalPages = 10;
     const [startPage, setStartPage] = useState(1);
+
+    // danh sach cac truong can hien thi
+    const [fields, setFields] = useState([]);
 
     // State cho dropdown
     const [selectedType1, setSelectedType1] = useState('All');
@@ -76,6 +79,18 @@ export default function AccountListScreen() {
             <Text style={styles.cell}>{item.description}</Text>
         </TouchableOpacity>
     );
+
+    useEffect(() => {
+        const fetchFields = async () => {
+            try {
+                const data = await AccountData.getFields();
+                setFields(data || []);
+                } catch (error) {
+                console.error('Lỗi lấy fields:', error);
+                }
+            };
+            fetchFields();
+            }, []);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -170,9 +185,14 @@ export default function AccountListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        <Text style={styles.headerCell}>Tên</Text>
-                        <Text style={styles.headerCell}>Số điện thoại</Text>
-                        <Text style={styles.headerCell}>Loại khách hàng</Text>
+                        {fields
+                            .filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                            .map((field, index) => (
+                            // Hiển thị tên trường trong header
+                            field.key === 'name'? (<Text key={index} style={styles.headerCell}>Tên khách hàng</Text>)
+                            : field.key === 'description' ? (<Text key={index} style={styles.headerCell}>Nô tả</Text>)
+                                                :(<Text key={index} style={styles.headerCell}>Số điện thoại fax</Text>)
+                            ))}
                     </View>
 
                     {/* Table Rows - Scrollable */}

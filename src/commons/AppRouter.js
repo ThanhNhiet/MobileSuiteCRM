@@ -6,10 +6,20 @@ import AccountCUScreen from "../pages/account/AccountCUScreen";
 import AccountDetailScreen from "../pages/account/AccountDetailScreen";
 import AccountListScreen from "../pages/account/AccountListScreen";
 import AccountUpdateScreen from "../pages/account/AccountUpdateScreen";
+import CalendarScreen from "../pages/calendar/CalendarScreen";
+import TimetableScreen from "../pages/calendar/TimetableScreen";
 import LoginScreen from "../pages/login/LoginScreen";
+import MeetingCreateScreen from "../pages/meeting/MeetingCreateScreen";
 import MeetingDetailScreen from "../pages/meeting/MeetingDetailScreen";
 import MeetingListScreen from "../pages/meeting/MeetingListScreen";
+import MeetingUpdateScreen from "../pages/meeting/MeetingUpdateScreen";
+import NoteCreateScreen from "../pages/note/NoteCreateScreen";
+import NoteDetailScreen from "../pages/note/NoteDetailScreen";
 import NoteListScreen from "../pages/note/NoteListScreen";
+import NoteUpdateScreen from "../pages/note/NoteUpdateScreen";
+import ChangePasswordScreen from "../pages/profile/ChangePasswordScreen";
+import ProfileScreen from "../pages/profile/ProfileScreen";
+import UpdateProfileScreen from "../pages/profile/UpdateProfileScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -29,6 +39,24 @@ export default function AppRouter() {
 
                 {/*Home Screen - default is note list screen*/}
                 <Stack.Screen name="NoteListScreen" component={NoteListScreen} options={{ headerShown: false }} />
+                {/*Note Detail Screen*/}
+                <Stack.Screen name="NoteDetailScreen" component={NoteDetailScreen} options={{ headerShown: false}} />
+                {/*Note Update Screen*/}
+                <Stack.Screen name="NoteUpdateScreen" component={NoteUpdateScreen} options={{ headerShown: false}} />
+                {/*Note Create Screen*/}
+                <Stack.Screen name="NoteCreateScreen" component={NoteCreateScreen} options={{ headerShown: false}} />
+
+                {/*Profile Screen*/}
+                <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Thông tin hồ sơ" }} />
+                {/*Update Profile Screen*/}
+                <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Chỉnh sửa thông tin" }} />
+                {/*Change Password Screen*/}
+                <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Đổi mật khẩu" }} />
+
+                {/*Calendar Screen*/}
+                <Stack.Screen name="CalendarScreen" component={CalendarScreen} options={{ headerShown: false }} />
+                {/*Timetable Screen*/}
+                <Stack.Screen name="TimetableScreen" component={TimetableScreen} options={{ headerShown: false }} />
 
                 {/* <Stack.Screen
                     name="MessageStackNavigator"
@@ -75,6 +103,18 @@ export default function AppRouter() {
                 <Stack.Screen
                     name="MeetingDetailScreen"
                     component={MeetingDetailScreen}
+                    options={{ headerShown: false }}
+                />
+                {/*Meeting Create Screen*/}
+                <Stack.Screen
+                    name="MeetingCreateScreen"
+                    component={MeetingCreateScreen}
+                    options={{ headerShown: false }}
+                />
+                {/*Meeting Update Screen*/}
+                <Stack.Screen
+                    name="MeetingUpdateScreen"
+                    component={MeetingUpdateScreen}
                     options={{ headerShown: false }}
                 />
             </Stack.Navigator>

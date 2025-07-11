@@ -74,13 +74,14 @@ const handleSave = () => {
 }
 
 const styles = StyleSheet.create({
-container: {
+ container: {
     backgroundColor: '#BFAAA1',
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 60,
+    marginTop: 15
   },
   title: {
     fontWeight: 'bold',

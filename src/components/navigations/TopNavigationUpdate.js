@@ -13,6 +13,7 @@ export default function TopNavigationUpdate({
   moduleName,
   navigation,
   rightIcon = { name: Platform.OS === 'ios' ? 'ellipsis-horizontal' : 'save-outline' },
+  name
 }) {
   // Chọn icon back theo platform
   const backIconName = Platform.select({
@@ -32,7 +33,7 @@ export default function TopNavigationUpdate({
       },
       {
         text: 'Có',             // ✅ Đồng ý đi
-        onPress: () => navigation?.navigate('AccountDetailScreen'),
+        onPress: () => navigation?.navigate(name),
       },
     ],
     { cancelable: true }
@@ -81,6 +82,7 @@ container: {
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 60,
+    marginTop: 15
   },
   title: {
     fontWeight: 'bold',

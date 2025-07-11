@@ -70,7 +70,7 @@ export default function NoteListScreen() {
     };
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.tableRow}>
+        <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('NoteDetailScreen', { noteId: item.id })}}>
             <Text style={styles.cell}>{item.name}</Text>
             <Text style={styles.cell}>{item.date_entered}</Text>
             <Text style={styles.cell}>{item.description}</Text>
@@ -216,7 +216,7 @@ export default function NoteListScreen() {
                     </View>
                 </View>
                 
-                <BottomNavigation />
+                <BottomNavigation navigation={navigation}/>
 
                 {/* Dropdown Modals */}
                 <DropdownSelect

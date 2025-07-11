@@ -50,7 +50,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         navigation.navigate('LoginScreen'); // Uncomment when needed
     };
 
-    const navigateToModule = (moduleName) => {
+    const navigateTo = (moduleName) => {
         console.log(`Navigate to ${moduleName}`);
         handleClose();
         navigation.navigate(moduleName);
@@ -82,11 +82,11 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                 >
                     {/* Header with Profile and Close */}
                     <View style={styles.header}>
-                        <View style={styles.profileSection}>
+                        <TouchableOpacity style={styles.profileSection} onPress={() => navigateTo('ProfileScreen')}>
                             <View style={styles.profileIcon}>
                                 <Ionicons name="person" size={24} color="white" />
                             </View>
-                        </View>
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                             <Ionicons name="close" size={28} color="black" />
                         </TouchableOpacity>
@@ -100,35 +100,35 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                     >
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('AccountListScreen')}
+                            onPress={() => navigateTo('AccountListScreen')}
                         >
                             <Text style={styles.menuText}>Khách hàng</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('NoteListScreen')}
+                            onPress={() => navigateTo('NoteListScreen')}
                         >
                             <Text style={styles.menuText}>Ghi chú</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('TaskListScreen')}
+                            onPress={() => navigateTo('TaskListScreen')}
                         >
                             <Text style={styles.menuText}>Công việc</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('MeetingListScreen')}
+                            onPress={() => navigateTo('MeetingListScreen')}
                         >
                             <Text style={styles.menuText}>Cuộc họp</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity 
                             style={styles.menuItem} 
-                            onPress={() => navigateToModule('CalendarScreen')}
+                            onPress={() => navigateTo('CalendarScreen')}
                         >
                             <Text style={styles.menuText}>Lịch của tôi</Text>
                         </TouchableOpacity>

@@ -1,15 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    View
 } from "react-native";
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-export default function AccountCreateScreen() {
+export default function MeetingCreateScreen() {
     const navigation = useNavigation();
      const [formData, setFormData] = useState({
         'Tên': 'Công ty ABC',
@@ -34,9 +34,9 @@ export default function AccountCreateScreen() {
           <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
             {/* Thanh điều hướng */}
             <TopNavigationCreate
-                moduleName="Tạo khách hàng"
+                moduleName="Tạo Cuộc họp"
                 navigation={navigation}
-                name="AccountListScreen" // Giả lập navigation prop
+                name="MeetingListScreen" // Giả lập navigation prop
             />
             <View style={styles.content}>
                  {rows.map((item) => (
