@@ -8,6 +8,8 @@ import AccountCUScreen from "../pages/account/AccountCUScreen";
 import AccountDetailScreen from "../pages/account/AccountDetailScreen";
 import AccountListScreen from "../pages/account/AccountListScreen";
 import AccountUpdateScreen from "../pages/account/AccountUpdateScreen";
+//import page home
+import HomeScreen from "../pages/home/HomeScreen";
 
 //import page calendar
 import CalendarScreen from "../pages/calendar/CalendarScreen";
@@ -52,7 +54,14 @@ export default function AppRouter() {
                         headerShown: false,
                     }}
                 />
-
+                {/*Home Screen*/}
+                <Stack.Screen
+                    name="HomeScreen"
+                    component={HomeScreen}  
+                    options={{
+                        headerShown: false,
+                    }}
+                />
                 {/*Home Screen - default is note list screen*/}
                 <Stack.Screen name="NoteListScreen" component={NoteListScreen} options={{ headerShown: false }} />
                 {/*Note Detail Screen*/}
