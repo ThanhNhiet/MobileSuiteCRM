@@ -12,6 +12,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 export default function TopNavigationCreate({
   moduleName,
   navigation,
+  name,
   rightIcon = { name: Platform.OS === 'ios' ? 'ellipsis-horizontal' : 'save-outline' },
 }) {
   // Chọn icon back theo platform
@@ -32,7 +33,7 @@ export default function TopNavigationCreate({
       },
       {
         text: 'Có',             // ✅ Đồng ý đi
-        onPress: () => navigation?.navigate('AccountListScreen'),
+        onPress: () => navigation?.navigate(name),
       },
     ],
     { cancelable: true }
