@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+// import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    Alert,
     Image,
-    Keyboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -15,27 +13,11 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useLogin } from '../../services/useApi/login/UseLogin';
 
 export default function LoginScreen() {
-    const navigation = useNavigation();
-    
-    const [website, setWebsite] = useState('');
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
-    // Function to handle login
-    const handleLogin = () => {
-        Keyboard.dismiss();
-        
-        if (!website.trim() || !username.trim() || !password.trim()) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
-        }
-        
-        // Handle login logic here
-        navigation.navigate('HomeScreen'); // Navigate to home after successful login
-    };
+    const { website, setWebsite, username, setUsername, password, setPassword, handleLogin } = useLogin();
 
     return (
         <KeyboardAvoidingView
