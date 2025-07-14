@@ -32,6 +32,8 @@ export default function AccountListScreen() {
     const [startPage, setStartPage] = useState(1);
 
     // danh sach cac truong can hien thi
+
+    
     const [fields, setFields] = useState([]);
 
     // State cho dropdown
@@ -84,6 +86,7 @@ export default function AccountListScreen() {
         const fetchFields = async () => {
             try {
                 const data = await AccountData.getFields();
+                console.log('Fields:', data);
                 setFields(data || []);
                 } catch (error) {
                 console.error('Lỗi lấy fields:', error);
