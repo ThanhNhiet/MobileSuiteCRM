@@ -155,8 +155,7 @@ export default function NoteListScreen() {
                         <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
                                 onPress={() => {
-                                    // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
-                                    console.log('Add new');
+                                    navigation.navigate('NoteCreateScreen');
                                 }}
                                 style={[styles.addNewBtn]}
                             >

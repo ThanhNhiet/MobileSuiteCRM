@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
+    ActivityIndicator,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -8,37 +10,61 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useUserProfile } from '../../services/useApi/user/UseUser_Profile';
 
 export default function ProfileScreen({ navigation }) {
-    // Dữ liệu mẫu profile (sẽ được thay thế bằng API response)
-    const profileData = {
-        id: '12345',
-        name: 'john_doe',
-        first_name: 'John',
-        last_name: 'Doe',
+    // Sử dụng custom hook để lấy thông tin profile
+    const { profileData, loading, error, refreshing, refreshProfile } = useUserProfile();
+
+    // Hiển thị loading khi đang tải dữ liệu lần đầu
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#007AFF" />
+                    <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Hiển thị lỗi nếu có
+    if (error && !profileData) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={() => refreshProfile()}
+                    >
+                        <Text style={styles.retryButtonText}>Thử lại</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Dữ liệu mẫu sẽ được thay thế bằng profileData từ API
+    const displayData = profileData?.attributes || {
         full_name: 'John Doe',
         description: 'Senior Sales Manager',
-        date_entered: '2023-01-15',
-        date_modified: '2024-07-08',
-        modified_by_name: 'Admin',
-        department: 'Sales Department',
         phone_mobile: '0901 234 567',
         phone_work: '0812 345 678',
-        phone_fax: '0812 345 679',
         address_street: '123 Nguyen Hue Street',
         address_city: 'Ho Chi Minh City',
         address_country: 'Vietnam',
-        UserType: 'Regular User',
         reports_to_name: 'Jane Smith',
         email1: 'john.doe@company.com'
     };
 
     // Gộp address
-    const fullAddress = `${profileData.address_street}, ${profileData.address_city}, ${profileData.address_country}`;
+    const fullAddress = `${displayData.address_street || ''}, ${displayData.address_city || ''}, ${displayData.address_country || ''}`.replace(/^,\s*|,\s*$/g, '');
 
     const handleEditProfile = () => {
         console.log('Navigate to Edit Profile');
-        navigation.navigate('UpdateProfileScreen', { profileData });
+        navigation.navigate('UpdateProfileScreen', { profileData: displayData });
     };
 
     const handleChangePassword = () => {
@@ -58,11 +84,22 @@ export default function ProfileScreen({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                style={styles.scrollView} 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={refreshProfile}
+                        colors={['#007AFF']}
+                        title="Đang tải..."
+                    />
+                }
+            >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.fullName}>{profileData.full_name}</Text>
-                    <Text style={styles.description}>{profileData.description}</Text>
+                    <Text style={styles.fullName}>{displayData.full_name}</Text>
+                    <Text style={styles.description}>{displayData.description}</Text>
                 </View>
 
                 {/* Profile Information */}
@@ -70,44 +107,26 @@ export default function ProfileScreen({ navigation }) {
                     <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
                     
                     <ProfileField 
-                        label="ID" 
-                        value={profileData.id} 
-                        icon="card-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Tên đăng nhập" 
-                        value={profileData.name} 
-                        icon="person-circle-outline" 
-                    />
-                    
-                    <ProfileField 
                         label="Họ và tên" 
-                        value={profileData.full_name} 
+                        value={displayData.full_name} 
                         icon="person-outline" 
                     />
                     
                     <ProfileField 
                         label="Email" 
-                        value={profileData.email1} 
+                        value={displayData.email1} 
                         icon="mail-outline" 
                     />
                     
                     <ProfileField 
-                        label="Phòng ban" 
-                        value={profileData.department} 
-                        icon="business-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Loại người dùng" 
-                        value={profileData.UserType} 
-                        icon="shield-outline" 
+                        label="Mô tả" 
+                        value={displayData.description} 
+                        icon="document-text-outline" 
                     />
                     
                     <ProfileField 
                         label="Báo cáo cho" 
-                        value={profileData.reports_to_name} 
+                        value={displayData.reports_to_name} 
                         icon="people-outline" 
                     />
                 </View>
@@ -118,49 +137,20 @@ export default function ProfileScreen({ navigation }) {
                     
                     <ProfileField 
                         label="Di động" 
-                        value={profileData.phone_mobile} 
+                        value={displayData.phone_mobile} 
                         icon="phone-portrait-outline" 
                     />
                     
                     <ProfileField 
                         label="Điện thoại công ty" 
-                        value={profileData.phone_work} 
+                        value={displayData.phone_work} 
                         icon="call-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Fax" 
-                        value={profileData.phone_fax} 
-                        icon="print-outline" 
                     />
                     
                     <ProfileField 
                         label="Địa chỉ" 
                         value={fullAddress} 
                         icon="location-outline" 
-                    />
-                </View>
-
-                {/* System Information */}
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionTitle}>Thông tin hệ thống</Text>
-                    
-                    <ProfileField 
-                        label="Ngày tạo" 
-                        value={profileData.date_entered} 
-                        icon="calendar-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Ngày sửa đổi" 
-                        value={profileData.date_modified} 
-                        icon="time-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Sửa đổi bởi" 
-                        value={profileData.modified_by_name} 
-                        icon="person-add-outline" 
                     />
                 </View>
 
@@ -339,5 +329,40 @@ const styles = StyleSheet.create({
     },
     bottomSpacing: {
         height: 30,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 50,
+    },
+    loadingText: {
+        marginTop: 15,
+        fontSize: 16,
+        color: '#666',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 30,
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#FF3B30',
+        textAlign: 'center',
+        marginVertical: 20,
+        lineHeight: 24,
+    },
+    retryButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 30,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
