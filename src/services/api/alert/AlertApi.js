@@ -3,8 +3,8 @@ import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 
 //GET /Api/V8/module/Alerts?filter[assigned_user_id][eq]={id}&filter[deleted][eq]=0
-//&page[size]=4&page[number]=1&sort=date_entered
-export const getAlertsApi = async (pageSize = 10, pageNumber = 1) => {
+//&page[size]=6&page[number]=1&sort=-date_entered
+export const getAlertsApi = async (pageSize = 6, pageNumber = 1) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
@@ -15,7 +15,7 @@ export const getAlertsApi = async (pageSize = 10, pageNumber = 1) => {
                 'filter[deleted][eq]': 0,
                 'page[size]': pageSize,
                 'page[number]': pageNumber,
-                'sort': '-date_entered' // Sắp xếp mới nhất trước
+                'sort': '-date_entered'
             }
         });
         return response.data;

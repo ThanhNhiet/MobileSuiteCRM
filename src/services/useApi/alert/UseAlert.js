@@ -8,6 +8,14 @@ export const useAlert = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pagination, setPagination] = useState({
+        hasNext: false,
+        hasPrev: false,
+        nextLink: null,
+        prevLink: null
+    });
     
     // Refs for intervals
     const alertsIntervalRef = useRef(null);
@@ -15,7 +23,7 @@ export const useAlert = () => {
     const appStateRef = useRef(AppState.currentState);
 
     // Hàm lấy danh sách alerts
-    const fetchAlerts = useCallback(async (isRefresh = false) => {
+    const fetchAlerts = useCallback(async (isRefresh = false, pageNumber = 1) => {
         try {
             if (isRefresh) {
                 setRefreshing(true);
@@ -24,7 +32,7 @@ export const useAlert = () => {
             }
             setError(null);
 
-            const response = await getAlertsApi(20, 1); // Lấy 20 alerts mới nhất
+            const response = await getAlertsApi(6, pageNumber); // Lấy 6 alerts mỗi trang
             
             // Xử lý dữ liệu alerts
             const processedAlerts = response.data.map(alert => ({
@@ -39,11 +47,24 @@ export const useAlert = () => {
 
             setAlerts(processedAlerts);
             
+            // Cập nhật thông tin phân trang
+            setCurrentPage(pageNumber);
+            setTotalPages(response.meta['total-pages'] || 1);
+            setPagination({
+                hasNext: response.links.next !== null,
+                hasPrev: response.links.prev !== null,
+                nextLink: response.links.next,
+                prevLink: response.links.prev
+            });
+            
             // Cập nhật unread count từ dữ liệu hiện tại
             const currentUnreadCount = processedAlerts.filter(alert => !alert.is_read).length;
-            setUnreadCount(currentUnreadCount);
+            // Chỉ cập nhật unread count khi ở trang 1 để tránh sai lệch
+            if (pageNumber === 1) {
+                setUnreadCount(currentUnreadCount);
+            }
             
-            console.log(`Loaded ${processedAlerts.length} alerts, ${currentUnreadCount} unread`);
+            console.log(`Loaded ${processedAlerts.length} alerts on page ${pageNumber}/${response.meta['total-pages']}`);
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải thông báo';
             setError(errorMessage);
@@ -114,8 +135,8 @@ export const useAlert = () => {
 
     // Hàm refresh thủ công
     const refreshAlerts = useCallback(() => {
-        fetchAlerts(true);
-    }, [fetchAlerts]);
+        fetchAlerts(true, currentPage);
+    }, [fetchAlerts, currentPage]);
 
     // Setup auto refresh intervals
     const startAutoRefresh = useCallback(() => {
@@ -129,7 +150,7 @@ export const useAlert = () => {
 
         // Refresh alerts every 2 minutes
         alertsIntervalRef.current = setInterval(() => {
-            fetchAlerts(false);
+            fetchAlerts(false, currentPage);
         }, 2 * 60 * 1000);
 
         // Refresh unread count every 30 seconds
@@ -159,7 +180,7 @@ export const useAlert = () => {
             if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
                 // App came to foreground, refresh data
                 console.log('App became active, refreshing alerts');
-                fetchAlerts(false);
+                fetchAlerts(false, currentPage);
                 fetchUnreadCount();
             } else if (nextAppState.match(/inactive|background/)) {
                 // App went to background, stop auto refresh
@@ -175,11 +196,11 @@ export const useAlert = () => {
         const subscription = AppState.addEventListener('change', handleAppStateChange);
 
         return () => subscription?.remove();
-    }, [fetchAlerts, fetchUnreadCount, startAutoRefresh, stopAutoRefresh]);
+    }, [fetchAlerts, fetchUnreadCount, startAutoRefresh, stopAutoRefresh, currentPage]);
 
     // Initial load and setup
     useEffect(() => {
-        fetchAlerts(false);
+        fetchAlerts(false, 1);
         startAutoRefresh();
 
         // Cleanup on unmount
@@ -238,18 +259,45 @@ export const useAlert = () => {
         }
     }, [alerts]);
 
+    // Hàm chuyển trang
+    const goToPage = useCallback((pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            fetchAlerts(false, pageNumber);
+        }
+    }, [fetchAlerts, totalPages]);
+
+    // Hàm chuyển trang tiếp theo
+    const goToNextPage = useCallback(() => {
+        if (pagination.hasNext && currentPage < totalPages) {
+            goToPage(currentPage + 1);
+        }
+    }, [goToPage, currentPage, totalPages, pagination.hasNext]);
+
+    // Hàm chuyển trang trước đó
+    const goToPrevPage = useCallback(() => {
+        if (pagination.hasPrev && currentPage > 1) {
+            goToPage(currentPage - 1);
+        }
+    }, [goToPage, currentPage, pagination.hasPrev]);
+
     return {
         alerts,
         unreadCount,
         loading,
         refreshing,
         error,
+        currentPage,
+        totalPages,
+        pagination,
         fetchAlerts,
         refreshAlerts,
         markAsRead,
         markAllAsRead,
         fetchUnreadCount,
         deleteAlert,
-        deleteAllAlerts
+        deleteAllAlerts,
+        goToPage,
+        goToNextPage,
+        goToPrevPage
     };
 };

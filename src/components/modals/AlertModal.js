@@ -22,11 +22,16 @@ const AlertModal = ({ visible, onClose }) => {
         loading,
         refreshing,
         error,
+        currentPage,
+        totalPages,
+        pagination,
         refreshAlerts,
         markAsRead,
         markAllAsRead,
         deleteAlert,
-        deleteAllAlerts
+        deleteAllAlerts,
+        goToNextPage,
+        goToPrevPage
     } = useAlert();
 
     // Hàm xử lý khi nhấn vào một alert
@@ -215,6 +220,45 @@ const AlertModal = ({ visible, onClose }) => {
                         style={styles.list}
                         showsVerticalScrollIndicator={false}
                     />
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <View style={styles.paginationContainer}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.paginationButton,
+                                    !pagination.hasPrev && styles.paginationButtonDisabled
+                                ]}
+                                onPress={goToPrevPage}
+                                disabled={!pagination.hasPrev}
+                            >
+                                <Ionicons 
+                                    name="chevron-back" 
+                                    size={16} 
+                                    color={!pagination.hasPrev ? '#ccc' : '#4B84FF'} 
+                                />
+                            </TouchableOpacity>
+                            
+                            <Text style={styles.paginationText}>
+                                {currentPage}
+                            </Text>
+                            
+                            <TouchableOpacity
+                                style={[
+                                    styles.paginationButton,
+                                    !pagination.hasNext && styles.paginationButtonDisabled
+                                ]}
+                                onPress={goToNextPage}
+                                disabled={!pagination.hasNext}
+                            >
+                                <Ionicons 
+                                    name="chevron-forward" 
+                                    size={16} 
+                                    color={!pagination.hasNext ? '#ccc' : '#4B84FF'} 
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
                     <View style={styles.footerActions}>
                         {alerts.length > 0 && unreadCount > 0 && (
@@ -426,6 +470,37 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 12,
         fontWeight: '600',
+    },
+    paginationContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 15,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+        backgroundColor: '#fafafa',
+        gap: 20,
+    },
+    paginationButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F0F4FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E8F3FF',
+    },
+    paginationButtonDisabled: {
+        backgroundColor: '#f5f5f5',
+        borderColor: '#e0e0e0',
+    },
+    paginationText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        minWidth: 30,
+        textAlign: 'center',
     },
 });
 
