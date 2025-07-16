@@ -2,12 +2,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAlert } from '../../services/useApi/alert/UseAlert';
 import AlertModal from '../modals/AlertModal';
 import HamburgerModal from '../modals/HamburgerModal';
 
 const TopNavigation = ({ moduleName, navigation }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  
+  // Sử dụng hook để lấy số thông báo chưa đọc
+  const { unreadCount } = useAlert();
 
   return (
     <>
@@ -18,8 +22,15 @@ const TopNavigation = ({ moduleName, navigation }) => {
 
         <Text style={styles.title}>{moduleName}</Text>
 
-        <TouchableOpacity onPress={() => setShowAlert(true)}>
+        <TouchableOpacity style={styles.notificationContainer} onPress={() => setShowAlert(true)}>
           <Ionicons name="notifications" size={30} color="black" />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -51,6 +62,28 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     fontSize: 24,
+  },
+  notificationContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#BFAAA1',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 
