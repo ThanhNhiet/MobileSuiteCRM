@@ -1,5 +1,6 @@
 //export local host ip
-const LOCALHOST_IP_Vuong = 'http://192.168.1.22/suitecrm7/Api/V8';
-const LOCALHOST_IP_nhiet = 'http://192.168.101.7/suitecrm7/Api/V8';
+const LOCALHOST_IP_Vuong = 'http://192.168.159.1/suitecrm7';
+const LOCALHOST_IP_nhiet = 'http://192.168.159.1/suitecrm7';
+const LOCALHOST_IP_CTY = 'http://192.168.1.11/suitecrm7';
 
-export const LOCALHOST_IP = LOCALHOST_IP_nhiet;
+export const LOCALHOST_IP = LOCALHOST_IP_CTY;

@@ -1,10 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    Alert,
     Image,
-    Keyboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -15,27 +12,11 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 
 export default function LoginScreen() {
-    const navigation = useNavigation();
-    
-    const [website, setWebsite] = useState('');
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
-    // Function to handle login
-    const handleLogin = () => {
-        Keyboard.dismiss();
-        
-        if (!website.trim() || !username.trim() || !password.trim()) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
-        }
-        
-        // Handle login logic here
-        navigation.navigate('HomeScreen'); // Navigate to home after successful login
-    };
+    const { website, setWebsite, username, setUsername, password, setPassword, handleLogin, loading } = useLogin_out();
 
     return (
         <KeyboardAvoidingView
@@ -110,11 +91,14 @@ export default function LoginScreen() {
 
                         {/* Login Button */}
                         <TouchableOpacity
-                            style={styles.loginButton}
+                            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
                             onPress={handleLogin}
                             activeOpacity={0.8}
+                            disabled={loading}
                         >
-                            <Text style={styles.loginButtonText}>Đăng nhập</Text>
+                            <Text style={styles.loginButtonText}>
+                                {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -195,6 +179,11 @@ const styles = StyleSheet.create({
         },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
+    },
+    loginButtonDisabled: {
+        backgroundColor: '#ccc',
+        elevation: 1,
+        shadowOpacity: 0.1,
     },
     loginButtonText: {
         color: 'white',

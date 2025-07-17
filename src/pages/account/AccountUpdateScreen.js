@@ -1,9 +1,10 @@
 import TopNavigationUpdate from '@/src/components/navigations/TopNavigationUpdate';
 import FormInputRow from '@/src/components/textinput/FormInputRow';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
-import AccountData from '../../services/useApi/Account';
+import AccountData from '../../services/useApi/account/AccountData';
 export default function AccountUpdateScreen() {
   const navigation = useNavigation();
   const [formData, setFormData] = useState({
@@ -14,24 +15,22 @@ export default function AccountUpdateScreen() {
   });
    const [fields, setFields] = useState([]);
      useEffect(() => {
-           const fetchFields = async () => {
-               try {
-                   const data = await AccountData.getFields();
-                   console.log('Fields:', data);
-                   setFields(data || []);
-                   } catch (error) {
-                   console.error('Lỗi lấy fields:', error);
-                   }
-               };
-               fetchFields();
-               }, []);
-
-  const rows = [
-    { label: 'Tên', key: '', type: 'email' },
-    { label: 'Loại', key: 'Loại' , type: 'text' },
-    { label: 'Số điện thoại', key: 'Số điện thoại', type: 'phone' },
-    { label: 'Ngày sinh', key: 'Ngày sinh', type: 'datetime' },
-  ];
+        const fetchFields = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {   
+                    navigation.navigate('LoginScreen');
+                }
+                // Lấy danh sách các trường từ API
+                const data = await AccountData.getFields(token);
+                console.log('Fields:', data);
+                setFields(data || []);
+                } catch (error) {
+                console.error('Lỗi lấy fields:', error);
+                }
+            };
+            fetchFields();
+            }, []);
 
   const handleInputChange = (key, value) => {
     setFormData(prev => ({
@@ -52,7 +51,7 @@ export default function AccountUpdateScreen() {
           .map((item) => (
             <FormInputRow
               key={item.key}
-              label={item.key}
+              label={item.label}
               value={formData[item.key]}
               onChangeText={(value) => handleInputChange(item.key, value)}
               type={item.type}

@@ -24,32 +24,50 @@ const FormInputRow = ({
     }
   };
   const getKeyboard = () => {
+    // Nếu không có field info, dùng logic cũ
+    if (!field || !field.dbType) {
+      return getKeyboardType();
+    }
+
     switch (field.dbType) {
       case 'varchar':
-            if (type ==='phone')
-                return {len:field.len,type: 'phone-pad'};
-            else if (type === 'email')
-                return 'email-address';
-            else if (type === 'varchar')
-                return {len:field.len,type: 'default'};
-            else if (type === 'url')
-                return {len:field.len,type: 'default'};
+        if (field.type === 'phone') {
+          return 'phone-pad';
+        } else if (field.type === 'email') {
+          return 'email-address';
+        } else if (field.type === 'url') {
+          return 'url';
+        } else {
+          return 'default';
+        }
+        
       case 'text':
-        return 'phone-pad';
+        return 'default';
+        
+      case 'int':
+      case 'decimal':
+      case 'float':
+        return 'numeric';
+        
       case 'relate':
+      case 'id':
         return 'default';
+        
       case 'datetime':
+      case 'date':
+      case 'time':
         return 'default'; // Date input handled separately
+        
       case 'link':
-            if (field.type === 'link')
-                return {type: 'default'};
-            else if (field.type === 'link_multiple')
-                return {len:field.len,type: 'default'};
         return 'default';
+        
       case 'enum':
+      case 'multienum':
         return 'default';
+        
       case 'bool':
         return 'default';
+        
       default:
         return 'default';
     }
@@ -63,11 +81,19 @@ const FormInputRow = ({
     }
   };
 
-  const isDateType = type === 'datetime';
+  const isDateType = type === 'datetime' || field?.dbType === 'datetime' || field?.dbType === 'date';
+
+  // Tạo label với thông tin length nếu có
+  const getLabelWithLength = () => {
+    if (field?.len && field.len > 0) {
+      return `${label} (${field.len})`;
+    }
+    return label;
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{getLabelWithLength()}</Text>
 
       <View style={styles.valueBox}>
         {isDateType ? (
@@ -93,7 +119,8 @@ const FormInputRow = ({
             onChangeText={onChangeText}
             placeholder={placeholder || label}
             autoCapitalize="none"
-            keyboardType={getKeyboard().type}
+            keyboardType={getKeyboard()}
+            maxLength={field?.len || undefined}
             editable={editable}
           />
         )}

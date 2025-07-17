@@ -10,11 +10,13 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 
 const { width } = Dimensions.get('window');
 
 const HamburgerModal = ({ visible, onClose, navigation }) => {
     const slideAnim = useRef(new Animated.Value(-width * 0.6)).current; // Start off-screen left
+    const { handleLogout } = useLogin_out();
 
     useEffect(() => {
         if (visible) {
@@ -43,11 +45,6 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         }).start(() => {
             onClose();
         });
-    };
-
-    const handleLogout = () => {
-        handleClose();
-        navigation.navigate('LoginScreen'); // Uncomment when needed
     };
 
     const navigateTo = (moduleName) => {
@@ -136,7 +133,12 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
 
                     {/* Logout Button */}
                     <View style={styles.logoutContainer}>
-                        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                        <TouchableOpacity style={styles.logoutButton} 
+                            onPress={() => {
+                                handleClose();
+                                handleLogout();
+                            }
+                        }>
                             <Text style={styles.logoutText}>Logout</Text>
                             <Ionicons name="log-out" size={20} color="white" />
                         </TouchableOpacity>

@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-import AccountData from '../../services/useApi/Account';
+import AccountData from '../../services/useApi/account/AccountData';
 const dummyData = new Array(20).fill(0).map((_, i) => ({
     id: i.toString(),
     name: `Name ${i}`,
@@ -85,7 +86,12 @@ export default function AccountListScreen() {
     useEffect(() => {
         const fetchFields = async () => {
             try {
-                const data = await AccountData.getFields();
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {   
+                    navigation.navigate('LoginScreen');
+                }
+                // Lấy danh sách các trường từ API
+                const data = await AccountData.getListFieldsView(token);
                 console.log('Fields:', data);
                 setFields(data || []);
                 } catch (error) {
@@ -190,11 +196,9 @@ export default function AccountListScreen() {
                     <View style={styles.tableHeader}>
                         {fields
                             .filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                            .slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
                             .map((field, index) => (
-                            // Hiển thị tên trường trong header
-                            field.key === 'name'? (<Text key={index} style={styles.headerCell}>Tên khách hàng</Text>)
-                            : field.key === 'description' ? (<Text key={index} style={styles.headerCell}>Nô tả</Text>)
-                                                :(<Text key={index} style={styles.headerCell}>Số điện thoại fax</Text>)
+                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
                             ))}
                     </View>
 
