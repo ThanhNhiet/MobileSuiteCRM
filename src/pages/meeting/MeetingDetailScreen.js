@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useMemo } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Pressable,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View
+  Dimensions,
+  FlatList,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View
 } from "react-native";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 

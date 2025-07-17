@@ -2,20 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useNoteDetail } from "../../services/useApi/note/UseNote_Detail";
-import { FormatDateTime } from "../../utils/FormatDateTime";
+import { formatDateTime } from "../../utils/FormatDateTime";
 
 export default function NoteDetailScreen() {
     const mdName = 'Ghi chú';
@@ -71,11 +71,11 @@ export default function NoteDetailScreen() {
     // Format field value for display
     const formatFieldValue = (fieldKey, value) => {
         if (!value) return 'Không có';
-        
+
         switch (fieldKey) {
             case 'date_entered':
             case 'date_modified':
-                return FormatDateTime(value);
+                return formatDateTime(value);
             case 'parent_type':
                 const typeLabels = {
                     'Accounts': 'Khách hàng',
@@ -92,7 +92,7 @@ export default function NoteDetailScreen() {
     // Render field item
     const renderFieldItem = (field) => {
         const value = getFieldValue(field.key);
-        
+
         if (!shouldDisplayField(field.key)) {
             return null;
         }
@@ -112,12 +112,12 @@ export default function NoteDetailScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
-                <TopNavigationDetail 
-                    moduleName={mdName} 
+                <TopNavigationDetail
+                    moduleName={mdName}
                     navigation={navigation}
                     name="NoteUpdateScreen"
                 />
-                
+
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#4B84FF" />
                     <Text style={styles.loadingText}>Đang tải chi tiết ghi chú...</Text>
@@ -131,12 +131,12 @@ export default function NoteDetailScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
-                <TopNavigationDetail 
-                    moduleName={mdName} 
+                <TopNavigationDetail
+                    moduleName={mdName}
                     navigation={navigation}
                     name="NoteUpdateScreen"
                 />
-                
+
                 <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
                     <Text style={styles.errorTitle}>Không thể tải ghi chú</Text>
@@ -150,84 +150,86 @@ export default function NoteDetailScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <TopNavigationDetail 
-                moduleName={mdName} 
-                navigation={navigation}
-                name="NoteUpdateScreen"
-            />
+        <SafeAreaProvider>
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="dark-content" />
+                <TopNavigationDetail
+                    moduleName={mdName}
+                    navigation={navigation}
+                    name="NoteUpdateScreen"
+                />
 
-            <ScrollView 
-                style={styles.content}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={refreshNote}
-                        colors={['#4B84FF']}
-                        title="Kéo để tải lại..."
-                    />
-                }
-            >
-                {/* Error Display */}
-                {error && (
-                    <View style={styles.warningContainer}>
-                        <Ionicons name="warning-outline" size={20} color="#FF8C00" />
-                        <Text style={styles.warningText}>{error}</Text>
-                    </View>
-                )}
-
-                {/* Note Details */}
-                {note && (
-                    <View style={styles.detailsContainer}>
-                        <Text style={styles.noteTitle}>{note.name}</Text>
-                        
-                        {note.parent_name && note.parent_type && (
-                            <View style={styles.parentInfo}>
-                                <Ionicons name="link-outline" size={16} color="#666" />
-                                <Text style={styles.parentText}>
-                                    Liên quan: {note.parent_name} 
-                                    ({formatFieldValue('parent_type', note.parent_type)})
-                                </Text>
-                            </View>
-                        )}
-
-                        <View style={styles.fieldsContainer}>
-                            {detailFields.map(field => renderFieldItem(field))}
+                <ScrollView
+                    style={styles.content}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={refreshNote}
+                            colors={['#4B84FF']}
+                            title="Kéo để tải lại..."
+                        />
+                    }
+                >
+                    {/* Error Display */}
+                    {error && (
+                        <View style={styles.warningContainer}>
+                            <Ionicons name="warning-outline" size={20} color="#FF8C00" />
+                            <Text style={styles.warningText}>{error}</Text>
                         </View>
+                    )}
+
+                    {/* Note Details */}
+                    {note && (
+                        <View style={styles.detailsContainer}>
+                            <Text style={styles.noteTitle}>{note.name}</Text>
+
+                            {note.parent_name && note.parent_type && (
+                                <View style={styles.parentInfo}>
+                                    <Ionicons name="link-outline" size={16} color="#666" />
+                                    <Text style={styles.parentText}>
+                                        Liên quan: {note.parent_name}
+                                        ({formatFieldValue('parent_type', note.parent_type)})
+                                    </Text>
+                                </View>
+                            )}
+
+                            <View style={styles.fieldsContainer}>
+                                {detailFields.map(field => renderFieldItem(field))}
+                            </View>
+                        </View>
+                    )}
+                </ScrollView>
+
+                {/* Action Buttons */}
+                {note && (
+                    <View style={styles.actionContainer}>
+                        <TouchableOpacity
+                            style={styles.updateButton}
+                            onPress={handleUpdate}
+                            disabled={deleting}
+                        >
+                            <Ionicons name="create-outline" size={20} color="#fff" />
+                            <Text style={styles.updateButtonText}>Cập nhật</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.deleteButton, deleting && styles.deletingButton]}
+                            onPress={handleDelete}
+                            disabled={deleting}
+                        >
+                            {deleting ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Ionicons name="trash-outline" size={20} color="#fff" />
+                            )}
+                            <Text style={styles.deleteButtonText}>
+                                {deleting ? 'Đang xóa...' : 'Xóa'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 )}
-            </ScrollView>
-
-            {/* Action Buttons */}
-            {note && (
-                <View style={styles.actionContainer}>
-                    <TouchableOpacity 
-                        style={styles.updateButton}
-                        onPress={handleUpdate}
-                        disabled={deleting}
-                    >
-                        <Ionicons name="create-outline" size={20} color="#fff" />
-                        <Text style={styles.updateButtonText}>Cập nhật</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={[styles.deleteButton, deleting && styles.deletingButton]}
-                        onPress={handleDelete}
-                        disabled={deleting}
-                    >
-                        {deleting ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                            <Ionicons name="trash-outline" size={20} color="#fff" />
-                        )}
-                        <Text style={styles.deleteButtonText}>
-                            {deleting ? 'Đang xóa...' : 'Xóa'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-        </SafeAreaView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 }
 

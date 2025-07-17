@@ -489,8 +489,8 @@ const styles = StyleSheet.create({
     },
     dropdownContainer: {
         backgroundColor: 'white',
-        minWidth: 150,
-        maxHeight: 200,
+        minWidth: 200,
+        maxHeight: 'auto',
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: {
@@ -508,6 +508,7 @@ const styles = StyleSheet.create({
     },
     dropdownText: {
         fontSize: 16,
+        alignSelf: 'center',
         color: '#333',
     },
     selectedText: {
