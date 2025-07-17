@@ -1,8 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import {
+    ActivityIndicator,
     FlatList,
     Modal,
+    RefreshControl,
     StatusBar,
     StyleSheet,
     Text,
@@ -15,33 +17,100 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-
-const dummyData = new Array(20).fill(0).map((_, i) => ({
-    id: i.toString(),
-    name: `Name ${i}`,
-    date_entered: `Date ${i}`,
-    description: `description ${i}`,
-}));
+import { useNoteList } from '../../services/useApi/note/UseNote_List';
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
     const mdName = 'Ghi chú';
 
-    const [page, setPage] = useState(1);
-    const totalPages = 10;
-    const [startPage, setStartPage] = useState(1);
-
-    // State cho dropdown
-    const [selectedType1, setSelectedType1] = useState('All');
-    const [selectedType2, setSelectedType2] = useState('All');
+    // State cho search và filter
+    const [searchText, setSearchText] = useState('');
+    const [selectedType1, setSelectedType1] = useState('Tất cả');
+    const [selectedType2, setSelectedType2] = useState('Tất cả');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
-    // Options cho dropdown
-    const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
-    const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
+    // Sử dụng custom hook
+    const {
+        notes,
+        columns,
+        parentTypeOptions,
+        timeFilterOptions,
+        currentPage,
+        totalPages,
+        loading,
+        refreshing,
+        error,
+        handleSearch: hookHandleSearch,
+        refreshNotes,
+        goToPage,
+        handleParentTypeFilter,
+        handleTimeFilter
+    } = useNoteList();
+
+    // Utility functions for data display
+    const getFieldValue = (item, fieldKey) => {
+        return item[fieldKey] || '';
+    };
+
+    const getColumnLabel = (fieldKey) => {
+        const column = columns.find(col => col.key === fieldKey);
+        return column ? column.label : fieldKey;
+    };
+
+    const formatCellValue = (fieldKey, value) => {
+        if (!value) return '';
+        
+        // Format dates
+        if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified')) {
+            try {
+                const date = new Date(value);
+                return date.toLocaleDateString('vi-VN');
+            } catch {
+                return value;
+            }
+        }
+        
+        // Format parent_type to Vietnamese
+        if (fieldKey === 'parent_type') {
+            const parentTypeOption = parentTypeOptions.find(opt => opt.value === value);
+            return parentTypeOption ? parentTypeOption.label : value;
+        }
+        
+        return String(value);
+    };
+
+    // Wrapper functions for pagination
+    const loadPage = (pageNumber) => {
+        goToPage(pageNumber);
+    };
+
+    // Wrapper function for search with filters
+    const searchNotes = (searchText, filters = {}) => {
+        // Apply search text
+        hookHandleSearch(searchText || '');
+        
+        // Apply parent type filter
+        if (filters.parent_type) {
+            handleParentTypeFilter(filters.parent_type);
+        } else {
+            handleParentTypeFilter(''); // Clear filter
+        }
+        
+        // Apply time filter  
+        if (filters.time_filter) {
+            handleTimeFilter(filters.time_filter);
+        } else {
+            handleTimeFilter('all'); // Clear filter
+        }
+    };
+
+    // Options cho dropdown (mapping từ hook options)
+    const typeOptions1 = [...(Array.isArray(parentTypeOptions) ? parentTypeOptions.map(opt => opt.label) : [])];
+    const typeOptions2 = [...(Array.isArray(timeFilterOptions) ? timeFilterOptions.map(opt => opt.label) : [])];
 
     // Tính danh sách trang hiển thị (tối đa 3 trang)
+    const [startPage, setStartPage] = useState(1);
     const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
 
     // Vô hiệu hóa khi ở đầu/cuối
@@ -52,7 +121,7 @@ export default function NoteListScreen() {
         if (!isPrevDisabled) {
             const newStart = startPage - 1;
             setStartPage(newStart);
-            setPage(newStart);
+            loadPage(newStart);
         }
     };
 
@@ -60,20 +129,40 @@ export default function NoteListScreen() {
         if (!isNextDisabled) {
             const newStart = startPage + 1;
             setStartPage(newStart);
-            setPage(newStart);
+            loadPage(newStart);
         }
     };
 
-
     const handleSearch = () => {
-        // Xử lý tìm kiếm
+        const filters = {};
+        
+        // Parent type filter
+        if (selectedType1 !== 'All') {
+            const parentType = parentTypeOptions.find(opt => opt.label === selectedType1);
+            if (parentType) {
+                filters.parent_type = parentType.value;
+            }
+        }
+        
+        // Time filter
+        if (selectedType2 !== 'All') {
+            const timeFilter = timeFilterOptions.find(opt => opt.label === selectedType2);
+            if (timeFilter) {
+                filters.time_filter = timeFilter.value;
+            }
+        }
+        
+        searchNotes(searchText, filters);
+        setStartPage(1); // Reset về trang 1 khi search
     };
 
     const renderItem = ({ item }) => (
         <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('NoteDetailScreen', { noteId: item.id })}}>
-            <Text style={styles.cell}>{item.name}</Text>
-            <Text style={styles.cell}>{item.date_entered}</Text>
-            <Text style={styles.cell}>{item.description}</Text>
+            {columns.map((column, index) => (
+                <Text key={index} style={styles.cell}>
+                    {formatCellValue(column.key, getFieldValue(item, column.key))}
+                </Text>
+            ))}
         </TouchableOpacity>
     );
 
@@ -128,7 +217,12 @@ export default function NoteListScreen() {
                         {/* Search Form */}
                         <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                             <View style={styles.searchBar}>
-                                <TextInput style={styles.input} placeholder="Key search" />
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder="Key search" 
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                />
                             </View>
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
@@ -168,20 +262,53 @@ export default function NoteListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        <Text style={styles.headerCell}>Tên chủ đề</Text>
-                        <Text style={styles.headerCell}>Ngày tạo</Text>
-                        <Text style={styles.headerCell}>Mô tả</Text>
+                        {columns.map((column, index) => (
+                            <Text key={index} style={styles.headerCell}>
+                                {column.label}
+                            </Text>
+                        ))}
                     </View>
 
+                    {/* Loading State */}
+                    {loading && (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <ActivityIndicator size="large" color="#4B84FF" />
+                            <Text style={{ marginTop: 10, color: '#666' }}>Đang tải...</Text>
+                        </View>
+                    )}
+
+                    {/* Error State */}
+                    {error && (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: '#FF3B30', marginBottom: 10 }}>{error}</Text>
+                            <TouchableOpacity 
+                                style={styles.searchButton} 
+                                onPress={refreshNotes}
+                            >
+                                <Text style={{ color: '#fff' }}>Thử lại</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     {/* Table Rows - Scrollable */}
-                    <FlatList
-                        data={dummyData}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id}
-                        style={styles.list}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        showsVerticalScrollIndicator={false}
-                    />
+                    {!loading && !error && (
+                        <FlatList
+                            data={notes}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            style={styles.list}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={refreshNotes}
+                                    colors={['#4B84FF']}
+                                    title="Kéo để tải lại..."
+                                />
+                            }
+                        />
+                    )}
 
                     <View style={styles.pagination}>
                         {/* Prev */}
@@ -197,10 +324,15 @@ export default function NoteListScreen() {
                         {visiblePages.map((num) => (
                             <TouchableOpacity
                                 key={num}
-                                onPress={() => setPage(num)}
-                                style={[styles.pageBtn, num === page && styles.activePage]}
+                                onPress={() => {
+                                    loadPage(num);
+                                    if (num < startPage || num > startPage + 2) {
+                                        setStartPage(Math.max(1, num - 1));
+                                    }
+                                }}
+                                style={[styles.pageBtn, num === currentPage && styles.activePage]}
                             >
-                                <Text style={num === page ? { color: '#fff' } : {}}>{num}</Text>
+                                <Text style={num === currentPage ? { color: '#fff' } : {}}>{num}</Text>
                             </TouchableOpacity>
                         ))}
 

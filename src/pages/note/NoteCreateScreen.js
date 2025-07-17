@@ -1,12 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import {
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from "react-native";
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 export default function NoteCreateScreen() {

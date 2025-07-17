@@ -2,11 +2,11 @@ import TopNavigationUpdate from '@/src/components/navigations/TopNavigationUpdat
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import {
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 export default function NoteUpdateScreen() {
