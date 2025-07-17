@@ -64,7 +64,7 @@ export const useAlert = () => {
                 setUnreadCount(currentUnreadCount);
             }
             
-            console.log(`Loaded ${processedAlerts.length} alerts on page ${pageNumber}/${response.meta['total-pages']}`);
+            // console.log(`Loaded ${processedAlerts.length} alerts on page ${pageNumber}/${response.meta['total-pages']}`);
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải thông báo';
             setError(errorMessage);
@@ -80,7 +80,7 @@ export const useAlert = () => {
         try {
             const count = await getUnreadAlertsCountApi();
             setUnreadCount(count);
-            console.log(`Unread alerts count: ${count}`);
+            // console.log(`Unread alerts count: ${count}`);
         } catch (err) {
             console.warn('Fetch unread count error:', err);
         }
@@ -103,7 +103,7 @@ export const useAlert = () => {
             // Giảm unread count
             setUnreadCount(prevCount => Math.max(0, prevCount - 1));
             
-            console.log(`Marked alert ${alertId} as read`);
+            // console.log(`Marked alert ${alertId} as read`);
         } catch (err) {
             console.warn('Mark as read error:', err);
             throw err;
@@ -126,7 +126,7 @@ export const useAlert = () => {
             );
             
             setUnreadCount(0);
-            console.log(`Marked ${unreadAlerts.length} alerts as read`);
+            // console.log(`Marked ${unreadAlerts.length} alerts as read`);
         } catch (err) {
             console.warn('Mark all as read error:', err);
             throw err;
@@ -158,7 +158,7 @@ export const useAlert = () => {
             fetchUnreadCount();
         }, 30 * 1000);
 
-        console.log('Auto refresh started');
+        // console.log('Auto refresh started');
     }, [fetchAlerts, fetchUnreadCount]);
 
     // Stop auto refresh
@@ -171,7 +171,7 @@ export const useAlert = () => {
             clearInterval(countIntervalRef.current);
             countIntervalRef.current = null;
         }
-        console.log('Auto refresh stopped');
+        // console.log('Auto refresh stopped');
     }, []);
 
     // Handle app state changes
@@ -179,7 +179,7 @@ export const useAlert = () => {
         const handleAppStateChange = (nextAppState) => {
             if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
                 // App came to foreground, refresh data
-                console.log('App became active, refreshing alerts');
+                // console.log('App became active, refreshing alerts');
                 fetchAlerts(false, currentPage);
                 fetchUnreadCount();
             } else if (nextAppState.match(/inactive|background/)) {
@@ -233,7 +233,7 @@ export const useAlert = () => {
                 return prevAlerts.filter(alert => alert.id !== alertId);
             });
             
-            console.log(`Deleted alert: ${alertId}`);
+            // console.log(`Deleted alert: ${alertId}`);
         } catch (err) {
             console.warn('Delete alert error:', err);
             throw err;
@@ -252,7 +252,7 @@ export const useAlert = () => {
             setAlerts([]);
             setUnreadCount(0);
             
-            console.log(`Deleted all ${alerts.length} alerts`);
+            // console.log(`Deleted all ${alerts.length} alerts`);
         } catch (err) {
             console.warn('Delete all alerts error:', err);
             throw err;

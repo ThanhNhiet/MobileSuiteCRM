@@ -36,7 +36,6 @@ const AlertModal = ({ visible, onClose }) => {
 
     // Hàm xử lý khi nhấn vào một alert
     const handleAlertPress = async (alert) => {
-        console.log(`Alert pressed: ${alert.id}`);
         try {
             if (!alert.is_read) {
                 await markAsRead(alert.id);

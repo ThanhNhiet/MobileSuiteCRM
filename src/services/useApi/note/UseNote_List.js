@@ -78,7 +78,6 @@ export const useNoteList = () => {
             });
             
             setColumns(columnsData);
-            console.log('Initialized fields and language for Note list');
         } catch (err) {
             console.warn('Initialize fields and language error:', err);
             setError('Không thể tải cấu hình hiển thị');
@@ -183,8 +182,7 @@ export const useNoteList = () => {
             }));
             
             setAllNotes(processedNotes);
-            console.log(`Loaded ${processedNotes.length} notes from API`);
-            
+        
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải danh sách ghi chú';
             setError(errorMessage);
@@ -214,8 +212,6 @@ export const useNoteList = () => {
             nextLink: paginationResult.hasNext ? 'next' : null,
             prevLink: paginationResult.hasPrev ? 'prev' : null
         });
-        
-        console.log(`Displayed ${paginationResult.notes.length} notes on page ${pageNumber}/${paginationResult.totalPages} (${filteredNotes.length} total filtered)`);
     }, [allNotes, currentPage, applyAllFilters, applyPagination]);
 
     // Fetch notes with filters (now uses client-side filtering)
