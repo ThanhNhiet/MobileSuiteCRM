@@ -96,6 +96,7 @@ export const getNoteDetailApi = async (noteId, nameFields) => {
                 'fields[Notes]': nameFields
             }
         });
+        console.log("Get Note Detail API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Get Note Detail API error:", error);
@@ -107,10 +108,16 @@ export const getNoteDetailApi = async (noteId, nameFields) => {
 // body: { "data": { "type": "Notes", "attributes": { "name": "", "description": "", ... } } }
 export const createNoteApi = async (noteData) => {
     try {
+        const token = await AsyncStorage.getItem('token');
+        const userId = getUserIdFromToken(token);
+
         const response = await axiosInstance.post(`/Api/V8/module`, {
             data: {
                 type: 'Notes',
-                attributes: noteData
+                attributes: {
+                    assigned_user_id: userId,
+                    ...noteData
+                }
             }
         });
         return response.data;

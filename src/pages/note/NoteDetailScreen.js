@@ -40,6 +40,15 @@ export default function NoteDetailScreen() {
 
     // Handle delete with confirmation
     const handleDelete = () => {
+        if (!canEditNote()) {
+            Alert.alert(
+                'Không có quyền',
+                'Bạn không có quyền xóa ghi chú này vì nó được giao cho người dùng khác.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+        
         Alert.alert(
             'Xác nhận xóa',
             'Bạn có chắc chắn muốn xóa ghi chú này không? Hành động này không thể hoàn tác.',
@@ -54,7 +63,7 @@ export default function NoteDetailScreen() {
                             Alert.alert(
                                 'Thành công',
                                 'Đã xóa ghi chú thành công',
-                                [{ text: 'OK', onPress: () => navigation.goBack() }]
+                                [{ text: 'OK', onPress: () => navigation.navigate('NoteListScreen') }]
                             );
                         }
                     }
@@ -63,8 +72,29 @@ export default function NoteDetailScreen() {
         );
     };
 
+    // Check if user can edit this note
+    const canEditNote = () => {
+        if (!note) return false;
+        
+        // If assigned_user_name is different from created_by_name, disable editing
+        if (note.assigned_user_name && note.created_by_name && 
+            note.assigned_user_name !== note.created_by_name) {
+            return false;
+        }
+        
+        return true;
+    };
+
     // Navigate to update screen
     const handleUpdate = () => {
+        if (!canEditNote()) {
+            Alert.alert(
+                'Không có quyền',
+                'Bạn không có quyền chỉnh sửa ghi chú này vì nó được giao cho người dùng khác.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
         navigation.navigate('NoteUpdateScreen', { noteData: note });
     };
 
@@ -204,25 +234,48 @@ export default function NoteDetailScreen() {
                 {note && (
                     <View style={styles.actionContainer}>
                         <TouchableOpacity
-                            style={styles.updateButton}
+                            style={[
+                                styles.updateButton, 
+                                (!canEditNote() || deleting) && styles.disabledButton
+                            ]}
                             onPress={handleUpdate}
-                            disabled={deleting}
+                            disabled={deleting || !canEditNote()}
                         >
-                            <Ionicons name="create-outline" size={20} color="#fff" />
-                            <Text style={styles.updateButtonText}>Cập nhật</Text>
+                            <Ionicons 
+                                name="create-outline" 
+                                size={20} 
+                                color={(!canEditNote() || deleting) ? "#999" : "#fff"} 
+                            />
+                            <Text style={[
+                                styles.updateButtonText,
+                                (!canEditNote() || deleting) && styles.disabledButtonText
+                            ]}>
+                                Cập nhật
+                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.deleteButton, deleting && styles.deletingButton]}
+                            style={[
+                                styles.deleteButton, 
+                                deleting && styles.deletingButton,
+                                !canEditNote() && styles.disabledButton
+                            ]}
                             onPress={handleDelete}
-                            disabled={deleting}
+                            disabled={deleting || !canEditNote()}
                         >
                             {deleting ? (
                                 <ActivityIndicator size="small" color="#fff" />
                             ) : (
-                                <Ionicons name="trash-outline" size={20} color="#fff" />
+                                <Ionicons 
+                                    name="trash-outline" 
+                                    size={20} 
+                                    color={!canEditNote() ? "#999" : "#fff"} 
+                                />
                             )}
-                            <Text style={styles.deleteButtonText}>
+                            <Text style={[
+                                styles.deleteButtonText,
+                                !canEditNote() && styles.disabledButtonText
+                            ]}>
                                 {deleting ? 'Đang xóa...' : 'Xóa'}
                             </Text>
                         </TouchableOpacity>
@@ -395,5 +448,12 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+        opacity: 0.6,
+    },
+    disabledButtonText: {
+        color: '#999',
     },
 });

@@ -130,6 +130,7 @@ export const useNoteCreate = () => {
                 setLoading(false);
                 return false;
             }
+            // console.log('Creating note with data:', formData);
             
             // Prepare note data
             const noteData = {
@@ -145,11 +146,8 @@ export const useNoteCreate = () => {
             
             const response = await createNoteApi(noteData);
             
-            console.log('Note created successfully:', response.data.id);
             return {
                 success: true,
-                noteId: response.data.id,
-                noteData: response.data
             };
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tạo ghi chú';

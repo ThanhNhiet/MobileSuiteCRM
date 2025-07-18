@@ -1,12 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 
@@ -25,30 +26,33 @@ export default function HomeScreen() {
   const navigation = useNavigation();
 
   return (
-    <View style={styles.wrapper}>
-      <TopNavigation navigation={navigation} />
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.wrapper}>
 
-      <ScrollView contentContainerStyle={styles.container}>
-        {DATA.map((item, index) => (
-          <View key={index} style={styles.box}>
-            <Text style={styles.title}>{item.title}</Text>
+        <TopNavigation navigation={navigation} />
 
-            <View style={styles.row}>
-              <View style={styles.statCol}>
-                <Text style={styles.number}>{item.my}</Text>
-                <Text style={styles.label}>My</Text>
-              </View>
-              <View style={styles.statCol}>
-                <Text style={styles.number}>{item.all}</Text>
-                <Text style={styles.label}>All</Text>
+        <ScrollView contentContainerStyle={styles.container}>
+          {DATA.map((item, index) => (
+            <View key={index} style={styles.box}>
+              <Text style={styles.title}>{item.title}</Text>
+
+              <View style={styles.row}>
+                <View style={styles.statCol}>
+                  <Text style={styles.number}>{item.my}</Text>
+                  <Text style={styles.label}>My</Text>
+                </View>
+                <View style={styles.statCol}>
+                  <Text style={styles.number}>{item.all}</Text>
+                  <Text style={styles.label}>All</Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
 
-      <BottomNavigation navigation={navigation}  />
-    </View>
+        <BottomNavigation navigation={navigation} />
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
