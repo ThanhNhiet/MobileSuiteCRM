@@ -1,8 +1,53 @@
 import AccountApi from '../../api/account/AccountApi';
 
-const AccountData = {};
+// Helper function để lấy module metadata từ API
+const getModuleMetadata = async (token) => {
+  try {
+    // Gọi API để lấy metadata của tất cả modules
+    const metaResponse = await AccountApi.getModuleMeta(token);
+    
+    if (!metaResponse || !metaResponse.data) {
+      console.log('❌ Module meta response is null/undefined');
+      return null;
+    }
 
-// lấy danh sách các trường hiển thị
+    // Chuyển đổi metadata thành object để dễ lookup
+    const moduleMetaMap = {};
+    if (Array.isArray(metaResponse.data)) {
+      metaResponse.data.forEach(module => {
+        if (module.attributes) {
+          moduleMetaMap[module.attributes.name] = {
+            name: module.attributes.name,
+            label: module.attributes.label || module.attributes.name,
+            labelSingular: module.attributes.label_singular || module.attributes.label || module.attributes.name,
+            table: module.attributes.table || module.attributes.name.toLowerCase(),
+            // Thêm các thông tin khác nếu cần
+            ...module.attributes
+          };
+        }
+      });
+    }
+
+    console.log('📋 Module metadata loaded:', Object.keys(moduleMetaMap));
+    return moduleMetaMap;
+  } catch (error) {
+    console.error('💥 Error getting module metadata:', error);
+    return null;
+  }
+};
+
+// Helper function để chuyển đổi module name thành tên hiển thị từ metadata
+const getModuleDisplayName = (moduleName, moduleMetaMap = null) => {
+  // Nếu có metadata từ API, dùng label từ đó
+  if (moduleMetaMap && moduleMetaMap[moduleName]) {
+    return moduleMetaMap[moduleName].labelSingular || moduleMetaMap[moduleName].label || moduleName;
+  }
+
+  // Nếu không có metadata, trả về moduleName gốc
+  return moduleName;
+};
+
+const AccountData = {};
 AccountData.getFields = async (token) => {
   try {
     const fields = await AccountApi.getFields(token);
@@ -68,27 +113,60 @@ AccountData.getFields = async (token) => {
             translatedLabel = modStrings[key.toUpperCase()];
            
           }
-          // Cách 7: Tìm theo pattern khác trong mod_strings
+          // Cách 7: Xử lý các field đặc biệt
+          else if (key === 'email1' && (modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'])) {
+            translatedLabel = modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'];
+            
+          }
+          else if (key === 'phone_office' && modStrings['LBL_PHONE_OFFICE']) {
+            translatedLabel = modStrings['LBL_PHONE_OFFICE'];
+            
+          }
+          else if (key === 'website' && modStrings['LBL_WEBSITE']) {
+            translatedLabel = modStrings['LBL_WEBSITE'];
+            
+          }
+          // Cách 8: Tìm theo pattern khác trong mod_strings
           else {
             // Tìm các keys trong mod_strings có chứa tên field
             const possibleKeys = Object.keys(modStrings).filter(k => 
               k.toLowerCase().includes(key.toLowerCase()) ||
-              (key === 'name' && (k.includes('ACCOUNT') || k.includes('NAME')))
+              (key === 'name' && (k.includes('ACCOUNT') || k.includes('NAME'))) ||
+              (key === 'email1' && (k.includes('EMAIL'))) ||
+              (key.includes('phone') && k.includes('PHONE')) ||
+              (key.includes('address') && k.includes('ADDRESS'))
             );
             
             if (possibleKeys.length > 0) {
               translatedLabel = modStrings[possibleKeys[0]];
               
             } else {
-              console.log(`⚠️ No translation found for ${key}, using key`);
+              console.log(`⚠️ No translation found for ${key}, using formatted key`);
             }
           }
         }
 
         // Nếu vẫn chưa có label từ API, format key đẹp hơn
         if (translatedLabel === key) {
-          translatedLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+          // Format đặc biệt cho một số field thông dụng
+          const specialFormats = {
+            'email1': 'Email',
+            'phone_office': 'Số điện thoại',
+            'website': 'Website',
+            'billing_address_street': 'Địa chỉ thanh toán',
+            'shipping_address_street': 'Địa chỉ giao hàng',
+            'assigned_user_name': 'Người phụ trách',
+            'date_entered': 'Ngày tạo',
+            'date_modified': 'Ngày sửa',
+            'description': 'Mô tả'
+          };
           
+          if (specialFormats[key]) {
+            translatedLabel = specialFormats[key];
+          } else {
+            // Format mặc định: viết hoa chữ cái đầu và thay _ thành khoảng trắng
+            translatedLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+          }
         }
 
         return {
@@ -199,7 +277,152 @@ AccountData.getListFieldsView = async (token) => {
     return null;
   }
 };
+// Lấy danh sách dữ liệu theo trang
+AccountData.getDataByPage = async(token, page, pageSize) => {
+  try {
+    const response = await AccountApi.getDataByPage(token, page, pageSize);
+    
+    if (!response || !response.data) {
+      console.log('❌ Response or response.data is null/undefined');
+      return null;
+    }
 
+    // Trả về data với meta information
+    return {
+      meta: response.meta || {},
+      accounts: response.data.map(account => ({
+        id: account.id,
+        type: account.type,
+        ...account.attributes
+      }))
+    };
+    
+  } catch (error) {
+    console.error('💥 Error in getDataByPage:', error);
+    return null;
+  }
+};
 
+// Lấy danh sách dữ liệu theo fields đã định nghĩa
+AccountData.getDataWithFields = async(token, page, pageSize) => {
+  try {
+    // Lấy fields và data song song
+    const [fieldsResult, dataResult] = await Promise.all([
+      AccountData.getFields(token),
+      AccountData.getDataByPage(token, page, pageSize)
+    ]);
+
+    if (!fieldsResult || !dataResult) {
+      console.log('❌ Fields or Data is null/undefined');
+      return null;
+    }
+
+    // Xử lý accounts data
+    const processedAccounts = dataResult.accounts.map(account => {
+      // Tạo object account với cấu trúc đơn giản
+      const processedAccount = { 
+        id: account.id, 
+        type: account.type 
+      };
+      
+      // Thêm tất cả attributes vào account object
+      fieldsResult.forEach(field => {
+        const fieldKey = field.key;
+        processedAccount[fieldKey] = account[fieldKey] || '';
+      });
+
+      return processedAccount;
+    });
+
+    // Trả về object với cấu trúc giống useAccountDetail
+    return {
+      accounts: processedAccounts,
+      detailFields: fieldsResult.map(field => ({
+        key: field.key,
+        label: field.label ? field.label.replace(':', '') : field.key
+      })),
+      meta: dataResult.meta || {},
+      getFieldValue: (accountData, key) => {
+        return accountData[key] || '';
+      },
+      getFieldLabel: (key) => {
+        const field = fieldsResult.find(f => f.key === key);
+        return field ? field.label : key;
+      },
+      shouldDisplayField: (key) => {
+        return fieldsResult.some(f => f.key === key);
+      }
+    };
+    
+  } catch (error) {
+    console.error('💥 Error in getDataWithFields:', error);
+    return null;
+  }
+};
+// lấy mối quan hệ của account với metadata từ V8/meta/modules
+AccountData.getRelationships = async (token, accountId) => {
+  try {
+    // Lấy metadata và relationships song song để tối ưu performance
+    const [metaResponse, relationshipsResponse] = await Promise.all([
+      getModuleMetadata(token),
+      AccountApi.getRelationships(token, accountId)
+    ]);
+
+    if (!relationshipsResponse || !relationshipsResponse.data) {
+      console.log('❌ Relationships response or response.data is null/undefined');
+      return null;
+    }
+
+    // Xử lý relationships data từ API
+    const relationshipsData = relationshipsResponse.data.relationships || relationshipsResponse.relationships;
+    
+    if (!relationshipsData) {
+      console.log('❌ No relationships data found');
+      return { relationships: [] };
+    }
+
+    // Chuyển đổi object relationships thành array với metadata
+    const relationshipsArray = Object.entries(relationshipsData).map(([moduleName, relationData]) => {
+      const moduleInfo = metaResponse ? metaResponse[moduleName] : null;
+      
+      return {
+        id: moduleName.toLowerCase(),
+        moduleName: moduleName,
+        displayName: getModuleDisplayName(moduleName, metaResponse),
+        moduleLabel: moduleInfo?.label || moduleName,
+        moduleLabelSingular: moduleInfo?.labelSingular || moduleName,
+        moduleTable: moduleInfo?.table || moduleName.toLowerCase(),
+        relatedLink: relationData.links?.related || '',
+        // Tách accountId từ link để sử dụng sau
+        accountId: relationData.links?.related ? 
+          relationData.links.related.split('/')[3] : accountId
+      };
+    });
+
+    // Lọc các relationships quan trọng dựa trên metadata hoặc hardcode list
+    const importantModules = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+    const importantRelationships = relationshipsArray.filter(rel => 
+      importantModules.includes(rel.moduleName)
+    );
+
+    // Sắp xếp theo thứ tự ưu tiên
+    const sortedRelationships = importantRelationships.sort((a, b) => {
+      const order = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+      const indexA = order.indexOf(a.moduleName);
+      const indexB = order.indexOf(b.moduleName);
+      return (indexA !== -1 ? indexA : 999) - (indexB !== -1 ? indexB : 999);
+    });
+
+    // Trả về data với meta information
+    return {
+      relationships: sortedRelationships,
+      allRelationships: relationshipsArray, // Giữ tất cả để sử dụng sau
+      moduleMetadata: metaResponse 
+    };
+  } catch (error) {
+    console.error('💥 Error in getRelationships:', error);
+    return null;
+  }
+};
 
 export default AccountData;

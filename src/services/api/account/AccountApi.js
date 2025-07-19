@@ -41,7 +41,7 @@ AccountApi.getListFieldsView = async (token) => {
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
 AccountApi.getLanguage = async (token) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=vi_vn`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=en_us`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -63,5 +63,59 @@ AccountApi.getLanguage = async (token) => {
   }
 };
 
+// lấy data account theo trang
+//{{suitecrm.url}}/V8/module/Accounts?page[size]=10&page[number]=1&sort=date_entered
+AccountApi.getDataByPage = async (token, page, pageSize) => {
+  try{
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts?page[size]=${pageSize}&page[number]=${page}&sort=date_entered`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getDataByPage:', error);
+    throw error;
+  }
+}
+
+// lấy metadata của tất cả modules từ V8/meta/modules
+AccountApi.getModuleMeta = async (token) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/modules`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getModuleMeta:', error);
+    throw error;
+  }
+};
+
+// lấy mối quan hệ của account
+AccountApi.getRelationships = async (token,accountId) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getRelationships:', error);
+    throw error;
+  }
+};
 
 export default AccountApi;

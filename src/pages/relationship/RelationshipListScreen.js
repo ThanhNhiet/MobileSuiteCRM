@@ -1,4 +1,7 @@
-import { useNavigation } from '@react-navigation/native';
+import TopNavigationRelationship from '@/src/components/navigations/TopNavigationRelationship';
+import { formatDateTime } from '@/src/utils/FormatDateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
     FlatList,
@@ -11,17 +14,11 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-
-import { formatDateTime } from '@/src/utils/FormatDateTime';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import BottomNavigation from '../../components/navigations/BottomNavigation';
-import TopNavigation from '../../components/navigations/TopNavigation';
-import AccountData from '../../services/useApi/account/AccountData';
-
-export default function AccountListScreen() {
+import RelationshipsData from '../../services/useApi/relationship/RelationshipData';
+export default function RelationshipListScreen() {
     const navigation = useNavigation();
-    const mdName = 'Khách hàng';
+    const route = useRoute();
+    const { relationship } = route.params;
 
     const [page, setPage] = useState(1);
     const totalPages = 10;
@@ -55,7 +52,7 @@ export default function AccountListScreen() {
             setStartPage(newStart);
             setPage(newStart);
             // Lấy dữ liệu trang mới
-            fetchDataByPage(newStart);
+             fetchDataByPage(newStart);
         }
     };
 
@@ -65,7 +62,7 @@ export default function AccountListScreen() {
             setStartPage(newStart);
             setPage(newStart);
             // Lấy dữ liệu trang mới
-            fetchDataByPage(newStart);
+             fetchDataByPage(newStart);
         }
     };
 
@@ -85,13 +82,17 @@ export default function AccountListScreen() {
                 return;
             }
             
-            // Lấy dữ liệu với 20 dòng mỗi trang
-            const result = await AccountData.getDataWithFields(token, pageNumber, 20);
-            console.log('API Result page', pageNumber, ':', result);
-            setApiData(result);
-            
+            // Lấy dữ liệu với 20 dòng mỗi trang - sử dụng pageNumber thay vì page
+            const result = await RelationshipsData.getDataWithFields(
+                token, 
+                relationship.moduleName, 
+                relationship.relatedLink, 
+                pageNumber, 
+                20
+            );           
+            setApiData(result);       
         } catch (error) {
-            console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
+            console.error('💥 Lỗi lấy dữ liệu trang', pageNumber, ':', error);
         } finally {
             setLoading(false);
         }
@@ -107,28 +108,55 @@ export default function AccountListScreen() {
         const displayFields = apiData?.detailFields
             ?.filter(field => field.key !== 'id')
             ?.slice(0, 3) || [];
-
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel })}}>
+            <TouchableOpacity 
+                style={styles.tableRow} 
+                onPress={() => {
+                    navigation.navigate('RelationshipDetailScreen', { 
+                        record: item, 
+                        detailFields: displayFields, 
+                        getFieldValue: apiData?.getFieldValue, 
+                        getFieldLabel: apiData?.getFieldLabel,
+                        moduleName: apiData?.moduleName
+                    })
+                }}
+            >
                 {displayFields.map((field, index) => {
-                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
+                    // Lấy giá trị từ record - thử tất cả các biến thể key
+                    let rawValue = '';
+                    const possibleKeys = [
+                        field.key,                    // Original key
+                        field.key.toLowerCase(),      // Lowercase 
+                        field.key.toUpperCase(),      // Uppercase
+                        field.key.replace(/_/g, ''),  // Remove underscores
+                        field.key.toLowerCase().replace(/_/g, ''), // Lowercase no underscores
+                        field.key.toUpperCase().replace(/_/g, '')  // Uppercase no underscores
+                    ];
+                    
+                    // Tìm key đầu tiên có giá trị
+                    for (const key of possibleKeys) {
+                        if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
+                            rawValue = item[key];
+                            break;
+                        }
+                    }
                     
                     // Kiểm tra và format nếu là dữ liệu ngày
                     let displayValue = rawValue;
                     if (rawValue && (
-                        field.key.includes('date') ||
-                        field.key.includes('time') ||
-                        field.key === 'date_entered' ||
-                        field.key === 'date_modified' ||
-                        field.key === 'created_date' ||
-                        field.key === 'modified_date'
+                        field.key.toLowerCase().includes('date') ||
+                        field.key.toLowerCase().includes('time') ||
+                        field.key.toLowerCase() === 'date_entered' ||
+                        field.key.toLowerCase() === 'date_modified' ||
+                        field.key.toLowerCase() === 'created_date' ||
+                        field.key.toLowerCase() === 'modified_date'
                     )) {
                         displayValue = formatDateTime(rawValue);
                     }
                     
                     return (
                         <Text key={index} style={styles.cell}>
-                            {displayValue}
+                            {displayValue || '-'}
                         </Text>
                     );
                 })}
@@ -145,21 +173,33 @@ export default function AccountListScreen() {
                     navigation.navigate('LoginScreen');
                     return;
                 }
-                
                 // Lấy dữ liệu với 20 dòng cho trang đầu tiên
-                const result = await AccountData.getDataWithFields(token, page, 20);
-                console.log('API Result:', result);
-                setApiData(result);
+                const result = await RelationshipsData.getDataWithFields(
+                    token, 
+                    relationship.moduleName, 
+                    relationship.relatedLink, 
+                    1, 
+                    20
+                );
+                if (result) {
+                    setApiData(result);
+                    // Cập nhật pagination từ meta data
+                    if (result.meta && result.meta['total-pages']) {
+                        // Nếu có thông tin từ API, có thể cập nhật totalPages
+                    }
+                }
                 
             } catch (error) {
-                console.error('Lỗi lấy dữ liệu:', error);
+                console.error('💥 Lỗi lấy dữ liệu ban đầu:', error);
             } finally {
                 setLoading(false);
             }
         };
         
-        fetchData();
-    }, []);
+        if (relationship?.moduleName && relationship?.relatedLink) {
+            fetchData();
+        }
+    }, [relationship]);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -205,7 +245,11 @@ export default function AccountListScreen() {
            
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
                 
-                <TopNavigation moduleName={mdName} navigation={navigation}/>
+                {/* <TopNavigation moduleName={mdName} navigation={navigation}/> */}
+                <TopNavigationRelationship 
+                    moduleName={relationship?.moduleLabel || ''} 
+                    navigation={navigation}
+                />
 
                 <View style={styles.content}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
@@ -239,8 +283,6 @@ export default function AccountListScreen() {
                         <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
                                 onPress={() => {
-                                    // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
-                                   // console.log('Add new');
                                     navigation.navigate('AccountCreateScreen');
                                 }}
                                 style={[styles.addNewBtn]}
@@ -254,23 +296,42 @@ export default function AccountListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {apiData?.detailFields
-                            ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
-                            ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
-                            ?.map((field, index) => (
-                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
-                            )) || []}
+                        {loading ? (
+                            <Text style={styles.headerCell}>Loading...</Text>
+                        ) : (
+                            apiData?.detailFields
+                                ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                                ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
+                                ?.map((field, index) => (
+                                    <Text key={index} style={styles.headerCell}>
+                                        {field.label || field.key}
+                                    </Text>
+                                )) || <Text style={styles.headerCell}>No Fields</Text>
+                        )}
                     </View>
 
                     {/* Table Rows - Scrollable */}
-                    <FlatList
-                        data={apiData?.accounts || []}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id}
-                        style={styles.list}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        showsVerticalScrollIndicator={false}
-                    />
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <Text>Loading data...</Text>
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={apiData?.records || []}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            style={styles.list}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Text>Không có dữ liệu</Text>
+                                    <Text>Module: {relationship?.moduleName || 'Unknown'}</Text>
+                                    <Text>Records: {apiData?.records?.length || 0}</Text>
+                                </View>
+                            }
+                        />
+                    )}
 
                     <View style={styles.pagination}>
                         {/* Prev */}
@@ -304,7 +365,7 @@ export default function AccountListScreen() {
                     </View>
                 </View>
                 
-                <BottomNavigation  navigation={navigation}/>
+                {/* <BottomNavigation  navigation={navigation}/> */}
 
                 {/* Dropdown Modals */}
                 <DropdownSelect
@@ -435,6 +496,17 @@ const styles = StyleSheet.create({
     list: {
         flexGrow: 0, // Đảm bảo không chiếm toàn bộ không gian
         maxHeight: 500, // Chiều cao list
+    },
+    // Loading and Empty states
+    loadingContainer: {
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyContainer: {
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     // Dropdown styles
     modalOverlay: {
