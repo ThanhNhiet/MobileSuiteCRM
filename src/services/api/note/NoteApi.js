@@ -96,7 +96,6 @@ export const getNoteDetailApi = async (noteId, nameFields) => {
                 'fields[Notes]': nameFields
             }
         });
-        console.log("Get Note Detail API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Get Note Detail API error:", error);
