@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUserProfile } from '../../services/useApi/user/UseUser_Profile';
 
 export default function ProfileScreen({ navigation }) {
@@ -83,107 +83,109 @@ export default function ProfileScreen({ navigation }) {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView 
-                style={styles.scrollView} 
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={refreshProfile}
-                        colors={['#007AFF']}
-                        title="Đang tải..."
-                    />
-                }
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.fullName}>{displayData.full_name}</Text>
-                    <Text style={styles.description}>{displayData.description}</Text>
-                </View>
+        <SafeAreaProvider>
+            <SafeAreaView style={styles.container}>
+                <ScrollView
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={refreshProfile}
+                            colors={['#007AFF']}
+                            title="Đang tải..."
+                        />
+                    }
+                >
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Text style={styles.fullName}>{displayData.full_name}</Text>
+                        <Text style={styles.description}>{displayData.description}</Text>
+                    </View>
 
-                {/* Profile Information */}
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
-                    
-                    <ProfileField 
-                        label="Họ và tên" 
-                        value={displayData.full_name} 
-                        icon="person-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Email" 
-                        value={displayData.email1} 
-                        icon="mail-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Mô tả" 
-                        value={displayData.description} 
-                        icon="document-text-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Báo cáo cho" 
-                        value={displayData.reports_to_name} 
-                        icon="people-outline" 
-                    />
-                </View>
+                    {/* Profile Information */}
+                    <View style={styles.infoSection}>
+                        <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
 
-                {/* Contact Information */}
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
-                    
-                    <ProfileField 
-                        label="Di động" 
-                        value={displayData.phone_mobile} 
-                        icon="phone-portrait-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Điện thoại công ty" 
-                        value={displayData.phone_work} 
-                        icon="call-outline" 
-                    />
-                    
-                    <ProfileField 
-                        label="Địa chỉ" 
-                        value={fullAddress} 
-                        icon="location-outline" 
-                    />
-                </View>
+                        <ProfileField
+                            label="Họ và tên"
+                            value={displayData.full_name}
+                            icon="person-outline"
+                        />
 
-                {/* Action Buttons */}
-                <View style={styles.actionSection}>
-                    <TouchableOpacity 
-                        style={styles.primaryButton} 
-                        onPress={handleEditProfile}
-                    >
-                        <Ionicons name="create-outline" size={20} color="white" />
-                        <Text style={styles.primaryButtonText}>Chỉnh sửa thông tin</Text>
-                    </TouchableOpacity>
+                        <ProfileField
+                            label="Email"
+                            value={displayData.email1}
+                            icon="mail-outline"
+                        />
 
-                    <TouchableOpacity 
-                        style={styles.secondaryButton} 
-                        onPress={handleChangePassword}
-                    >
-                        <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
-                        <Text style={styles.secondaryButtonText}>Đổi mật khẩu</Text>
-                    </TouchableOpacity>
-                </View>
+                        <ProfileField
+                            label="Mô tả"
+                            value={displayData.description}
+                            icon="document-text-outline"
+                        />
 
-                {/* Bottom spacing */}
-                <View style={styles.bottomSpacing} />
-            </ScrollView>
-        </SafeAreaView>
+                        <ProfileField
+                            label="Báo cáo cho"
+                            value={displayData.reports_to_name}
+                            icon="people-outline"
+                        />
+                    </View>
+
+                    {/* Contact Information */}
+                    <View style={styles.infoSection}>
+                        <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
+
+                        <ProfileField
+                            label="Di động"
+                            value={displayData.phone_mobile}
+                            icon="phone-portrait-outline"
+                        />
+
+                        <ProfileField
+                            label="Điện thoại công ty"
+                            value={displayData.phone_work}
+                            icon="call-outline"
+                        />
+
+                        <ProfileField
+                            label="Địa chỉ"
+                            value={fullAddress}
+                            icon="location-outline"
+                        />
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.actionSection}>
+                        <TouchableOpacity
+                            style={styles.primaryButton}
+                            onPress={handleEditProfile}
+                        >
+                            <Ionicons name="create-outline" size={20} color="white" />
+                            <Text style={styles.primaryButtonText}>Chỉnh sửa thông tin</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.secondaryButton}
+                            onPress={handleChangePassword}
+                        >
+                            <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
+                            <Text style={styles.secondaryButtonText}>Đổi mật khẩu</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Bottom spacing */}
+                    <View style={styles.bottomSpacing} />
+                </ScrollView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#f0f0f0',
     },
     scrollView: {
         flex: 1,

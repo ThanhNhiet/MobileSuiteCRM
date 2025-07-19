@@ -138,7 +138,7 @@ export default function TimetableScreen({ navigation, route }) {
                     onPress={() => navigation.goBack()}
                     style={styles.backButton}
                 >
-                    <Ionicons name="arrow-back" size={24} color="#4B84FF" />
+                    <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                 </TouchableOpacity>
                 <View style={styles.headerContent}>
                     <Text style={styles.headerTitle}>Thời gian biểu</Text>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: 'white',
+        backgroundColor: '#BFAAA1',
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,

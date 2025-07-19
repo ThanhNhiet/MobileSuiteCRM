@@ -114,7 +114,7 @@ export default function CalendarScreen({ navigation }) {
                         onPress={() => navigation.goBack()}
                         style={styles.backButton}
                     >
-                        <Ionicons name="arrow-back" size={24} color="#4B84FF" />
+                        <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Lịch công việc</Text>
                 </View>
@@ -134,7 +134,7 @@ export default function CalendarScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={styles.backButton}
                 >
-                    <Ionicons name="arrow-back" size={24} color="#4B84FF" />
+                    <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Lịch công việc</Text>
                 <TouchableOpacity
@@ -233,11 +233,10 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        // justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: 'white',
+        backgroundColor: '#BFAAA1',
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,
@@ -261,16 +260,16 @@ const styles = StyleSheet.create({
     todayButton: {
         position: 'absolute',
         right: 20,
-        top: 15, // hoặc dùng bottom: 15 nếu cần
+        top: 10, 
         backgroundColor: '#4B84FF',
         paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingVertical: 12,
         borderRadius: 6,
     },
     todayButtonText: {
         color: 'white',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 16,
     },
     scrollContainer: {
         flex: 1,
