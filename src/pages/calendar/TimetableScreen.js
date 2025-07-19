@@ -47,10 +47,10 @@ export default function TimetableScreen({ navigation, route }) {
                         // Navigate to detail screen based on type
                         if (event.type === 'task') {
                             // navigation.navigate('TaskDetailScreen', { taskId: event.id, taskData: event.rawData });
-                            Alert.alert('Thông báo', 'Chuyển đến màn hình chi tiết Task');
+                            Alert.alert('Thông báo', event.id);
                         } else {
                             // navigation.navigate('MeetingDetailScreen', { meetingId: event.id, meetingData: event.rawData });
-                            Alert.alert('Thông báo', 'Chuyển đến màn hình chi tiết Meeting');
+                            Alert.alert('Thông báo', event.id);
                         }
                     }
                 }
