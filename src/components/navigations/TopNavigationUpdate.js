@@ -82,7 +82,6 @@ container: {
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 60,
-    marginTop: 15
   },
   title: {
     fontWeight: 'bold',

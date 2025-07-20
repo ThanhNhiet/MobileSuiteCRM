@@ -8,6 +8,9 @@ import { LOCALHOST_IP } from '../../../utils/localhost';
 //POST http://localhost/suitecrm7/Api/access_token
 export const loginApi = async (username, password) => {
   try {
+    console.log("Using CLIENT_ID:", CLIENT_ID);
+    console.log("Using CLIENT_SECRET:", CLIENT_SECRET);
+    console.log("LOCALHOST_IP:", LOCALHOST_IP);
     const response = await axios.post(`${LOCALHOST_IP}/Api/access_token`, {
         grant_type: 'password',
         client_id: CLIENT_ID,

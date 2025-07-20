@@ -13,15 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
+import { formatDateTime } from '@/src/utils/FormatDateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-import AccountData from '../../services/useApi/Account';
-const dummyData = new Array(20).fill(0).map((_, i) => ({
-    id: i.toString(),
-    name: `Name ${i}`,
-    date_entered: `Date ${i}`,
-    description: `description ${i}`,
-}));
+import AccountData from '../../services/useApi/account/AccountData';
 
 export default function AccountListScreen() {
     const navigation = useNavigation();
@@ -31,8 +27,10 @@ export default function AccountListScreen() {
     const totalPages = 10;
     const [startPage, setStartPage] = useState(1);
 
-    // danh sach cac truong can hien thi
-    const [fields, setFields] = useState([]);
+    // dữ liệu từ API
+    const [apiData, setApiData] = useState(null);
+    // loading state
+    const [loading, setLoading] = useState(true);
 
     // State cho dropdown
     const [selectedType1, setSelectedType1] = useState('All');
@@ -56,6 +54,8 @@ export default function AccountListScreen() {
             const newStart = startPage - 1;
             setStartPage(newStart);
             setPage(newStart);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newStart);
         }
     };
 
@@ -64,6 +64,36 @@ export default function AccountListScreen() {
             const newStart = startPage + 1;
             setStartPage(newStart);
             setPage(newStart);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newStart);
+        }
+    };
+
+    const handlePageClick = (pageNumber) => {
+        setPage(pageNumber);
+        // Lấy dữ liệu trang mới
+        fetchDataByPage(pageNumber);
+    };
+
+    // Function để lấy dữ liệu theo trang
+    const fetchDataByPage = async (pageNumber) => {
+        try {
+            setLoading(true);
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {   
+                navigation.navigate('LoginScreen');
+                return;
+            }
+            
+            // Lấy dữ liệu với 20 dòng mỗi trang
+            const result = await AccountData.getDataWithFields(token, pageNumber, 20);
+            console.log('API Result page', pageNumber, ':', result);
+            setApiData(result);
+            
+        } catch (error) {
+            console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -72,25 +102,64 @@ export default function AccountListScreen() {
         // Xử lý tìm kiếm
     };
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { accountId: item.id })}}>
-            <Text style={styles.cell}>{item.name}</Text>
-            <Text style={styles.cell}>{item.date_entered}</Text>
-            <Text style={styles.cell}>{item.description}</Text>
-        </TouchableOpacity>
-    );
+    const renderItem = ({ item }) => {
+        // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
+        const displayFields = apiData?.detailFields
+            ?.filter(field => field.key !== 'id')
+            ?.slice(0, 3) || [];
+
+        return (
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel })}}>
+                {displayFields.map((field, index) => {
+                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
+                    
+                    // Kiểm tra và format nếu là dữ liệu ngày
+                    let displayValue = rawValue;
+                    if (rawValue && (
+                        field.key.includes('date') ||
+                        field.key.includes('time') ||
+                        field.key === 'date_entered' ||
+                        field.key === 'date_modified' ||
+                        field.key === 'created_date' ||
+                        field.key === 'modified_date'
+                    )) {
+                        displayValue = formatDateTime(rawValue);
+                    }
+                    
+                    return (
+                        <Text key={index} style={styles.cell}>
+                            {displayValue}
+                        </Text>
+                    );
+                })}
+            </TouchableOpacity>
+        );
+    };
 
     useEffect(() => {
-        const fetchFields = async () => {
+        const fetchData = async () => {
             try {
-                const data = await AccountData.getFields();
-                setFields(data || []);
-                } catch (error) {
-                console.error('Lỗi lấy fields:', error);
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {   
+                    navigation.navigate('LoginScreen');
+                    return;
                 }
-            };
-            fetchFields();
-            }, []);
+                
+                // Lấy dữ liệu với 20 dòng cho trang đầu tiên
+                const result = await AccountData.getDataWithFields(token, page, 20);
+                console.log('API Result:', result);
+                setApiData(result);
+                
+            } catch (error) {
+                console.error('Lỗi lấy dữ liệu:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchData();
+    }, []);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -185,19 +254,17 @@ export default function AccountListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {fields
-                            .filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
-                            .map((field, index) => (
-                            // Hiển thị tên trường trong header
-                            field.key === 'name'? (<Text key={index} style={styles.headerCell}>Tên khách hàng</Text>)
-                            : field.key === 'description' ? (<Text key={index} style={styles.headerCell}>Nô tả</Text>)
-                                                :(<Text key={index} style={styles.headerCell}>Số điện thoại fax</Text>)
-                            ))}
+                        {apiData?.detailFields
+                            ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                            ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
+                            ?.map((field, index) => (
+                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
+                            )) || []}
                     </View>
 
                     {/* Table Rows - Scrollable */}
                     <FlatList
-                        data={dummyData}
+                        data={apiData?.accounts || []}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id}
                         style={styles.list}
@@ -219,7 +286,7 @@ export default function AccountListScreen() {
                         {visiblePages.map((num) => (
                             <TouchableOpacity
                                 key={num}
-                                onPress={() => setPage(num)}
+                                onPress={() => handlePageClick(num)}
                                 style={[styles.pageBtn, num === page && styles.activePage]}
                             >
                                 <Text style={num === page ? { color: '#fff' } : {}}>{num}</Text>

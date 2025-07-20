@@ -19,62 +19,21 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
-const useMeetingDetail = (meetingId) => {
+const useRelationshipDetail = (relationship, detailFields, getFieldValue, getFieldLabel) => {
     return {
-        meeting: {
-            id: meetingId,
-            name: "Cuộc họp chiến lược Q1 2025",
-            date_start: "2025-07-20T09:00:00Z",
-            date_end: "2025-07-20T11:00:00Z",
-            location: "Phòng họp A, Tầng 5",
-            description: "Thảo luận về kế hoạch kinh doanh và chiến lược phát triển quý 1 năm 2025.",
-            status: "Planned",
-            assigned_user_name: "Nguyễn Văn A",
-            parent_name: "Công ty ABC",
-            parent_type: "Accounts",
-            duration_hours: 2,
-            duration_minutes: 0,
-            date_entered: "2025-07-15T08:30:00Z",
-            date_modified: "2025-07-16T14:45:00Z",
-        },
-        detailFields: [
-            { key: 'name', label: 'Tên cuộc họp' },
-            { key: 'date_start', label: 'Thời gian bắt đầu' },
-            { key: 'date_end', label: 'Thời gian kết thúc' },
-            { key: 'location', label: 'Địa điểm' },
-            { key: 'status', label: 'Trạng thái' },
-            { key: 'assigned_user_name', label: 'Người phụ trách' },
-            { key: 'parent_name', label: 'Liên quan đến' },
-            { key: 'date_entered', label: 'Ngày tạo' },
-            { key: 'date_modified', label: 'Ngày cập nhật' },
-            { key: 'description', label: 'Mô tả' },
-        ],
+        relationship: relationship,
+        detailFields: detailFields,
         loading: false,
         refreshing: false,
         error: null,
         deleting: false,
-        refreshMeeting: () => console.log("Đang làm mới cuộc họp..."),
-        deleteMeeting: async () => {
-            alert("Cuộc họp đã bị xóa (giả lập)");
+        refreshRelationship: () => console.log("Đang làm mới mối quan hệ..."),
+        deleteRelationship: async () => {
+            alert("Mối quan hệ đã bị xóa (giả lập)");
             return true;
         },
-        getFieldValue: (key) => {
-            const map = {
-                name: "Cuộc họp chiến lược Q1 2025",
-                date_start: "2025-07-20T09:00:00Z",
-                date_end: "2025-07-20T11:00:00Z",
-                location: "Phòng họp A, Tầng 5",
-                status: "Planned",
-                assigned_user_name: "Nguyễn Văn A",
-                parent_name: "Công ty ABC",
-                parent_type: "Accounts",
-                date_entered: "2025-07-15T08:30:00Z",
-                date_modified: "2025-07-16T14:45:00Z",
-                description: "Thảo luận về kế hoạch kinh doanh và chiến lược phát triển quý 1 năm 2025.",
-            };
-            return map[key] || "";
-        },
-        getFieldLabel: (key) => key,
+        getFieldValue: getFieldValue || ((item, key) => item[key]),
+        getFieldLabel: getFieldLabel || ((key) => key),
         shouldDisplayField: (key) => true,
     };
 };
@@ -82,19 +41,45 @@ const useMeetingDetail = (meetingId) => {
 const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 
-export default function MeetingDetailScreen() {
-    const mdName = 'Cuộc họp';
+export default function RelationshipDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { meetingId } = route.params;
+    const { record, detailFields, getFieldValue, getFieldLabel, moduleName } = route.params;
+    
+    const [loading, setLoading] = React.useState(false);
+    const [refreshing, setRefreshing] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [deleting, setDeleting] = React.useState(false);
+    const [relationships, setRelationships] = React.useState([]);
+    // Giả lập dữ liệu mối quan hệ
+    // useEffect(() => {
+    //     const fetchRelationships = async () => {
+    //         try {
+    //             const token = await AsyncStorage.getItem('token');
+    //             if (!token) {
+    //                 navigation.navigate('LoginScreen');
+    //                 return;
+    //             }
+    //             const response = await AccountData.getRelationships(token, routeAccount.id);
+    //             console.log('Relationships response:', response);
+                
+    //             // Kiểm tra và xử lý response
+    //             if (response && response.relationships && Array.isArray(response.relationships)) {
+    //                 setRelationships(response.relationships);
+    //             } else if (response && Array.isArray(response)) {
+    //                 setRelationships(response);
+    //             } else {
+    //                 console.log('⚠️ Invalid relationships format, using empty array');
+    //                 setRelationships([]);
+    //             }
+    //         } catch (error) {
+    //             console.error('Lỗi lấy mối quan hệ:', error);
+    //             setRelationships([]); // Set empty array on error
+    //         }
+    //     };
+    //     fetchRelationships();
+    // }, []);
 
-    const data = [
-        { id: '1', name: 'Tài liệu' },
-        { id: '2', name: 'Ghi chú' },
-        { id: '3', name: 'Khách hàng' },
-        { id: '4', name: 'Liên hệ' },
-        { id: '5', name: 'Công việc' }
-    ];
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -106,8 +91,12 @@ export default function MeetingDetailScreen() {
         return raw;
     };
 
-    // trong component
-    const paddedData = useMemo(() => padData([...data], 4), [data]);
+    // trong component - với safety check
+    const paddedData = useMemo(() => {
+        // Đảm bảo relationships luôn là array trước khi spread
+        const safeRelationships = Array.isArray(relationships) ? relationships : [];
+        return padData([...safeRelationships], 4);
+    }, [relationships]);
 
     const renderItem = ({ item }) => {
         if (item.empty) {
@@ -116,52 +105,43 @@ export default function MeetingDetailScreen() {
 
         return (
             <Pressable
-                onPress={() => console.log('Bạn vừa chạm: ', item.id)}
+                onPress={() => { console.log('Bạn vừa chạm: ', item.id);navigation.navigate('RelationshipListScreen', { relationship: item }); }}
                 style={({ pressed }) => [
                     styles.card,
                     pressed && styles.cardPressed,   // thêm nền khi nhấn
                 ]}
             >
-                <Text style={({ pressed }) => [pressed ? styles.cardText : styles.text]}>
-                    {item.name}
+                <Text style={styles.cardText}>
+                    {item.displayName || item.moduleLabel || item.moduleName || item.name}
                 </Text>
             </Pressable>
         );
     };
 
-    // Sử dụng custom hook
-    const {
-        meeting,
-        detailFields,
-        loading,
-        refreshing,
-        error,
-        deleting,
-        refreshMeeting,
-        deleteMeeting,
-        getFieldValue,
-        getFieldLabel,
-        shouldDisplayField
-    } = useMeetingDetail(meetingId);
-
     // Handle delete with confirmation
     const handleDelete = () => {
         Alert.alert(
             'Xác nhận xóa',
-            'Bạn có chắc chắn muốn xóa cuộc họp này không? Hành động này không thể hoàn tác.',
+            'Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.',
             [
                 { text: 'Hủy', style: 'cancel' },
                 {
                     text: 'Xóa',
                     style: 'destructive',
                     onPress: async () => {
-                        const success = await deleteMeeting();
-                        if (success) {
+                        setDeleting(true);
+                        try {
+                            // TODO: Implement delete functionality
                             Alert.alert(
                                 'Thành công',
-                                'Đã xóa cuộc họp thành công',
+                                'Đã xóa bản ghi thành công',
                                 [{ text: 'OK', onPress: () => navigation.goBack() }]
                             );
+                        } catch (error) {
+                            console.error('Error deleting:', error);
+                            Alert.alert('Lỗi', 'Không thể xóa bản ghi');
+                        } finally {
+                            setDeleting(false);
                         }
                     }
                 }
@@ -171,7 +151,16 @@ export default function MeetingDetailScreen() {
 
     // Navigate to update screen
     const handleUpdate = () => {
-        navigation.navigate('MeetingUpdateScreen', { meetingData: meeting });
+        navigation.navigate('RelationshipUpdateScreen', { record, detailFields, moduleName });
+    };
+
+    // Refresh function
+    const refreshRecord = () => {
+        setRefreshing(true);
+        // TODO: Implement refresh functionality
+        setTimeout(() => {
+            setRefreshing(false);
+        }, 1000);
     };
 
     // Format field value for display
@@ -179,27 +168,11 @@ export default function MeetingDetailScreen() {
         if (!value) return 'Không có';
 
         switch (fieldKey) {
-            case 'date_start':
-            case 'date_end':
             case 'date_entered':
             case 'date_modified':
                 return formatDateTime(value);
-            case 'status':
-                const statusLabels = {
-                    'Planned': 'Đã lên kế hoạch',
-                    'Held': 'Đã diễn ra',
-                    'Not Held': 'Chưa diễn ra',
-                    'Cancelled': 'Đã hủy'
-                };
-                return statusLabels[value] || value;
-            case 'parent_type':
-                const typeLabels = {
-                    'Accounts': 'Khách hàng',
-                    'Contacts': 'Liên hệ',
-                    'Opportunities': 'Cơ hội',
-                    'Tasks': 'Công việc'
-                };
-                return typeLabels[value] || value;
+            case 'website':
+                return value.startsWith('http') ? value : `https://${value}`;
             default:
                 return value.toString();
         }
@@ -207,15 +180,11 @@ export default function MeetingDetailScreen() {
 
     // Render field item
     const renderFieldItem = (field) => {
-        const value = getFieldValue(field.key);
-
-        if (!shouldDisplayField(field.key)) {
-            return null;
-        }
+        const value = getFieldValue ? getFieldValue(record, field.key) : record[field.key];
 
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{field.label}:</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel ? getFieldLabel(field.key) : field.label || field.key}:</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -229,35 +198,34 @@ export default function MeetingDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={moduleName || 'Detail'}
                     navigation={navigation}
-                    name="MeetingUpdateScreen"
+                    name="RelationshipUpdateScreen"
                 />
 
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#4B84FF" />
-                    <Text style={styles.loadingText}>Đang tải chi tiết cuộc họp...</Text>
+                    <Text style={styles.loadingText}>Đang tải chi tiết...</Text>
                 </View>
             </SafeAreaView>
         );
     }
 
     // Error state
-    if (error && !meeting) {
+    if (error && !record) {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={moduleName || 'Detail'}
                     navigation={navigation}
-                    name="MeetingUpdateScreen"
                 />
 
                 <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
-                    <Text style={styles.errorTitle}>Không thể tải cuộc họp</Text>
+                    <Text style={styles.errorTitle}>Không thể tải bản ghi</Text>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={refreshMeeting}>
+                    <TouchableOpacity style={styles.retryButton} onPress={refreshRecord}>
                         <Text style={styles.retryButtonText}>Thử lại</Text>
                     </TouchableOpacity>
                 </View>
@@ -270,9 +238,9 @@ export default function MeetingDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={moduleName || 'Detail'}
                     navigation={navigation}
-                    name="MeetingUpdateScreen"
+                    name="RelationshipUpdateScreen"
                 />
 
                 <ScrollView
@@ -280,7 +248,7 @@ export default function MeetingDetailScreen() {
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
-                            onRefresh={refreshMeeting}
+                            onRefresh={refreshRecord}
                             colors={['#4B84FF']}
                             title="Kéo để tải lại..."
                         />
@@ -294,68 +262,41 @@ export default function MeetingDetailScreen() {
                         </View>
                     )}
 
-                    {/* Meeting Details */}
+                    {/* Record Details */}
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Thông tin chính</Text>
+                        <Text style={styles.sectionTitle}>Thông tin chi tiết</Text>
                     </View>
-                    {meeting && (
+                    {record && (
                         <View style={styles.detailsContainer}>
-                            <Text style={styles.meetingTitle}>{meeting.name}</Text>
-
-                            {meeting.date_start && (
-                                <View style={styles.timeInfo}>
-                                    <Ionicons name="time-outline" size={16} color="#666" />
-                                    <Text style={styles.timeText}>
-                                        {formatDateTime(meeting.date_start)} - {formatDateTime(meeting.date_end)}
-                                    </Text>
-                                </View>
-                            )}
-
-                            {meeting.location && (
-                                <View style={styles.locationInfo}>
-                                    <Ionicons name="location-outline" size={16} color="#666" />
-                                    <Text style={styles.locationText}>
-                                        Địa điểm: {meeting.location}
-                                    </Text>
-                                </View>
-                            )}
-
-                            {meeting.parent_name && meeting.parent_type && (
-                                <View style={styles.parentInfo}>
-                                    <Ionicons name="link-outline" size={16} color="#666" />
-                                    <Text style={styles.parentText}>
-                                        Liên quan: {meeting.parent_name}
-                                        ({formatFieldValue('parent_type', meeting.parent_type)})
-                                    </Text>
-                                </View>
-                            )}
+                            <Text style={styles.accountTitle}>{record.name || record.NAME || 'Không có tên'}</Text>
 
                             <View style={styles.fieldsContainer}>
-                                {detailFields.map(field => renderFieldItem(field))}
+                                {detailFields?.map(field => renderFieldItem(field))}
                             </View>
                         </View>
                     )}
+
+                    {/* ===== Box 2: Mối quan hệ ===== */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Mối quan hệ</Text>
+                    </View>
+
+                    <View style={styles.infoCard}>
+                        <FlatList
+                            data={paddedData}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            numColumns={4}
+                            columnWrapperStyle={styles.row}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            scrollEnabled={false}
+                        />
+                    </View>
                 </ScrollView>
 
-                {/* ===== Box 2: Mối quan hệ ===== */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Mối quan hệ</Text>
-                </View>
-
-                <View style={styles.infoCard}>
-                    <FlatList
-                        data={paddedData}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id}
-                        numColumns={4}
-                        columnWrapperStyle={styles.row}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        showsVerticalScrollIndicator={false}
-                    />
-                </View>
-
                 {/* Action Buttons */}
-                {meeting && (
+                {record && (
                     <View style={styles.actionContainer}>
                         <TouchableOpacity
                             style={styles.updateButton}
@@ -470,56 +411,24 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
-    meetingTitle: {
+    accountTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 15,
         lineHeight: 26,
     },
-    timeInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#E8F5E8',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 15,
-        borderLeftWidth: 4,
-        borderLeftColor: '#4CAF50',
-    },
-    timeText: {
-        marginLeft: 8,
-        fontSize: 14,
-        color: '#4CAF50',
-        fontWeight: '500',
-    },
-    locationInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFF3E0',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 15,
-        borderLeftWidth: 4,
-        borderLeftColor: '#FF9800',
-    },
-    locationText: {
-        marginLeft: 8,
-        fontSize: 14,
-        color: '#FF9800',
-        fontWeight: '500',
-    },
-    parentInfo: {
+    contactInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F0F4FF',
         padding: 12,
         borderRadius: 8,
-        marginBottom: 20,
+        marginBottom: 15,
         borderLeftWidth: 4,
         borderLeftColor: '#4B84FF',
     },
-    parentText: {
+    contactText: {
         marginLeft: 8,
         fontSize: 14,
         color: '#4B84FF',
@@ -627,9 +536,5 @@ const styles = StyleSheet.create({
     cardText: {
         fontSize: 13,
         color: 'black',
-    },
-    text: {
-        fontSize: 20,
-        color: "#333",
     },
 });
