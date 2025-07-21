@@ -21,8 +21,8 @@ export default function HomeScreen() {
   const homeTitle = 'Home';
   const { data: DATA, loading, error, refresh } = useCountModules();
 
-  const handleNavigation = (title) => {
-    switch (title) {
+  const handleNavigation = (module) => {
+    switch (module) {
       case 'Accounts':
         navigation.navigate('AccountListScreen');
         break;
@@ -67,7 +67,7 @@ export default function HomeScreen() {
           {DATA.map((item, index) => (
             <TouchableOpacity key={index} style={styles.box}
               onPress={() => {
-                handleNavigation(item.title);
+                handleNavigation(item.module);
               }}
             >
               <Text style={styles.title}>{item.title}</Text>

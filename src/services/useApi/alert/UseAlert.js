@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { deleteAlertApi, getAlertsApi, getUnreadAlertsCountApi, markAlertAsReadApi } from '../../api/alert/AlertApi';
+import { eventEmitter } from '../../EventEmitter';
 
 export const useAlert = () => {
     const [alerts, setAlerts] = useState([]);
@@ -203,11 +204,18 @@ export const useAlert = () => {
         fetchAlerts(false, 1);
         startAutoRefresh();
 
+        // Listen for logout event
+        const handleLogout = () => {
+            clearAllData();
+        };
+        eventEmitter.on('logout', handleLogout);
+
         // Cleanup on unmount
         return () => {
             stopAutoRefresh();
+            eventEmitter.off('logout', handleLogout);
         };
-    }, [fetchAlerts, startAutoRefresh, stopAutoRefresh]);
+    }, [fetchAlerts, startAutoRefresh, stopAutoRefresh, clearAllData]);
 
     // Clear error when alerts change
     useEffect(() => {
@@ -280,6 +288,24 @@ export const useAlert = () => {
         }
     }, [goToPage, currentPage, pagination.hasPrev]);
 
+    // Clear all data and stop intervals (for logout)
+    const clearAllData = useCallback(() => {
+        stopAutoRefresh();
+        setAlerts([]);
+        setUnreadCount(0);
+        setLoading(false);
+        setRefreshing(false);
+        setError(null);
+        setCurrentPage(1);
+        setTotalPages(1);
+        setPagination({
+            hasNext: false,
+            hasPrev: false,
+            nextLink: null,
+            prevLink: null
+        });
+    }, [stopAutoRefresh]);
+
     return {
         alerts,
         unreadCount,
@@ -298,6 +324,7 @@ export const useAlert = () => {
         deleteAllAlerts,
         goToPage,
         goToNextPage,
-        goToPrevPage
+        goToPrevPage,
+        clearAllData
     };
 };

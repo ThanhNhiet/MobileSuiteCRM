@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     getCountAllAccounts,
     getCountMyMeetings,
     getCountMyNotes,
     getCountMyTasks
 } from '../../api/home/CountModulesApi';
+import { eventEmitter } from '../../EventEmitter';
 
 export const useCountModules = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState([
-    { title: 'Accounts', all: 0 },
-    { title: 'Notes', my: 0 },
-    { title: 'Tasks', my: 0 },
-    { title: 'Meetings', my: 0 }
+    { title: 'Khách hàng', module: 'Accounts', all: 0 },
+    { title: 'Ghi chú', module: 'Notes', my: 0 },
+    { title: 'Công việc', module: 'Tasks', my: 0 },
+    { title: 'Cuộc họp', module: 'Meetings', my: 0 }
   ]);
 
   const fetchCountModules = async () => {
@@ -30,10 +31,10 @@ export const useCountModules = () => {
       ]);
 
       setData([
-        { title: 'Accounts', all: accountsCount },
-        { title: 'Notes', my: notesCount },
-        { title: 'Tasks', my: tasksCount },
-        { title: 'Meetings', my: meetingsCount }
+        { title: 'Khách hàng', module: 'Accounts', all: accountsCount },
+        { title: 'Ghi chú', module: 'Notes', my: notesCount },
+        { title: 'Công việc', module: 'Tasks', my: tasksCount },
+        { title: 'Cuộc họp', module: 'Meetings', my: meetingsCount }
       ]);
     } catch (err) {
       console.error('Error fetching count modules:', err);
@@ -43,13 +44,35 @@ export const useCountModules = () => {
     }
   };
 
-  useEffect(() => {
-    fetchCountModules();
-  }, []);
-
   const refresh = () => {
     fetchCountModules();
   };
+
+  // Clear data when logout
+  const clearData = useCallback(() => {
+    setData([
+      { title: 'Khách hàng', module: 'Accounts', all: 0 },
+    { title: 'Ghi chú', module: 'Notes', my: 0 },
+    { title: 'Công việc', module: 'Tasks', my: 0 },
+    { title: 'Cuộc họp', module: 'Meetings', my: 0 }
+    ]);
+    setLoading(false);
+    setError(null);
+  }, []);
+
+  useEffect(() => {
+    fetchCountModules();
+
+    // Listen for logout event
+    const handleLogout = () => {
+      clearData();
+    };
+    eventEmitter.on('logout', handleLogout);
+
+    return () => {
+      eventEmitter.off('logout', handleLogout);
+    };
+  }, [clearData]);
 
   return {
     data,
