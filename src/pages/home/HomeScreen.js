@@ -2,51 +2,92 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-
-const DATA = [
-  { title: 'Accounts', my: 1, all: 52 },
-  { title: 'Calls', my: 6, all: 54 },
-  { title: 'Cases', my: 1, all: 51 },
-  { title: 'Check-ins', my: 3, all: 3 },
-  { title: 'Contacts', my: 0, all: 200 },
-  { title: 'Contracts', my: 0, all: 0 },
-];
+import { useCountModules } from '../../services/useApi/home/UseCountModules';
 
 const boxWidth = (Dimensions.get('window').width - 32 - 12) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const homeTitle = 'Home';
+  const { data: DATA, loading, error, refresh } = useCountModules();
+
+  const handleNavigation = (title) => {
+    switch (title) {
+      case 'Accounts':
+        navigation.navigate('AccountListScreen');
+        break;
+      case 'Notes':
+        navigation.navigate('NoteListScreen');
+        break;
+      case 'Tasks':
+        navigation.navigate('TaskListScreen');
+        break;
+      case 'Meetings':
+        navigation.navigate('MeetingListScreen');
+        break;
+      default:
+        console.warn('No navigation defined for:', title);
+    }
+  }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.wrapper}>
 
-        <TopNavigation navigation={navigation} />
+        <TopNavigation moduleName={homeTitle} navigation={navigation} />
 
-        <ScrollView contentContainerStyle={styles.container}>
+        {/* {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        )} */}
+
+        <ScrollView 
+          contentContainerStyle={styles.container}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={refresh}
+              colors={['#007AFF']}
+              tintColor="#007AFF"
+            />
+          }
+        >
           {DATA.map((item, index) => (
-            <View key={index} style={styles.box}>
+            <TouchableOpacity key={index} style={styles.box}
+              onPress={() => {
+                handleNavigation(item.title);
+              }}
+            >
               <Text style={styles.title}>{item.title}</Text>
 
               <View style={styles.row}>
-                <View style={styles.statCol}>
-                  <Text style={styles.number}>{item.my}</Text>
-                  <Text style={styles.label}>My</Text>
-                </View>
-                <View style={styles.statCol}>
-                  <Text style={styles.number}>{item.all}</Text>
-                  <Text style={styles.label}>All</Text>
-                </View>
+                {item.my !== undefined && (
+                  <View style={styles.statCol}>
+                    <Text style={styles.number}>{item.my}</Text>
+                    <Text style={styles.label}>My</Text>
+                  </View>
+                )}
+
+                {item.all !== undefined && (
+                  <View style={styles.statCol}>
+                    <Text style={styles.number}>{item.all}</Text>
+                    <Text style={styles.label}>All</Text>
+                  </View>
+                )}
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -60,6 +101,16 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: '#f5f7fa',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
   },
   container: {
     flexDirection: 'row',
