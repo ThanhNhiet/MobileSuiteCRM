@@ -59,7 +59,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             });
             
             setUpdateFields(fieldsConfig);
-            console.log('Initialized update fields and language for Note');
+            // console.log('Initialized update fields and language for Note');
         } catch (err) {
             console.warn('Initialize update fields error:', err);
             setError('Không thể tải cấu hình cập nhật ghi chú');
@@ -83,7 +83,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
         setValidationErrors({});
         setError(null);
         
-        console.log('Loaded note data into update form:', noteData.name);
+        // console.log('Loaded note data into update form:', noteData.name);
     }, []);
 
     // Update form field
@@ -194,7 +194,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             // Update original data to reflect saved state
             setOriginalData({ ...formData });
             
-            console.log('Note updated successfully:', response.data.id);
+            // console.log('Note updated successfully:', response.data.id);
             return {
                 success: true,
                 noteId: response.data.id,

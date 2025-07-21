@@ -54,7 +54,7 @@ export const useNoteDetail = (noteId) => {
             });
             
             setDetailFields(fieldsConfig);
-            console.log('Initialized detail fields and language for Note');
+            // console.log('Initialized detail fields and language for Note');
         } catch (err) {
             console.warn('Initialize detail fields error:', err);
             setError('Không thể tải cấu hình hiển thị chi tiết');
@@ -83,7 +83,7 @@ export const useNoteDetail = (noteId) => {
             };
             
             setNote(noteData);
-            console.log('Loaded note detail:', noteData.name);
+            // console.log('Loaded note detail:', noteData.name);
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải chi tiết ghi chú';
             setError(errorMessage);
@@ -104,7 +104,7 @@ export const useNoteDetail = (noteId) => {
             
             await deleteNoteApi(noteId);
             
-            console.log('Note deleted successfully:', noteId);
+            // console.log('Note deleted successfully:', noteId);
             return true;
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể xóa ghi chú';
