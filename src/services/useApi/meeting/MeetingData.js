@@ -1,10 +1,10 @@
-import AccountApi from '../../api/account/AccountApi';
+import MeetingApi from '../../api/meeting/MeetingApi';
 
 // Helper function để lấy module metadata từ API
 const getModuleMetadata = async (token) => {
   try {
     // Gọi API để lấy metadata của tất cả modules
-    const metaResponse = await AccountApi.getModuleMeta(token);
+    const metaResponse = await MeetingApi.getModuleMeta(token);
     
     if (!metaResponse || !metaResponse.data) {
       
@@ -47,11 +47,12 @@ const getModuleDisplayName = (moduleName, moduleMetaMap = null) => {
   return moduleName;
 };
 
-const AccountData = {};
-AccountData.getFields = async (token) => {
+const MeetingData = {};
+
+MeetingData.getFields = async (token) => {
   try {
-    const fields = await AccountApi.getFields(token);
-    const language = await AccountApi.getLanguage(token);
+    const fields = await MeetingApi.getFields(token);
+    const language = await MeetingApi.getLanguage(token);
 
     if (!fields || !fields.data) {
       
@@ -93,14 +94,14 @@ AccountData.getFields = async (token) => {
             translatedLabel = modStrings[`LBL_LIST_${key.toUpperCase()}`];
             
           }
-          // Cách 3: Dùng LBL_ACCOUNT_NAME cho field name
-          else if (key === 'name' && modStrings['LBL_ACCOUNT_NAME']) {
-            translatedLabel = modStrings['LBL_ACCOUNT_NAME'];
+          // Cách 3: Dùng LBL_MEETING_NAME cho field name
+          else if (key === 'name' && modStrings['LBL_MEETING_NAME']) {
+            translatedLabel = modStrings['LBL_MEETING_NAME'];
             
           }
-          // Cách 4: Dùng LBL_LIST_ACCOUNT_NAME cho field name
-          else if (key === 'name' && modStrings['LBL_LIST_ACCOUNT_NAME']) {
-            translatedLabel = modStrings['LBL_LIST_ACCOUNT_NAME'];
+          // Cách 4: Dùng LBL_LIST_MEETING_NAME cho field name
+          else if (key === 'name' && modStrings['LBL_LIST_MEETING_NAME']) {
+            translatedLabel = modStrings['LBL_LIST_MEETING_NAME'];
             
           }
           // Cách 5: Dùng key trực tiếp
@@ -113,17 +114,25 @@ AccountData.getFields = async (token) => {
             translatedLabel = modStrings[key.toUpperCase()];
            
           }
-          // Cách 7: Xử lý các field đặc biệt
-          else if (key === 'email1' && (modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'])) {
-            translatedLabel = modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'];
+          // Cách 7: Xử lý các field đặc biệt cho Meeting
+          else if (key === 'date_start' && (modStrings['LBL_DATE_START'] || modStrings['LBL_START_DATE'])) {
+            translatedLabel = modStrings['LBL_DATE_START'] || modStrings['LBL_START_DATE'];
             
           }
-          else if (key === 'phone_office' && modStrings['LBL_PHONE_OFFICE']) {
-            translatedLabel = modStrings['LBL_PHONE_OFFICE'];
+          else if (key === 'date_end' && (modStrings['LBL_DATE_END'] || modStrings['LBL_END_DATE'])) {
+            translatedLabel = modStrings['LBL_DATE_END'] || modStrings['LBL_END_DATE'];
             
           }
-          else if (key === 'website' && modStrings['LBL_WEBSITE']) {
-            translatedLabel = modStrings['LBL_WEBSITE'];
+          else if (key === 'duration_hours' && modStrings['LBL_DURATION_HOURS']) {
+            translatedLabel = modStrings['LBL_DURATION_HOURS'];
+            
+          }
+          else if (key === 'duration_minutes' && modStrings['LBL_DURATION_MINUTES']) {
+            translatedLabel = modStrings['LBL_DURATION_MINUTES'];
+            
+          }
+          else if (key === 'location' && modStrings['LBL_LOCATION']) {
+            translatedLabel = modStrings['LBL_LOCATION'];
             
           }
           // Cách 8: Tìm theo pattern khác trong mod_strings
@@ -131,10 +140,11 @@ AccountData.getFields = async (token) => {
             // Tìm các keys trong mod_strings có chứa tên field
             const possibleKeys = Object.keys(modStrings).filter(k => 
               k.toLowerCase().includes(key.toLowerCase()) ||
-              (key === 'name' && (k.includes('ACCOUNT') || k.includes('NAME'))) ||
-              (key === 'email1' && (k.includes('EMAIL'))) ||
-              (key.includes('phone') && k.includes('PHONE')) ||
-              (key.includes('address') && k.includes('ADDRESS'))
+              (key === 'name' && (k.includes('MEETING') || k.includes('NAME'))) ||
+              (key === 'date_start' && (k.includes('START') || k.includes('DATE'))) ||
+              (key === 'date_end' && (k.includes('END') || k.includes('DATE'))) ||
+              (key.includes('duration') && k.includes('DURATION')) ||
+              (key.includes('location') && k.includes('LOCATION'))
             );
             
             if (possibleKeys.length > 0) {
@@ -148,17 +158,19 @@ AccountData.getFields = async (token) => {
 
         // Nếu vẫn chưa có label từ API, format key đẹp hơn
         if (translatedLabel === key) {
-          // Format đặc biệt cho một số field thông dụng
+          // Format đặc biệt cho một số field thông dụng của Meeting
           const specialFormats = {
-            'email1': 'Email',
-            'phone_office': 'Số điện thoại',
-            'website': 'Website',
-            'billing_address_street': 'Địa chỉ thanh toán',
-            'shipping_address_street': 'Địa chỉ giao hàng',
+            'name': 'Tên cuộc họp',
+            'date_start': 'Thời gian bắt đầu',
+            'date_end': 'Thời gian kết thúc',
+            'duration_hours': 'Thời lượng (giờ)',
+            'duration_minutes': 'Thời lượng (phút)',
+            'location': 'Địa điểm',
+            'description': 'Mô tả',
+            'status': 'Trạng thái',
             'assigned_user_name': 'Người phụ trách',
             'date_entered': 'Ngày tạo',
-            'date_modified': 'Ngày sửa',
-            'description': 'Mô tả'
+            'date_modified': 'Ngày sửa'
           };
           
           if (specialFormats[key]) {
@@ -185,13 +197,13 @@ AccountData.getFields = async (token) => {
   }
 };
 
-  // Lấy danh sách các trường hiển thị trong view
-AccountData.getListFieldsView = async (token) => {
+// Lấy danh sách các trường hiển thị trong view
+MeetingData.getListFieldsView = async (token) => {
   try {
     
     
-    const fields = await AccountApi.getListFieldsView(token);
-    const language = await AccountApi.getLanguage(token);
+    const fields = await MeetingApi.getListFieldsView(token);
+    const language = await MeetingApi.getLanguage(token);
     
    
 
@@ -277,10 +289,11 @@ AccountData.getListFieldsView = async (token) => {
     return null;
   }
 };
+
 // Lấy danh sách dữ liệu theo trang
-AccountData.getDataByPage = async(token, page, pageSize) => {
+MeetingData.getDataByPage = async(token, page, pageSize) => {
   try {
-    const response = await AccountApi.getDataByPage(token, page, pageSize);
+    const response = await MeetingApi.getDataByPage(token, page, pageSize);
     
     if (!response || !response.data) {
      
@@ -290,10 +303,10 @@ AccountData.getDataByPage = async(token, page, pageSize) => {
     // Trả về data với meta information
     return {
       meta: response.meta || {},
-      accounts: response.data.map(account => ({
-        id: account.id,
-        type: account.type,
-        ...account.attributes
+      meetings: response.data.map(meeting => ({
+        id: meeting.id,
+        type: meeting.type,
+        ...meeting.attributes
       }))
     };
     
@@ -304,12 +317,12 @@ AccountData.getDataByPage = async(token, page, pageSize) => {
 };
 
 // Lấy danh sách dữ liệu theo fields đã định nghĩa
-AccountData.getDataWithFields = async(token, page, pageSize) => {
+MeetingData.getDataWithFields = async(token, page, pageSize) => {
   try {
     // Lấy fields và data song song
     const [fieldsResult, dataResult] = await Promise.all([
-      AccountData.getFields(token),
-      AccountData.getDataByPage(token, page, pageSize)
+      MeetingData.getFields(token),
+      MeetingData.getDataByPage(token, page, pageSize)
     ]);
 
     if (!fieldsResult || !dataResult) {
@@ -317,43 +330,43 @@ AccountData.getDataWithFields = async(token, page, pageSize) => {
       return null;
     }
 
-    // Xử lý accounts data
-    const processedAccounts = dataResult.accounts.map(account => {
-      // Tạo object account với cấu trúc đơn giản
-      const processedAccount = { 
-        id: account.id, 
-        type: account.type 
+    // Xử lý meetings data
+    const processedMeetings = dataResult.meetings.map(meeting => {
+      // Tạo object meeting với cấu trúc đơn giản
+      const processedMeeting = { 
+        id: meeting.id, 
+        type: meeting.type 
       };
       
-      // Thêm tất cả attributes vào account object
+      // Thêm tất cả attributes vào meeting object
       fieldsResult.forEach(field => {
         const fieldKey = field.key;
-        processedAccount[fieldKey] = account[fieldKey] || '';
+        processedMeeting[fieldKey] = meeting[fieldKey] || '';
       });
 
       // Đảm bảo luôn có assigned_user_name field
-      if (!processedAccount.assigned_user_name) {
-        processedAccount.assigned_user_name = account.assigned_user_name || '';
+      if (!processedMeeting.assigned_user_name) {
+        processedMeeting.assigned_user_name = meeting.assigned_user_name || '';
       }
 
       // Đảm bảo luôn có created_by_name field
-      if (!processedAccount.created_by_name) {
-        processedAccount.created_by_name = account.created_by_name || '';
+      if (!processedMeeting.created_by_name) {
+        processedMeeting.created_by_name = meeting.created_by_name || '';
       }
 
-      return processedAccount;
+      return processedMeeting;
     });
 
-    // Trả về object với cấu trúc giống useAccountDetail
+    // Trả về object với cấu trúc giống useMeetingDetail
     return {
-      accounts: processedAccounts,
+      meetings: processedMeetings,
       detailFields: fieldsResult.map(field => ({
         key: field.key,
         label: field.label ? field.label.replace(':', '') : field.key
       })),
       meta: dataResult.meta || {},
-      getFieldValue: (accountData, key) => {
-        return accountData[key] || '';
+      getFieldValue: (meetingData, key) => {
+        return meetingData[key] || '';
       },
       getFieldLabel: (key) => {
         const field = fieldsResult.find(f => f.key === key);
@@ -369,13 +382,14 @@ AccountData.getDataWithFields = async(token, page, pageSize) => {
     return null;
   }
 };
-// lấy mối quan hệ của account với metadata từ V8/meta/modules
-AccountData.getRelationships = async (token, accountId) => {
+
+// lấy mối quan hệ của meeting với metadata từ V8/meta/modules
+MeetingData.getRelationships = async (token, meetingId) => {
   try {
     // Lấy metadata và relationships song song để tối ưu performance
     const [metaResponse, relationshipsResponse] = await Promise.all([
       getModuleMetadata(token),
-      AccountApi.getRelationships(token, accountId)
+      MeetingApi.getRelationships(token, meetingId)
     ]);
 
     if (!relationshipsResponse || !relationshipsResponse.data) {
@@ -403,21 +417,21 @@ AccountData.getRelationships = async (token, accountId) => {
         moduleLabelSingular: moduleInfo?.labelSingular || moduleName,
         moduleTable: moduleInfo?.table || moduleName.toLowerCase(),
         relatedLink: relationData.links?.related || '',
-        // Tách accountId từ link để sử dụng sau
-        accountId: relationData.links?.related ? 
-          relationData.links.related.split('/')[3] : accountId
+        // Tách meetingId từ link để sử dụng sau
+        meetingId: relationData.links?.related ? 
+          relationData.links.related.split('/')[3] : meetingId
       };
     });
 
     // Lọc các relationships quan trọng dựa trên metadata hoặc hardcode list
-    const importantModules = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+    const importantModules = ['Notes', 'Contacts', 'Accounts', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
     const importantRelationships = relationshipsArray.filter(rel => 
       importantModules.includes(rel.moduleName)
     );
 
     // Sắp xếp theo thứ tự ưu tiên
     const sortedRelationships = importantRelationships.sort((a, b) => {
-      const order = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+      const order = ['Notes', 'Contacts', 'Accounts', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
       const indexA = order.indexOf(a.moduleName);
       const indexB = order.indexOf(b.moduleName);
       return (indexA !== -1 ? indexA : 999) - (indexB !== -1 ? indexB : 999);
@@ -434,34 +448,34 @@ AccountData.getRelationships = async (token, accountId) => {
   }
 };
 
-AccountData.UpdateAccount = async (accountId, data, token) => {
+MeetingData.CreateMeeting = async (data, token) => {
   try {
-    const response = await AccountApi.updateAccount(accountId, data,token);
+    const response = await MeetingApi.createMeeting(data, token);
     return response;
   } catch (error) {
-    console.error('💥 Error in UpdateAccount:', error);
-    return null;
-  }
-}
-
-AccountData.DeleteAccount = async (accountId, token) => {
-  try {
-    const response = await AccountApi.deleteAccount(accountId, token);
-    return response;
-  } catch (error) {
-    console.error('💥 Error in DeleteAccount:', error);
+    console.error('💥 Error in CreateMeeting:', error);
     return null;
   }
 };
-// Tạo tài khoản mới
-AccountData.CreateAccount = async (accountData, token) => {
+
+MeetingData.UpdateMeeting = async (meetingId, data, token) => {
   try {
-    const response = await AccountApi.createAccount(accountData, token);
+    const response = await MeetingApi.updateMeeting(meetingId, data, token);
     return response;
   } catch (error) {
-    console.error('💥 Error in CreateAccount:', error);
+    console.error('💥 Error in UpdateMeeting:', error);
     return null;
   }
 }
 
-export default AccountData;
+MeetingData.DeleteMeeting = async (meetingId, token) => {
+  try {
+    const response = await MeetingApi.deleteMeeting(meetingId, token);
+    return response;
+  } catch (error) {
+    console.error('💥 Error in DeleteMeeting:', error);
+    return null;
+  }
+};
+
+export default MeetingData;

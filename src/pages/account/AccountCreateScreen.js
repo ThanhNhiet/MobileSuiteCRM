@@ -1,64 +1,270 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import AccountData from '@/src/services/useApi/account/AccountData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useState } from 'react';
 import {
-  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-export default function AccountCreateScreen() {
-    const navigation = useNavigation();
-     const [formData, setFormData] = useState({
-        'Tên': 'Công ty ABC',
-        'Loại': 'Khách hàng',
-        'Số điện thoại': '0312345678',
-      });
+const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
+    const [loading, setLoading] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({});
     
-      const rows = [
-        { label: 'Tên', key: 'Tên' },
-        { label: 'Loại', key: 'Loại' },
-        { label: 'Số điện thoại', key: 'Số điện thoại' },
-      ];
+    // Tạo newAccount từ detailFields
+    const initializeNewAccount = () => {
+        const initialData = {};
+        if (detailFields && Array.isArray(detailFields)) {
+            detailFields.forEach(field => {
+                // Khởi tạo các field với giá trị rỗng
+                initialData[field.key] = '';
+            });
+        }
+        return initialData;
+    };
     
-      const handleInputChange = (key, value) => {
-        setFormData(prev => ({
-          ...prev,
-          [key]: value
+    const [newAccount, setNewAccount] = useState(initializeNewAccount());
+    
+    // Function để cập nhật field
+    const updateField = (fieldKey, value) => {
+        setNewAccount(prev => ({
+            ...prev,
+            [fieldKey]: value
         }));
-      };
-    return (
-        <SafeAreaView style={styles.container}>
-          <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
-            {/* Thanh điều hướng */}
-            <TopNavigationCreate
-                moduleName="Tạo khách hàng"
-                navigation={navigation}
-                name="AccountListScreen" // Giả lập navigation prop
-            />
-            <View style={styles.content}>
-                 {rows.map((item) => (
-                            <View key={item.label} style={styles.row}>
-                              <Text style={styles.label}>{item.label}</Text>
+        
+        // Clear validation error when field is updated
+        if (validationErrors[fieldKey]) {
+            setValidationErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldKey];
+                return newErrors;
+            });
+        }
+    };
+    
+    // Function để lấy giá trị field
+    const getFieldValueLocal = (fieldKey) => {
+        return newAccount[fieldKey] || '';
+    };
+    
+    // Function để lấy field error
+    const getFieldErrorLocal = (fieldKey) => {
+        return validationErrors[fieldKey] || null;
+    };
+   
+    return {
+        detailFields,
+        formData: newAccount,
+        loading,
+        error: null,
+        validationErrors,
+        refreshAccount,
+        updateField,
+        getFieldValue: getFieldValueLocal,
+        getFieldLabel,
+        getFieldError: getFieldErrorLocal,
+        isFormValid: () => newAccount.name && newAccount.name.trim() !== '',
+        createAccount: async () => {
+            try {
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {
+                    navigation.navigate('LoginScreen');
+                    return { success: false };
+                }
                 
-                          {/* Ô màu hồng chứa giá trị */}
-                          <View style={styles.valueBox}>
-                            <TextInput 
-                              style={styles.value}
-                              value={formData[item.key]}
-                              onChangeText={(value) => handleInputChange(item.key, value)}
-                              placeholder={item.label}
-                              autoCapitalize="none"
-                            />
-                          </View>
-                        </View>
-                      ))}
-            </View>
+                const result = await AccountData.CreateAccount(newAccount, token);
+                setLoading(false);
+                return { success: true, data: result };
+            } catch (error) {
+                setLoading(false);
+                console.error('Create account error:', error);
+                return { success: false, error: error.message };
+            }
+        },
+        resetForm: () => setNewAccount(initializeNewAccount()),
+        shouldDisplayField: (key) => true,
+    };
+};
 
-        </SafeAreaView>
+export default function AccountCreateScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { detailFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshAccount: routeRefreshAccount } = route.params || {};
+
+
+  // Sử dụng custom hook
+  const {
+    formData,
+    loading,
+    error,
+    updateField,
+    createAccount,
+    refreshAccount,
+    resetForm,
+    getFieldValue,
+    getFieldLabel,
+    getFieldError,
+    isFormValid
+  } = useAccountCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
+
+  // Local loading state for save button
+  const [saving, setSaving] = useState(false);
+
+  // Handle save
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const result = await createAccount();
+      if (result.success) {
+        Alert.alert(
+          'Thành công',
+          'Tạo khách hàng thành công!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                resetForm();
+                if(typeof refreshAccount === 'function') {
+                refreshAccount();
+                }
+                navigation.navigate('AccountListScreen');
+              }
+            }
+          ]
+        );
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', err.message || 'Không thể tạo khách hàng');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Show loading state for initialization
+  if (!detailFields || detailFields.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+        <TopNavigationCreate
+          moduleName="Tạo khách hàng"
+          navigation={navigation}
+          name="AccountListScreen"
+        />
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+        </View>
+      </SafeAreaView>
     );
+  }
+  
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+        {/* Thanh điều hướng */}
+        <TopNavigationCreate
+          moduleName="Tạo khách hàng"
+          navigation={navigation}
+          name="AccountListScreen"
+        />
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Show error if any */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* Form các trường */}
+            {detailFields
+              .filter(field => field.key !== 'id')
+              .map((field) => {
+                const fieldError = getFieldError(field.key);
+                const fieldValue = getFieldValue(field.key);
+
+                // Handle account_type as dropdown (simplified for now)
+                if (field.key === 'account_type') {
+                  return (
+                    <View key={field.key} style={styles.row}>
+                      <Text style={styles.label}>{field.label}</Text>
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <TextInput
+                          style={styles.value}
+                          value={fieldValue}
+                          onChangeText={(value) => updateField(field.key, value)}
+                          placeholder={`Chọn ${field.label.toLowerCase()}`}
+                          autoCapitalize="none"
+                          returnKeyType="done"
+                        />
+                      </View>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                  );
+                }
+
+                return (
+                  <View key={field.key} style={styles.row}>
+                    <Text style={styles.label}>{field.label}</Text>
+                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                      <TextInput
+                        style={[
+                          styles.value,
+                          field.key === 'description' && styles.multilineInput
+                        ]}
+                        value={fieldValue}
+                        onChangeText={(value) => updateField(field.key, value)}
+                        placeholder={`Nhập ${field.label.toLowerCase()}`}
+                        autoCapitalize="none"
+                        returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                        multiline={field.key === 'description'}
+                        numberOfLines={field.key === 'description' ? 4 : 1}
+                        textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                      />
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              })}
+
+            {/* Save Button */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  (!isFormValid() || saving) && styles.disabledButton
+                ]}
+                onPress={handleSave}
+                disabled={!isFormValid() || saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Tạo khách hàng</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
 }
 const styles = StyleSheet.create({
   container: {
@@ -106,5 +312,62 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: '#000',
+  },
+
+  // New styles for enhanced functionality
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    marginBottom: 20,
+    borderRadius: 6,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+    marginHorizontal: 10,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+  },
+  errorInput: {
+    backgroundColor: '#ffcccb',
+    borderWidth: 1,
+    borderColor: '#f44336',
+  },
+  fieldError: {
+    color: '#c62828',
+    fontSize: 12,
+    marginTop: 4,
+    paddingHorizontal: 20,
+  },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  buttonContainer: {
+    paddingVertical: 20,
+    paddingBottom: 40,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    marginHorizontal: 20,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    elevation: 0,
+    shadowOpacity: 0,
   },
 });

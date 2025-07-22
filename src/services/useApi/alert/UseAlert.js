@@ -47,14 +47,14 @@ export const useAlert = () => {
 
             setAlerts(processedAlerts);
             
-            // Cập nhật thông tin phân trang
+            // Cập nhật thông tin phân trang với safety check
             setCurrentPage(pageNumber);
-            setTotalPages(response.meta['total-pages'] || 1);
+            setTotalPages(response.meta?.['total-pages'] || 1);
             setPagination({
-                hasNext: response.links.next !== null,
-                hasPrev: response.links.prev !== null,
-                nextLink: response.links.next,
-                prevLink: response.links.prev
+                hasNext: response.links?.next !== null,
+                hasPrev: response.links?.prev !== null,
+                nextLink: response.links?.next || null,
+                prevLink: response.links?.prev || null
             });
             
             // Cập nhật unread count từ dữ liệu hiện tại

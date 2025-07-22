@@ -25,7 +25,6 @@ export default function AccountListScreen() {
 
     const [page, setPage] = useState(1);
     const totalPages = 10;
-    const [startPage, setStartPage] = useState(1);
 
     // dữ liệu từ API
     const [apiData, setApiData] = useState(null);
@@ -42,30 +41,28 @@ export default function AccountListScreen() {
     const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
     const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
 
-    // Tính danh sách trang hiển thị (tối đa 3 trang)
-    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+    // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
+    const visiblePages = [page];
 
     // Vô hiệu hóa khi ở đầu/cuối
-    const isPrevDisabled = startPage === 1;
-    const isNextDisabled = startPage + 2 >= totalPages;
+    const isPrevDisabled = page === 1;
+    const isNextDisabled = page >= totalPages;
 
     const handlePrev = () => {
         if (!isPrevDisabled) {
-            const newStart = startPage - 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page - 1;
+            setPage(newPage);
             // Lấy dữ liệu trang mới
-            fetchDataByPage(newStart);
+            fetchDataByPage(newPage);
         }
     };
 
     const handleNext = () => {
         if (!isNextDisabled) {
-            const newStart = startPage + 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page + 1;
+            setPage(newPage);
             // Lấy dữ liệu trang mới
-            fetchDataByPage(newStart);
+            fetchDataByPage(newPage);
         }
     };
 
@@ -87,7 +84,7 @@ export default function AccountListScreen() {
             
             // Lấy dữ liệu với 20 dòng mỗi trang
             const result = await AccountData.getDataWithFields(token, pageNumber, 20);
-            console.log('API Result page', pageNumber, ':', result);
+           
             setApiData(result);
             
         } catch (error) {
@@ -109,7 +106,7 @@ export default function AccountListScreen() {
             ?.slice(0, 3) || [];
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel })}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel,refreshAccount:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
                     const rawValue = apiData?.getFieldValue(item, field.key) || '';
                     
@@ -148,9 +145,8 @@ export default function AccountListScreen() {
                 
                 // Lấy dữ liệu với 20 dòng cho trang đầu tiên
                 const result = await AccountData.getDataWithFields(token, page, 20);
-                console.log('API Result:', result);
+               
                 setApiData(result);
-                
             } catch (error) {
                 console.error('Lỗi lấy dữ liệu:', error);
             } finally {
@@ -241,7 +237,13 @@ export default function AccountListScreen() {
                                 onPress={() => {
                                     // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
                                    // console.log('Add new');
-                                    navigation.navigate('AccountCreateScreen');
+                                   
+                                    navigation.navigate('AccountCreateScreen', {
+                                        getFieldLabel: apiData.getFieldLabel,
+                                        getFieldValue: apiData.getFieldValue,
+                                        detailFields: apiData.detailFields,
+                                        refreshAccount: () => fetchDataByPage(page)
+                                    });
                                 }}
                                 style={[styles.addNewBtn]}
                             >

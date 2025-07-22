@@ -1,110 +1,362 @@
-import { useNavigation } from '@react-navigation/native';
+import TaskData from '@/src/services/useApi/task/TaskData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useState } from 'react';
 import {
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-export default function NoteCreateScreen() {
-    const navigation = useNavigation();
-     const [formData, setFormData] = useState({
-        'Tên': 'Công ty ABC',
-        'Loại': 'Khách hàng',
-        'Số điện thoại': '0312345678',
-      });
-    
-      const rows = [
-        { label: 'Tên', key: 'Tên' },
-        { label: 'Loại', key: 'Loại' },
-        { label: 'Số điện thoại', key: 'Số điện thoại' },
-      ];
-    
-      const handleInputChange = (key, value) => {
-        setFormData(prev => ({
-          ...prev,
-          [key]: value
-        }));
-      };
-    return (
-        <SafeAreaView style={styles.container}>
-          <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
-            {/* Thanh điều hướng */}
-            <TopNavigationCreate
-                moduleName="Tạo công việc"
-                navigation={navigation}
-                name="TaskListScreen" // Giả lập navigation prop
-            />
-            <View style={styles.content}>
-                 {rows.map((item) => (
-                            <View key={item.label} style={styles.row}>
-                              <Text style={styles.label}>{item.label}</Text>
-                
-                          {/* Ô màu hồng chứa giá trị */}
-                          <View style={styles.valueBox}>
-                            <TextInput 
-                              style={styles.value}
-                              value={formData[item.key]}
-                              onChangeText={(value) => handleInputChange(item.key, value)}
-                              placeholder={item.label}
-                              autoCapitalize="none"
-                            />
-                          </View>
-                        </View>
-                      ))}
-            </View>
 
-        </SafeAreaView>
+const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
+    const [loading, setLoading] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({});
+    
+    // Tạo newTask từ detailFields
+    const initializeNewTask = () => {
+        const initialData = {};
+        if (detailFields && Array.isArray(detailFields)) {
+            detailFields.forEach(field => {
+                // Khởi tạo các field với giá trị rỗng
+                initialData[field.key] = '';
+            });
+        }
+        return initialData;
+    };
+    
+    const [newTask, setNewTask] = useState(initializeNewTask());
+    
+    // Function để cập nhật field
+    const updateField = (fieldKey, value) => {
+        setNewTask(prev => ({
+            ...prev,
+            [fieldKey]: value
+        }));
+        
+        // Clear validation error when field is updated
+        if (validationErrors[fieldKey]) {
+            setValidationErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fieldKey];
+                return newErrors;
+            });
+        }
+    };
+    
+    // Function để lấy giá trị field
+    const getFieldValueLocal = (fieldKey) => {
+        return newTask[fieldKey] || '';
+    };
+    
+    // Function để lấy field error
+    const getFieldErrorLocal = (fieldKey) => {
+        return validationErrors[fieldKey] || null;
+    };
+   
+    return {
+        detailFields,
+        formData: newTask,
+        loading,
+        error: null,
+        validationErrors,
+        refreshTask,
+        updateField,
+        getFieldValue: getFieldValueLocal,
+        getFieldLabel,
+        getFieldError: getFieldErrorLocal,
+        isFormValid: () => {
+            // Find the main field for validation
+            const nameField = detailFields?.find(f => 
+                f.key === 'name' || 
+                f.key === 'title' || 
+                f.key === 'subject' ||
+                f.key.toLowerCase().includes('name') ||
+                f.key.toLowerCase().includes('title')
+            );
+            
+            if (nameField) {
+                return newTask[nameField.key] && newTask[nameField.key].trim() !== '';
+            }
+            
+            // Fallback - check first field
+            const firstField = detailFields?.find(f => f.key !== 'id');
+            if (firstField) {
+                return newTask[firstField.key] && newTask[firstField.key].trim() !== '';
+            }
+            
+            return false;
+        },
+        createTask: async () => {
+            try {
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {
+                    navigation.navigate('LoginScreen');
+                    return { success: false };
+                }
+                
+                const result = await TaskData.CreateTask(newTask, token);
+                setLoading(false);
+                return { success: true, data: result };
+            } catch (error) {
+                setLoading(false);
+                console.error('Create task error:', error);
+                return { success: false, error: error.message };
+            }
+        },
+        resetForm: () => setNewTask(initializeNewTask()),
+        shouldDisplayField: (key) => true,
+    };
+};
+
+export default function TaskCreateScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { detailFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshTask: routeRefreshTask } = route.params || {};
+
+  // Sử dụng custom hook
+  const {
+    formData,
+    loading,
+    error,
+    updateField,
+    createTask,
+    refreshTask,
+    resetForm,
+    getFieldValue,
+    getFieldLabel,
+    getFieldError,
+    isFormValid
+  } = useTaskCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
+
+  // Local loading state for save button
+  const [saving, setSaving] = useState(false);
+
+  // Handle save
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const result = await createTask();
+      if (result.success) {
+        Alert.alert(
+          'Thành công',
+          'Tạo công việc thành công!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                resetForm();
+                if(typeof refreshTask === 'function') {
+                  refreshTask();
+                }
+                navigation.navigate('TaskListScreen');
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Lỗi', result?.error || 'Không thể tạo công việc');
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', err.message || 'Không thể tạo công việc');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Show loading state for initialization
+  if (!detailFields || detailFields.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+        <TopNavigationCreate
+          moduleName="Tạo công việc"
+          navigation={navigation}
+          name="TaskListScreen"
+        />
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+        </View>
+      </SafeAreaView>
     );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+        {/* Thanh điều hướng */}
+        <TopNavigationCreate
+          moduleName="Tạo công việc"
+          navigation={navigation}
+          name="TaskListScreen"
+        />
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Show error if any */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* Form các trường */}
+            {detailFields
+              .filter(field => field.key !== 'id')
+              .map((field) => {
+                const fieldError = getFieldError(field.key);
+                const fieldValue = getFieldValue(field.key);
+
+                return (
+                  <View key={field.key} style={styles.row}>
+                    <Text style={styles.label}>{field.label}</Text>
+                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                      <TextInput
+                        style={[
+                          styles.value,
+                          field.key === 'description' && styles.multilineInput
+                        ]}
+                        value={fieldValue}
+                        onChangeText={(value) => updateField(field.key, value)}
+                        placeholder={`Nhập ${field.label.toLowerCase()}`}
+                        autoCapitalize="none"
+                        returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                        multiline={field.key === 'description'}
+                        numberOfLines={field.key === 'description' ? 4 : 1}
+                        textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                      />
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              })}
+
+            {/* Save Button */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  (!isFormValid() || saving) && styles.disabledButton
+                ]}
+                onPress={handleSave}
+                disabled={!isFormValid() || saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Tạo công việc</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
 }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d8d8d8', // nền xám nhạt
+    backgroundColor: '#f5f7fa',
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    minHeight: '80%',
   },
   row: {
     marginBottom: 20,
   },
-
-  /* NHÃN */
   label: {
     fontSize: 16,
-    color: '#000',
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 6,
-    fontWeight: 'bold',
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
   },
-
-  /* Ô HỒNG */
   valueBox: {
-    backgroundColor: '#e07c7c',     // hồng nhạt
-    borderRadius: 6,
+    backgroundColor: '#e1e5e9',
+    borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    width: '90%',
-    alignSelf: 'center',
-    justifyContent: 'center',
-
-    // bóng nhẹ (Android sẽ dùng elevation, iOS dùng shadow…)
-    elevation: 2,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d0d5dd',
     shadowColor: '#000',
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
+    elevation: 1,
   },
-
-  /* CHỮ TRONG Ô HỒNG */
   value: {
     fontSize: 16,
-    color: '#000',
+    color: '#1a1a1a',
+    backgroundColor: 'transparent',
+  },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  errorInput: {
+    borderColor: '#dc2626',
+    borderWidth: 1,
+  },
+  fieldError: {
+    color: '#dc2626',
+    fontSize: 12,
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  buttonContainer: {
+    marginTop: 30,
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  disabledButton: {
+    backgroundColor: '#a0a0a0',
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

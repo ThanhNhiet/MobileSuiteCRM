@@ -112,7 +112,7 @@ export default function RelationshipListScreen() {
             <TouchableOpacity
                 style={styles.tableRow}
                 onPress={() => {
-                    console.log('Bạn vừa chạm vào:', item);
+                   
                     if (relationship?.displayName === 'Notes') {
                         navigation.navigate('NoteDetailScreen', { noteId: item.id })
                     }

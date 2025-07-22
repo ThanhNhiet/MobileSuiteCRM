@@ -1,10 +1,10 @@
-import AccountApi from '../../api/account/AccountApi';
+import TaskApi from '../../api/task/TaskApi';
 
 // Helper function để lấy module metadata từ API
 const getModuleMetadata = async (token) => {
   try {
     // Gọi API để lấy metadata của tất cả modules
-    const metaResponse = await AccountApi.getModuleMeta(token);
+    const metaResponse = await TaskApi.getModuleMeta(token);
     
     if (!metaResponse || !metaResponse.data) {
       
@@ -28,7 +28,7 @@ const getModuleMetadata = async (token) => {
       });
     }
 
-    console.log('📋 Module metadata loaded:', Object.keys(moduleMetaMap));
+    
     return moduleMetaMap;
   } catch (error) {
     console.error('💥 Error getting module metadata:', error);
@@ -47,14 +47,19 @@ const getModuleDisplayName = (moduleName, moduleMetaMap = null) => {
   return moduleName;
 };
 
-const AccountData = {};
-AccountData.getFields = async (token) => {
+const TaskData = {};
+
+TaskData.getFields = async (token) => {
   try {
-    const fields = await AccountApi.getFields(token);
-    const language = await AccountApi.getLanguage(token);
+   
+    
+    const fields = await TaskApi.getFields(token);
+    const language = await TaskApi.getLanguage(token);
+
+  
 
     if (!fields || !fields.data) {
-      
+      console.log('❌ No fields data');
       return null;
     }
 
@@ -93,14 +98,14 @@ AccountData.getFields = async (token) => {
             translatedLabel = modStrings[`LBL_LIST_${key.toUpperCase()}`];
             
           }
-          // Cách 3: Dùng LBL_ACCOUNT_NAME cho field name
-          else if (key === 'name' && modStrings['LBL_ACCOUNT_NAME']) {
-            translatedLabel = modStrings['LBL_ACCOUNT_NAME'];
+          // Cách 3: Dùng LBL_TASK_NAME cho field name
+          else if (key === 'name' && modStrings['LBL_TASK_NAME']) {
+            translatedLabel = modStrings['LBL_TASK_NAME'];
             
           }
-          // Cách 4: Dùng LBL_LIST_ACCOUNT_NAME cho field name
-          else if (key === 'name' && modStrings['LBL_LIST_ACCOUNT_NAME']) {
-            translatedLabel = modStrings['LBL_LIST_ACCOUNT_NAME'];
+          // Cách 4: Dùng LBL_LIST_TASK_NAME cho field name
+          else if (key === 'name' && modStrings['LBL_LIST_TASK_NAME']) {
+            translatedLabel = modStrings['LBL_LIST_TASK_NAME'];
             
           }
           // Cách 5: Dùng key trực tiếp
@@ -113,17 +118,21 @@ AccountData.getFields = async (token) => {
             translatedLabel = modStrings[key.toUpperCase()];
            
           }
-          // Cách 7: Xử lý các field đặc biệt
-          else if (key === 'email1' && (modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'])) {
-            translatedLabel = modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'];
+          // Cách 7: Xử lý các field đặc biệt cho Task
+          else if (key === 'date_due' && (modStrings['LBL_DATE_DUE'] || modStrings['LBL_DUE_DATE'])) {
+            translatedLabel = modStrings['LBL_DATE_DUE'] || modStrings['LBL_DUE_DATE'];
             
           }
-          else if (key === 'phone_office' && modStrings['LBL_PHONE_OFFICE']) {
-            translatedLabel = modStrings['LBL_PHONE_OFFICE'];
+          else if (key === 'date_start' && (modStrings['LBL_DATE_START'] || modStrings['LBL_START_DATE'])) {
+            translatedLabel = modStrings['LBL_DATE_START'] || modStrings['LBL_START_DATE'];
             
           }
-          else if (key === 'website' && modStrings['LBL_WEBSITE']) {
-            translatedLabel = modStrings['LBL_WEBSITE'];
+          else if (key === 'priority' && modStrings['LBL_PRIORITY']) {
+            translatedLabel = modStrings['LBL_PRIORITY'];
+            
+          }
+          else if (key === 'status' && modStrings['LBL_STATUS']) {
+            translatedLabel = modStrings['LBL_STATUS'];
             
           }
           // Cách 8: Tìm theo pattern khác trong mod_strings
@@ -131,15 +140,17 @@ AccountData.getFields = async (token) => {
             // Tìm các keys trong mod_strings có chứa tên field
             const possibleKeys = Object.keys(modStrings).filter(k => 
               k.toLowerCase().includes(key.toLowerCase()) ||
-              (key === 'name' && (k.includes('ACCOUNT') || k.includes('NAME'))) ||
-              (key === 'email1' && (k.includes('EMAIL'))) ||
-              (key.includes('phone') && k.includes('PHONE')) ||
-              (key.includes('address') && k.includes('ADDRESS'))
+              (key === 'name' && (k.includes('TASK') || k.includes('NAME'))) ||
+              (key === 'date_due' && (k.includes('DUE') || k.includes('DATE'))) ||
+              (key === 'date_start' && (k.includes('START') || k.includes('DATE'))) ||
+              (key === 'date_entered' && (k.includes('ENTERED') || k.includes('CREATED') || k.includes('DATE'))) ||
+              (key === 'date_modified' && (k.includes('MODIFIED') || k.includes('UPDATED') || k.includes('DATE'))) ||
+              (key.includes('priority') && k.includes('PRIORITY')) ||
+              (key.includes('status') && k.includes('STATUS'))
             );
             
             if (possibleKeys.length > 0) {
               translatedLabel = modStrings[possibleKeys[0]];
-              
             } else {
               console.log(`⚠️ No translation found for ${key}, using formatted key`);
             }
@@ -148,17 +159,19 @@ AccountData.getFields = async (token) => {
 
         // Nếu vẫn chưa có label từ API, format key đẹp hơn
         if (translatedLabel === key) {
-          // Format đặc biệt cho một số field thông dụng
+          // Format đặc biệt cho một số field thông dụng của Task
           const specialFormats = {
-            'email1': 'Email',
-            'phone_office': 'Số điện thoại',
-            'website': 'Website',
-            'billing_address_street': 'Địa chỉ thanh toán',
-            'shipping_address_street': 'Địa chỉ giao hàng',
+            'name': 'Tên công việc',
+            'date_due': 'Hạn hoàn thành',
+            'date_start': 'Ngày bắt đầu',
+            'priority': 'Độ ưu tiên',
+            'status': 'Trạng thái',
+            'description': 'Mô tả',
             'assigned_user_name': 'Người phụ trách',
             'date_entered': 'Ngày tạo',
             'date_modified': 'Ngày sửa',
-            'description': 'Mô tả'
+            'parent_name': 'Liên quan đến',
+            'parent_type': 'Loại liên quan'
           };
           
           if (specialFormats[key]) {
@@ -185,13 +198,13 @@ AccountData.getFields = async (token) => {
   }
 };
 
-  // Lấy danh sách các trường hiển thị trong view
-AccountData.getListFieldsView = async (token) => {
+// Lấy danh sách các trường hiển thị trong view
+TaskData.getListFieldsView = async (token) => {
   try {
     
     
-    const fields = await AccountApi.getListFieldsView(token);
-    const language = await AccountApi.getLanguage(token);
+    const fields = await TaskApi.getListFieldsView(token);
+    const language = await TaskApi.getLanguage(token);
     
    
 
@@ -277,83 +290,97 @@ AccountData.getListFieldsView = async (token) => {
     return null;
   }
 };
+
 // Lấy danh sách dữ liệu theo trang
-AccountData.getDataByPage = async(token, page, pageSize) => {
+TaskData.getDataByPage = async(token, page, pageSize) => {
   try {
-    const response = await AccountApi.getDataByPage(token, page, pageSize);
+    
+    const response = await TaskApi.getDataByPage(token, page, pageSize);
+    
+    
     
     if (!response || !response.data) {
-     
+      console.log('❌ TaskData: No data in response');
       return null;
     }
 
+    
+
     // Trả về data với meta information
-    return {
+    const result = {
       meta: response.meta || {},
-      accounts: response.data.map(account => ({
-        id: account.id,
-        type: account.type,
-        ...account.attributes
-      }))
+      tasks: response.data.map(task => {
+        
+        return {
+          id: task.id,
+          type: task.type,
+          ...task.attributes
+        };
+      })
     };
     
+  
+    return result;
+    
   } catch (error) {
-    console.error('💥 Error in getDataByPage:', error);
+    console.error('💥 Error in TaskData.getDataByPage:', error);
     return null;
   }
 };
 
 // Lấy danh sách dữ liệu theo fields đã định nghĩa
-AccountData.getDataWithFields = async(token, page, pageSize) => {
+TaskData.getDataWithFields = async(token, page, pageSize) => {
   try {
+ 
+    
     // Lấy fields và data song song
     const [fieldsResult, dataResult] = await Promise.all([
-      AccountData.getFields(token),
-      AccountData.getDataByPage(token, page, pageSize)
+      TaskData.getFields(token),
+      TaskData.getDataByPage(token, page, pageSize)
     ]);
 
+  
     if (!fieldsResult || !dataResult) {
-      
+    
       return null;
     }
 
-    // Xử lý accounts data
-    const processedAccounts = dataResult.accounts.map(account => {
-      // Tạo object account với cấu trúc đơn giản
-      const processedAccount = { 
-        id: account.id, 
-        type: account.type 
+    // Xử lý tasks data
+    const processedTasks = dataResult.tasks.map(task => {
+      // Tạo object task với cấu trúc đơn giản
+      const processedTask = { 
+        id: task.id, 
+        type: task.type 
       };
       
-      // Thêm tất cả attributes vào account object
+      // Thêm tất cả attributes vào task object
       fieldsResult.forEach(field => {
         const fieldKey = field.key;
-        processedAccount[fieldKey] = account[fieldKey] || '';
+        processedTask[fieldKey] = task[fieldKey] || '';
       });
 
       // Đảm bảo luôn có assigned_user_name field
-      if (!processedAccount.assigned_user_name) {
-        processedAccount.assigned_user_name = account.assigned_user_name || '';
+      if (!processedTask.assigned_user_name) {
+        processedTask.assigned_user_name = task.assigned_user_name || '';
       }
 
       // Đảm bảo luôn có created_by_name field
-      if (!processedAccount.created_by_name) {
-        processedAccount.created_by_name = account.created_by_name || '';
+      if (!processedTask.created_by_name) {
+        processedTask.created_by_name = task.created_by_name || '';
       }
 
-      return processedAccount;
+      return processedTask;
     });
-
-    // Trả về object với cấu trúc giống useAccountDetail
+    // Trả về object với cấu trúc giống useTaskDetail
     return {
-      accounts: processedAccounts,
+      tasks: processedTasks,
       detailFields: fieldsResult.map(field => ({
         key: field.key,
         label: field.label ? field.label.replace(':', '') : field.key
       })),
       meta: dataResult.meta || {},
-      getFieldValue: (accountData, key) => {
-        return accountData[key] || '';
+      getFieldValue: (taskData, key) => {
+        return taskData[key] || '';
       },
       getFieldLabel: (key) => {
         const field = fieldsResult.find(f => f.key === key);
@@ -369,13 +396,14 @@ AccountData.getDataWithFields = async(token, page, pageSize) => {
     return null;
   }
 };
-// lấy mối quan hệ của account với metadata từ V8/meta/modules
-AccountData.getRelationships = async (token, accountId) => {
+
+// lấy mối quan hệ của task với metadata từ V8/meta/modules
+TaskData.getRelationships = async (token, taskId) => {
   try {
     // Lấy metadata và relationships song song để tối ưu performance
     const [metaResponse, relationshipsResponse] = await Promise.all([
       getModuleMetadata(token),
-      AccountApi.getRelationships(token, accountId)
+      TaskApi.getRelationships(token, taskId)
     ]);
 
     if (!relationshipsResponse || !relationshipsResponse.data) {
@@ -403,21 +431,21 @@ AccountData.getRelationships = async (token, accountId) => {
         moduleLabelSingular: moduleInfo?.labelSingular || moduleName,
         moduleTable: moduleInfo?.table || moduleName.toLowerCase(),
         relatedLink: relationData.links?.related || '',
-        // Tách accountId từ link để sử dụng sau
-        accountId: relationData.links?.related ? 
-          relationData.links.related.split('/')[3] : accountId
+        // Tách taskId từ link để sử dụng sau
+        taskId: relationData.links?.related ? 
+          relationData.links.related.split('/')[3] : taskId
       };
     });
 
     // Lọc các relationships quan trọng dựa trên metadata hoặc hardcode list
-    const importantModules = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+    const importantModules = ['Notes', 'Contacts', 'Accounts', 'Meetings', 'Calls', 'Opportunities', 'Cases'];
     const importantRelationships = relationshipsArray.filter(rel => 
       importantModules.includes(rel.moduleName)
     );
 
     // Sắp xếp theo thứ tự ưu tiên
     const sortedRelationships = importantRelationships.sort((a, b) => {
-      const order = ['Notes', 'Contacts', 'Meetings', 'Tasks', 'Calls', 'Opportunities', 'Cases'];
+      const order = ['Notes', 'Contacts', 'Accounts', 'Meetings', 'Calls', 'Opportunities', 'Cases'];
       const indexA = order.indexOf(a.moduleName);
       const indexB = order.indexOf(b.moduleName);
       return (indexA !== -1 ? indexA : 999) - (indexB !== -1 ? indexB : 999);
@@ -434,34 +462,35 @@ AccountData.getRelationships = async (token, accountId) => {
   }
 };
 
-AccountData.UpdateAccount = async (accountId, data, token) => {
+// Tạo task mới
+TaskData.CreateTask = async (data, token) => {
   try {
-    const response = await AccountApi.updateAccount(accountId, data,token);
+    const response = await TaskApi.createTask(data, token);
     return response;
   } catch (error) {
-    console.error('💥 Error in UpdateAccount:', error);
-    return null;
+    console.error('💥 Error in CreateTask:', error);
+    throw error;
+  }
+};
+
+TaskData.UpdateTask = async (taskId, data, token) => {
+  try {
+    const response = await TaskApi.updateTask(taskId, data, token);
+    return response;
+  } catch (error) {
+    console.error('💥 Error in UpdateTask:', error);
+    throw error;
   }
 }
 
-AccountData.DeleteAccount = async (accountId, token) => {
+TaskData.DeleteTask = async (taskId, token) => {
   try {
-    const response = await AccountApi.deleteAccount(accountId, token);
+    const response = await TaskApi.deleteTask(taskId, token);
     return response;
   } catch (error) {
-    console.error('💥 Error in DeleteAccount:', error);
+    console.error('💥 Error in DeleteTask:', error);
     return null;
   }
 };
-// Tạo tài khoản mới
-AccountData.CreateAccount = async (accountData, token) => {
-  try {
-    const response = await AccountApi.createAccount(accountData, token);
-    return response;
-  } catch (error) {
-    console.error('💥 Error in CreateAccount:', error);
-    return null;
-  }
-}
 
-export default AccountData;
+export default TaskData;

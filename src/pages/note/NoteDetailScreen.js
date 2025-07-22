@@ -37,6 +37,7 @@ export default function NoteDetailScreen() {
         getFieldLabel,
         shouldDisplayField
     } = useNoteDetail(noteId);
+   
 
     // Handle delete with confirmation
     const handleDelete = () => {

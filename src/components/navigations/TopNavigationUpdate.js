@@ -59,7 +59,7 @@ const handleSave = () => {
       </Pressable>
 
       {/* Tiêu đề */}
-      <Text style={styles.title}>Chi tiết {moduleName}</Text>
+      <Text style={styles.title}>{moduleName}</Text>
 
       {/* Nút bên phải (mặc định là “…”), truyền vào prop rightIcon nếu muốn khác */}
       <Pressable
@@ -82,6 +82,7 @@ container: {
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 60,
+    
   },
   title: {
     fontWeight: 'bold',

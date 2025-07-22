@@ -1,5 +1,8 @@
+import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { LOCALHOST_IP } from '../../../utils/localhost';
+
 const AccountApi = {};
+
 
 // Lấy thông tin trường của mô hình Accounts
 AccountApi.getFields = async (token) => {
@@ -117,5 +120,71 @@ AccountApi.getRelationships = async (token,accountId) => {
     throw error;
   }
 };
+
+AccountApi.updateAccount = async (accountId, accountData, token) => {
+    try {
+        
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: {
+                    type: 'Accounts',
+                    id: accountId,
+                    attributes: accountData
+                }
+            })
+        });
+        return response;
+    } catch (error) {
+        console.error("💥 Update Account API error:", error);
+        throw error;
+    }
+};
+// xoá
+AccountApi.deleteAccount = async (accountId, token) => {
+    try {
+         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.warn("Delete Account API error:", error);
+        throw error;
+    }
+};
+AccountApi.createAccount = async (accountData, token) => {
+    try {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: {
+                    type: 'Accounts',
+                    attributes: {
+                        assigned_user_id: getUserIdFromToken(token),
+                        ...accountData
+                    }
+                }
+            })
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('Error creating account:', error);
+        throw error;
+    }
+};
+
 
 export default AccountApi;

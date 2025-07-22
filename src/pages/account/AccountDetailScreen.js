@@ -2,7 +2,7 @@ import AccountData from '@/src/services/useApi/account/AccountData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -21,19 +21,46 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
-const useAccountDetail = (account,detailFields,getFieldValue,getFieldLabel) => {
+const useAccountDetail = (account, detailFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
+    const [deleting, setDeleting] = useState(false);
+    const [data, setData] = useState(account);
+
+    // Function để update account data
+    const updateAccountData = (updatedData) => {
+        console.log('🔄 AccountDetailScreen: Updating account data with:', updatedData);
+        setData(updatedData);
+        console.log('✅ AccountDetailScreen: Account data updated successfully');
+    };
+
+    const deleteAccount = async () => {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            navigation.navigate('LoginScreen');
+            return false;
+        }
+
+        try {
+            setDeleting(true);
+            const result = await AccountData.DeleteAccount(account.id, token);
+            setDeleting(false);
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi xoá:', error);
+            setDeleting(false);
+            return false;
+        }
+    };
+
     return {
-        account: account,
-        detailFields: detailFields,
+        account: data || account,
+        detailFields,
         loading: false,
         refreshing: false,
         error: null,
-        deleting: false,
-        refreshAccount: () => console.log("Đang làm mới khách hàng..."),
-        deleteAccount: async () => {
-            alert("Khách hàng đã bị xóa (giả lập)");
-            return true;
-        },
+        deleting,
+        refreshAccount,
+        updateAccountData, // Expose function để update data
+        deleteAccount,
         getFieldValue: getFieldValue || ((item, key) => item[key]),
         getFieldLabel: getFieldLabel || ((key) => key),
         shouldDisplayField: (key) => true,
@@ -47,8 +74,9 @@ export default function AccountDetailScreen() {
     const mdName = 'Khách hàng';
     const navigation = useNavigation();
     const route = useRoute();
-    const {account: routeAccount, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel} = route.params;
+    const {account: routeAccount, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshAccount: routeRefreshAccount} = route.params;
     const [relationships, setRelationships] = React.useState([]);
+    
     // Giả lập dữ liệu mối quan hệ
     useEffect(() => {
         const fetchRelationships = async () => {
@@ -59,7 +87,7 @@ export default function AccountDetailScreen() {
                     return;
                 }
                 const response = await AccountData.getRelationships(token, routeAccount.id);
-                console.log('Relationships response:', response);
+                
                 
                 // Kiểm tra và xử lý response
                 if (response && response.relationships && Array.isArray(response.relationships)) {
@@ -103,7 +131,7 @@ export default function AccountDetailScreen() {
 
         return (
             <Pressable
-                onPress={() => { console.log('Bạn vừa chạm: ', item.id);navigation.navigate('RelationshipListScreen', { relationship: item }); }}
+                onPress={() => {navigation.navigate('RelationshipListScreen', { relationship: item }); }}
                 style={({ pressed }) => [
                     styles.card,
                     pressed && styles.cardPressed,   // thêm nền khi nhấn
@@ -118,47 +146,96 @@ export default function AccountDetailScreen() {
 
     // Sử dụng custom hook
     const {
-        account,
-        detailFields,
-        loading,
-        refreshing,
-        error,
-        deleting,
-        refreshAccount,
-        deleteAccount,
-        getFieldValue,
-        getFieldLabel,
-        shouldDisplayField
-    } = useAccountDetail(routeAccount, routeDetailFields, routeGetFieldValue, routeGetFieldLabel);
+    account,
+    loading,
+    refreshing,
+    detailFields,
+    deleting,
+    error,
+    refreshAccount,
+    updateAccountData,
+    deleteAccount,
+    getFieldValue,
+    getFieldLabel,
+    shouldDisplayField
+} = useAccountDetail(routeAccount, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
+
 
     // Handle delete with confirmation
-    const handleDelete = () => {
+   const handleDelete = () => {
+    if (!canEditAccount()) {
         Alert.alert(
-            'Xác nhận xóa',
-            'Bạn có chắc chắn muốn xóa khách hàng này không? Hành động này không thể hoàn tác.',
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Xóa',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const success = await deleteAccount();
-                        if (success) {
-                            Alert.alert(
-                                'Thành công',
-                                'Đã xóa khách hàng thành công',
-                                [{ text: 'OK', onPress: () => navigation.goBack() }]
-                            );
-                        }
+            'Không thể xóa',
+            'Bạn không có quyền xóa khách hàng này.',
+            [{ text: 'OK' }]
+        );
+        return;
+    }
+
+    Alert.alert(
+        'Xác nhận xóa',
+        'Bạn có chắc chắn muốn xóa khách hàng này không? Hành động này không thể hoàn tác.',
+        [
+            { text: 'Hủy', style: 'cancel' },
+            {
+                text: 'Xóa',
+                style: 'destructive',
+                onPress: async () => {
+                    const success = await deleteAccount();
+                    if (success) {
+                         if (typeof refreshAccount === 'function') {
+                            refreshAccount();
+                            }
+                        Alert.alert(
+                            'Thành công',
+                            'Đã xóa khách hàng thành công',
+                            [{ text: 'OK', onPress: () => navigation.goBack() }]
+                        );
+                    } else {
+                        Alert.alert(
+                            'Thất bại',
+                            'Không thể xóa khách hàng, vui lòng thử lại.',
+                            [{ text: 'OK' }]
+                        );
                     }
                 }
-            ]
-        );
+            }
+        ]
+    );
+};
+
+    // Check if user can edit this account
+    const canEditAccount = () => {
+        if (!account) return false;
+        
+        // If assigned_user_name is different from created_by_name, disable editing
+        if (account.assigned_user_name && account.created_by_name && 
+            account.assigned_user_name !== account.created_by_name) {
+            return false;
+        }
+        
+        return true;
     };
+
 
     // Navigate to update screen
     const handleUpdate = () => {
-        navigation.navigate('AccountUpdateScreen', { accountData: account });
+        if (!canEditAccount()) {
+            Alert.alert(
+                'Không thể chỉnh sửa',
+                'Bạn không có quyền chỉnh sửa khách hàng này.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+        navigation.navigate('AccountUpdateScreen', { 
+            routeAccount: account, // Truyền updated account thay vì routeAccount
+            routeDetailFields, 
+            routeGetFieldValue, 
+            routeGetFieldLabel,
+            refreshAccount: updateAccountData // Truyền update function
+           
+        });
     };
 
     // Format field value for display
@@ -331,7 +408,7 @@ export default function AccountDetailScreen() {
                         <TouchableOpacity
                             style={[styles.deleteButton, deleting && styles.deletingButton]}
                             onPress={handleDelete}
-                            disabled={deleting}
+                            disabled={deleting || !canEditAccount()}
                         >
                             {deleting ? (
                                 <ActivityIndicator size="small" color="#fff" />
