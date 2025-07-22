@@ -2,7 +2,7 @@ import MeetingData from '@/src/services/useApi/meeting/MeetingData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -61,6 +61,25 @@ export default function MeetingDetailScreen() {
     const route = useRoute();
     const {meeting: routeMeeting, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshMeeting: routeRefreshMeeting} = route.params;
 
+    // State để quản lý dữ liệu meeting hiện tại
+    const [currentMeeting, setCurrentMeeting] = useState(routeMeeting);
+    const [meetingRefreshing, setMeetingRefreshing] = useState(false);
+
+    // Function để refresh dữ liệu meeting hiện tại
+    const handleRefreshMeeting = useCallback(async () => {
+        if (!routeRefreshMeeting) return;
+        
+        setMeetingRefreshing(true);
+        try {
+            await routeRefreshMeeting();
+            // Có thể thêm logic để reload meeting data nếu cần
+        } catch (error) {
+            console.error('Lỗi khi refresh meeting:', error);
+        } finally {
+            setMeetingRefreshing(false);
+        }
+    }, [routeRefreshMeeting]);
+
     // Sử dụng custom hook
     const {
         meeting,
@@ -74,7 +93,7 @@ export default function MeetingDetailScreen() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField
-    } = useMeetingDetail(routeMeeting, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshMeeting);
+    } = useMeetingDetail(currentMeeting, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshMeeting);
 
     // Handle delete with confirmation
     const handleDelete = () => {
@@ -97,8 +116,8 @@ export default function MeetingDetailScreen() {
                     onPress: async () => {
                         const success = await deleteMeeting();
                         if (success) {
-                            if (typeof refreshMeeting === 'function') {
-                                refreshMeeting();
+                            if (typeof handleRefreshMeeting === 'function') {
+                                handleRefreshMeeting();
                             }
                             Alert.alert(
                                 'Thành công',
@@ -128,7 +147,26 @@ export default function MeetingDetailScreen() {
 
     // Navigate to update screen
     const handleUpdate = () => {
-        navigation.navigate('MeetingUpdateScreen', { routeMeeting, routeDetailFields, routeGetFieldValue, routeGetFieldLabel });
+        navigation.navigate('MeetingUpdateScreen', { 
+            routeMeeting: currentMeeting,
+            routeDetailFields,
+            routeGetFieldValue,
+            routeGetFieldLabel,
+            refreshMeeting: (updatedMeetingData) => {
+                // Cập nhật dữ liệu meeting hiện tại trong DetailScreen
+                if (updatedMeetingData) {
+                    setCurrentMeeting(prevMeeting => ({
+                        ...prevMeeting,
+                        ...updatedMeetingData
+                    }));
+                }
+                // Gọi refresh callback nếu có
+                if (typeof handleRefreshMeeting === 'function') {
+                    handleRefreshMeeting();
+                }
+            },
+            refreshMeetingList: routeRefreshMeeting // Truyền callback từ MeetingListScreen để refresh list
+        });
     };
 
     // Format field value for display
@@ -214,7 +252,7 @@ export default function MeetingDetailScreen() {
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
                     <Text style={styles.errorTitle}>Không thể tải cuộc họp</Text>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={refreshMeeting}>
+                    <TouchableOpacity style={styles.retryButton} onPress={handleRefreshMeeting}>
                         <Text style={styles.retryButtonText}>Thử lại</Text>
                     </TouchableOpacity>
                 </View>
@@ -236,8 +274,8 @@ export default function MeetingDetailScreen() {
                     style={styles.content}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={refreshMeeting}
+                            refreshing={meetingRefreshing || refreshing}
+                            onRefresh={handleRefreshMeeting}
                             colors={['#4B84FF']}
                             title="Kéo để tải lại..."
                         />

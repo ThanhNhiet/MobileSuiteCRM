@@ -3,17 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
@@ -99,26 +99,27 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
         getFieldLabel,
         getFieldError: getFieldErrorLocal,
         isFormValid: () => {
-            // Find the main field for validation
+            // Validate required fields - tìm field chính để validate
             const nameField = detailFields?.find(f => 
                 f.key === 'name' || 
                 f.key === 'title' || 
                 f.key === 'subject' ||
                 f.key.toLowerCase().includes('name') ||
-                f.key.toLowerCase().includes('title')
+                f.key.toLowerCase().includes('title') ||
+                f.key.toLowerCase().includes('subject')
             );
             
             if (nameField) {
                 return updateTaskData[nameField.key] && updateTaskData[nameField.key].trim() !== '';
             }
             
-            // Fallback - check first field
+            // Fallback - check first non-id field
             const firstField = detailFields?.find(f => f.key !== 'id');
             if (firstField) {
                 return updateTaskData[firstField.key] && updateTaskData[firstField.key].trim() !== '';
             }
             
-            return false;
+            return true; // Nếu không tìm thấy field nào, cho phép save
         },
         updateTask: async () => {
             try {
@@ -129,15 +130,41 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
                     return { success: false };
                 }
                 
-                // Chỉ gửi các field đã thay đổi
-                const changedData = {};
-                Object.keys(updateTaskData).forEach(key => {
-                    if (updateTaskData[key] !== originalTaskData[key]) {
-                        changedData[key] = updateTaskData[key];
-                    }
-                });
+                // Chỉ gửi các field đã được thay đổi thực sự so với dữ liệu gốc
+                const fieldsToUpdate = {};
                 
-                const result = await TaskData.UpdateTask(taskId, changedData, token);
+                // Danh sách các field system không nên update
+                const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
+                
+                if (detailFields && Array.isArray(detailFields)) {
+                    detailFields.forEach(field => {
+                        // Bỏ qua system fields
+                        if (!systemFields.includes(field.key)) {
+                            const currentValue = updateTaskData[field.key];
+                            const originalValue = originalTaskData[field.key];
+                            
+                            // Chỉ thêm field nếu giá trị đã thay đổi
+                            // Normalize giá trị để so sánh (handle null, undefined, empty string)
+                            const normalizedCurrent = currentValue || '';
+                            const normalizedOriginal = originalValue || '';
+                            
+                            if (normalizedCurrent !== normalizedOriginal) {
+                                fieldsToUpdate[field.key] = currentValue;
+                               
+                            }
+                        }
+                    });
+                }
+
+                console.log('📤 Fields to update:', fieldsToUpdate);
+                
+                // Nếu không có field nào thay đổi, không cần gọi API
+                if (Object.keys(fieldsToUpdate).length === 0) {
+                    setLoading(false);
+                    return { success: true, message: 'Không có thay đổi nào để cập nhật' };
+                }
+                
+                const result = await TaskData.UpdateTask(taskId, fieldsToUpdate, token);
                 setLoading(false);
                 return { success: true, data: result };
             } catch (error) {
@@ -162,7 +189,8 @@ export default function TaskUpdateScreen() {
     detailFields, 
     getFieldLabel: routeGetFieldLabel, 
     getFieldValue: routeGetFieldValue, 
-    refreshTask: routeRefreshTask 
+    refreshTask: routeRefreshTask,
+    refreshTaskList // Thêm callback để refresh TaskListScreen
   } = route.params || {};
 
   // Sử dụng custom hook
@@ -196,16 +224,24 @@ export default function TaskUpdateScreen() {
       setSaving(true);
       const result = await updateTask();
       if (result.success) {
+        const message = result.message || 'Cập nhật công việc thành công!';
         Alert.alert(
           'Thành công',
-          'Cập nhật công việc thành công!',
+          message,
           [
             {
               text: 'OK',
               onPress: () => {
+                // Refresh dữ liệu ở TaskDetailScreen với updated data
                 if (typeof refreshTask === 'function') {
-                  refreshTask();
+                  refreshTask(result.data || formData);
                 }
+                
+                // Refresh dữ liệu ở TaskListScreen
+                if (typeof refreshTaskList === 'function') {
+                  refreshTaskList();
+                }
+                
                 navigation.goBack();
               }
             }

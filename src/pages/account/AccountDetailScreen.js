@@ -233,8 +233,8 @@ export default function AccountDetailScreen() {
             routeDetailFields, 
             routeGetFieldValue, 
             routeGetFieldLabel,
-            refreshAccount: updateAccountData // Truyền update function
-           
+            refreshAccount: updateAccountData, // Truyền update function cho DetailScreen
+            refreshAccountList: routeRefreshAccount // Truyền callback từ AccountListScreen
         });
     };
 

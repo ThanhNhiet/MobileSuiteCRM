@@ -2,17 +2,17 @@ import TaskData from '@/src/services/useApi/task/TaskData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
@@ -61,6 +61,25 @@ export default function TaskDetailScreen() {
     const route = useRoute();
     const {task: routeTask, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshTask: routeRefreshTask} = route.params;
 
+    // State để quản lý dữ liệu task hiện tại
+    const [currentTask, setCurrentTask] = useState(routeTask);
+    const [taskRefreshing, setTaskRefreshing] = useState(false);
+
+    // Function để refresh dữ liệu task hiện tại
+    const handleRefreshTask = useCallback(async () => {
+        if (!routeRefreshTask) return;
+        
+        setTaskRefreshing(true);
+        try {
+            await routeRefreshTask();
+            // Có thể thêm logic để reload task data nếu cần
+        } catch (error) {
+            console.error('Lỗi khi refresh task:', error);
+        } finally {
+            setTaskRefreshing(false);
+        }
+    }, [routeRefreshTask]);
+
     // Sử dụng custom hook
     const {
         task,
@@ -74,7 +93,7 @@ export default function TaskDetailScreen() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField
-    } = useTaskDetail(routeTask, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
+    } = useTaskDetail(currentTask, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshTask);
 
     // Handle delete with confirmation
     const handleDelete = () => {
@@ -97,8 +116,8 @@ export default function TaskDetailScreen() {
                     onPress: async () => {
                         const success = await deleteTask();
                         if (success) {
-                            if (typeof refreshTask === 'function') {
-                                refreshTask();
+                            if (typeof handleRefreshTask === 'function') {
+                                handleRefreshTask();
                             }
                             Alert.alert(
                                 'Thành công',
@@ -129,11 +148,24 @@ export default function TaskDetailScreen() {
     // Navigate to update screen
     const handleUpdate = () => {
         navigation.navigate('TaskUpdateScreen', { 
-            taskId: routeTask?.id,
+            taskId: currentTask?.id,
             detailFields: routeDetailFields, 
             getFieldValue: routeGetFieldValue, 
             getFieldLabel: routeGetFieldLabel, 
-            refreshTask: routeRefreshTask
+            refreshTask: (updatedTaskData) => {
+                // Cập nhật dữ liệu task hiện tại trong DetailScreen
+                if (updatedTaskData) {
+                    setCurrentTask(prevTask => ({
+                        ...prevTask,
+                        ...updatedTaskData
+                    }));
+                }
+                // Gọi refresh callback nếu có
+                if (typeof handleRefreshTask === 'function') {
+                    handleRefreshTask();
+                }
+            },
+            refreshTaskList: routeRefreshTask // Truyền callback từ TaskListScreen để refresh list
         });
     };
 
@@ -228,7 +260,7 @@ export default function TaskDetailScreen() {
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
                     <Text style={styles.errorTitle}>Không thể tải công việc</Text>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={refreshTask}>
+                    <TouchableOpacity style={styles.retryButton} onPress={handleRefreshTask}>
                         <Text style={styles.retryButtonText}>Thử lại</Text>
                     </TouchableOpacity>
                 </View>
@@ -250,8 +282,8 @@ export default function TaskDetailScreen() {
                     style={styles.content}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={refreshTask}
+                            refreshing={taskRefreshing || refreshing}
+                            onRefresh={handleRefreshTask}
                             colors={['#4B84FF']}
                             title="Kéo để tải lại..."
                         />

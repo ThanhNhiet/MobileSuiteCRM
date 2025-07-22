@@ -120,21 +120,47 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                 if (!account || !account.id) {
                     throw new Error('Không tìm thấy thông tin khách hàng');
                 }
-                const result = await AccountData.UpdateAccount(account.id, updateAccountData, token);
+
+                // Chỉ gửi các field đã được thay đổi thực sự so với dữ liệu gốc
+                const fieldsToUpdate = {};
+                
+                // Danh sách các field system không nên update
+                const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
+                
+                if (detailFields && Array.isArray(detailFields)) {
+                    detailFields.forEach(field => {
+                        // Bỏ qua system fields
+                        if (!systemFields.includes(field.key)) {
+                            const currentValue = updateAccountData[field.key];
+                            const originalValue = account[field.key];
+                            
+                            // Chỉ thêm field nếu giá trị đã thay đổi
+                            // Normalize giá trị để so sánh (handle null, undefined, empty string)
+                            const normalizedCurrent = currentValue || '';
+                            const normalizedOriginal = originalValue || '';
+                            
+                            if (normalizedCurrent !== normalizedOriginal) {
+                                fieldsToUpdate[field.key] = currentValue;
+                               
+                            }
+                        }
+                    });
+                }
+
+                console.log('📤 Fields to update:', fieldsToUpdate);
+                
+                // Nếu không có field nào thay đổi, không cần gọi API
+                if (Object.keys(fieldsToUpdate).length === 0) {
+                    setLoading(false);
+                    return { success: true, message: 'Không có thay đổi nào để cập nhật' };
+                }
+
+                const result = await AccountData.UpdateAccount(account.id, fieldsToUpdate, token);
               
                 setLoading(false);
                 if (result) {
                     // Success if we have any meaningful response
-                    if (result.data || result.id || result.attributes || (result.meta && !result.errors)) {
-                       
-                        return { success: true, data: result };
-                    } else if (result.errors && result.errors.length > 0) {
-                        
-                        return { success: false, error: result.errors[0]?.detail || 'API returned errors' };
-                    } else {
-                       
-                        return { success: true, data: result };
-                    }
+                    return { success: true, data: result };
                 } else {
                    
                     return { success: false, error: 'No response from server' };
@@ -158,7 +184,8 @@ export default function AccountUpdateScreen() {
     routeDetailFields, 
     routeGetFieldValue, 
     routeGetFieldLabel, 
-    refreshAccount
+    refreshAccount,
+    refreshAccountList // Thêm callback để refresh AccountListScreen
   } = route.params || {};
 
   // Alias để dễ sử dụng
@@ -197,22 +224,29 @@ export default function AccountUpdateScreen() {
       }
       const result = await updateAccount();
       if (result && result.success) {
+        const message = result.message || 'Cập nhật khách hàng thành công!';
         Alert.alert(
           'Thành công',
-          'Cập nhật khách hàng thành công!',
+          message,
           [
             {
               text: 'OK',
               onPress: () => {
                 // Refresh dữ liệu ở DetailScreen trước khi quay lại
                 if (typeof refreshAccount === 'function') {
-                  // Truyền updated account data
+                  // Chỉ merge những field đã thay đổi thực sự
                   const updatedAccountData = {
                     ...account,
                     ...updateAccountData // Merge original với updated fields
                   };
                   refreshAccount(updatedAccountData);
                 }
+                
+                // Refresh dữ liệu ở AccountListScreen
+                if (typeof refreshAccountList === 'function') {
+                  refreshAccountList();
+                }
+                
                 navigation.goBack();
               }
             }

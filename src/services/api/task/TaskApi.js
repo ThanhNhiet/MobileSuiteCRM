@@ -130,17 +130,25 @@ TaskApi.getRelationships = async (token, taskId) => {
 
 // cập nhật task
 TaskApi.updateTask = async (taskId, taskData, token) => {
-    try {
-        const response = await axiosInstance.patch(`/Api/V8/module`, {
-            data: {
-                type: 'Tasks',
-                id: taskId,
-                attributes: taskData
-            }
+   try {
+        
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: {
+                    type: 'Tasks',
+                    id: taskId,
+                    attributes: taskData
+                }
+            })
         });
-        return response.data;
+        return response;
     } catch (error) {
-        console.warn("Update Task API error:", error);
+        console.error("💥 Update Task API error:", error);
         throw error;
     }
 };

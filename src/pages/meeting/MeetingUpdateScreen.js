@@ -21,8 +21,13 @@ import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdat
 const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshMeeting) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
+    const [isDataChanged, setIsDataChanged] = useState(false);
     
-    // Tạo updateMeeting từ meeting và detailFields
+    // State để lưu dữ liệu gốc và dữ liệu cập nhật
+    const [originalMeetingData, setOriginalMeetingData] = useState({});
+    const [updateMeetingData, setUpdateMeetingData] = useState({});
+    
+    // Khởi tạo dữ liệu meeting từ meeting và detailFields
     const initializeUpdateMeeting = useCallback(() => {
         const initialData = {};
         if (meeting && typeof meeting === 'object') {
@@ -42,23 +47,28 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
         return initialData;
     }, [meeting, detailFields]);
     
-    const [updateMeetingData, setUpdateMeetingData] = useState(() => {
-        const initialData = initializeUpdateMeeting();
-        return initialData;
-    });
-    
-    // Reinitialize when meeting or detailFields change
+    // Effect để khởi tạo dữ liệu khi component mount
     useEffect(() => {
-        const newData = initializeUpdateMeeting();
-        setUpdateMeetingData(newData);
-    }, [initializeUpdateMeeting]);
+        if (meeting && detailFields) {
+            const initialData = initializeUpdateMeeting();
+            setOriginalMeetingData(initialData);
+            setUpdateMeetingData(initialData);
+        }
+    }, [meeting, detailFields, initializeUpdateMeeting]);
     
     // Function để cập nhật field
-    const updateField = (fieldKey, value) => {
-        setUpdateMeetingData(prev => ({
-            ...prev,
-            [fieldKey]: value
-        }));
+    const updateField = useCallback((fieldKey, value) => {
+        setUpdateMeetingData(prev => {
+            const newData = { ...prev, [fieldKey]: value };
+            
+            // Kiểm tra xem dữ liệu có thay đổi không
+            const hasChanges = Object.keys(newData).some(key => 
+                newData[key] !== originalMeetingData[key]
+            );
+            setIsDataChanged(hasChanges);
+            
+            return newData;
+        });
         
         // Clear validation error when field is updated
         if (validationErrors[fieldKey]) {
@@ -68,26 +78,27 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                 return newErrors;
             });
         }
-    };
+    }, [originalMeetingData, validationErrors]);
     
     // Function để lấy giá trị field
-    const getFieldValueLocal = (fieldKey) => {
-        const value = updateMeetingData[fieldKey] || '';
-        return value;
-    };
+    const getFieldValueLocal = useCallback((fieldKey) => {
+        return updateMeetingData[fieldKey] || '';
+    }, [updateMeetingData]);
     
     // Function để lấy field error
-    const getFieldErrorLocal = (fieldKey) => {
+    const getFieldErrorLocal = useCallback((fieldKey) => {
         return validationErrors[fieldKey] || null;
-    };
+    }, [validationErrors]);
    
     return {
         detailFields,
-        formData: meeting || updateMeetingData,
+        formData: updateMeetingData,
+        originalData: originalMeetingData,
         updateMeetingData, // Expose để component có thể access
         loading,
         error: null,
         validationErrors,
+        isDataChanged,
         refreshMeeting,
         updateField, 
         getFieldValue: getFieldValueLocal,
@@ -139,7 +150,42 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                 if (!meeting || !meeting.id) {
                     throw new Error('Không tìm thấy thông tin cuộc họp');
                 }
-                const result = await MeetingData.UpdateMeeting(meeting.id, updateMeetingData, token);
+
+                // Chỉ gửi các field đã được thay đổi thực sự so với dữ liệu gốc
+                const fieldsToUpdate = {};
+                
+                // Danh sách các field system không nên update
+                const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
+                
+                if (detailFields && Array.isArray(detailFields)) {
+                    detailFields.forEach(field => {
+                        // Bỏ qua system fields
+                        if (!systemFields.includes(field.key)) {
+                            const currentValue = updateMeetingData[field.key];
+                            const originalValue = meeting[field.key];
+                            
+                            // Chỉ thêm field nếu giá trị đã thay đổi
+                            // Normalize giá trị để so sánh (handle null, undefined, empty string)
+                            const normalizedCurrent = currentValue || '';
+                            const normalizedOriginal = originalValue || '';
+                            
+                            if (normalizedCurrent !== normalizedOriginal) {
+                                fieldsToUpdate[field.key] = currentValue;
+                                
+                            }
+                        }
+                    });
+                }
+
+                console.log('📤 Fields to update:', fieldsToUpdate);
+                
+                // Nếu không có field nào thay đổi, không cần gọi API
+                if (Object.keys(fieldsToUpdate).length === 0) {
+                    setLoading(false);
+                    return { success: true, message: 'Không có thay đổi nào để cập nhật' };
+                }
+
+                const result = await MeetingData.UpdateMeeting(meeting.id, fieldsToUpdate, token);
               
                 setLoading(false);
                 if (result) {
@@ -160,7 +206,10 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                 throw error;
             }
         },
-        resetForm: () => setUpdateMeetingData(initializeUpdateMeeting()),
+        resetForm: () => {
+            setUpdateMeetingData(originalMeetingData);
+            setIsDataChanged(false);
+        },
         shouldDisplayField: (key) => true,
     };
 };
@@ -174,7 +223,7 @@ export default function MeetingUpdateScreen() {
     routeGetFieldValue, 
     routeGetFieldLabel, 
     refreshMeeting,
-    updateMeetingData
+    refreshMeetingList // Thêm callback để refresh MeetingListScreen
   } = route.params || {};
 
   // Alias để dễ sử dụng
@@ -185,9 +234,11 @@ export default function MeetingUpdateScreen() {
   
   const {
     formData,
+    originalData,
     updateMeetingData: hookUpdateMeetingData,
     loading,
     error,
+    isDataChanged,
     updateField,
     updateMeeting,
     resetForm,
@@ -203,6 +254,11 @@ export default function MeetingUpdateScreen() {
 
   // Handle save
   const handleSave = async () => {
+    if (!isDataChanged) {
+      Alert.alert('Thông báo', 'Không có thay đổi nào để lưu');
+      return;
+    }
+
     try {
       setSaving(true);
       
@@ -215,22 +271,28 @@ export default function MeetingUpdateScreen() {
       
       const result = await updateMeeting();
       if (result && result.success) {
+        const message = result.message || 'Cập nhật cuộc họp thành công!';
         Alert.alert(
           'Thành công',
-          'Cập nhật cuộc họp thành công!',
+          message,
           [
             {
               text: 'OK',
               onPress: () => {
-                // Call updateMeetingData callback if provided
-                if (typeof updateMeetingData === 'function') {
-                  updateMeetingData(hookUpdateMeetingData);
+                // Refresh dữ liệu ở MeetingDetailScreen với updated data
+                if (typeof refreshMeeting === 'function') {
+                  const updatedMeetingData = {
+                    ...meeting,
+                    ...hookUpdateMeetingData // Merge original với updated fields
+                  };
+                  refreshMeeting(updatedMeetingData);
                 }
                 
-                // Also call refreshMeeting if provided
-                if (typeof refreshMeeting === 'function') {
-                  refreshMeeting();
+                // Refresh dữ liệu ở MeetingListScreen
+                if (typeof refreshMeetingList === 'function') {
+                  refreshMeetingList();
                 }
+                
                 navigation.goBack();
               }
             }
@@ -318,20 +380,42 @@ export default function MeetingUpdateScreen() {
                 );
               })}
 
-            {/* Save Button */}
+            {/* Action Buttons */}
             <View style={styles.buttonContainer}>
+              {/* Reset Button */}
+              {isDataChanged && (
+                <TouchableOpacity
+                  style={[styles.resetButton]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Xác nhận',
+                      'Bạn có chắc chắn muốn khôi phục dữ liệu gốc?',
+                      [
+                        { text: 'Hủy', style: 'cancel' },
+                        { text: 'Khôi phục', onPress: resetForm }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.resetButtonText}>Khôi phục</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Save Button */}
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  (!isFormValid() || saving) && styles.disabledButton
+                  (!isFormValid() || saving || !isDataChanged) && styles.disabledButton
                 ]}
                 onPress={handleSave}
-                disabled={!isFormValid() || saving}
+                disabled={!isFormValid() || saving || !isDataChanged}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Cập nhật cuộc họp</Text>
+                  <Text style={styles.saveButtonText}>
+                    {isDataChanged ? 'Cập nhật cuộc họp' : 'Không có thay đổi'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -428,6 +512,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 20,
     paddingHorizontal: 20,
+    gap: 12,
   },
 
   saveButton: {
@@ -453,5 +538,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+
+  resetButton: {
+    backgroundColor: '#6b7280',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+
+  resetButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

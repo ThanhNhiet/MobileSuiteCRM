@@ -124,16 +124,24 @@ MeetingApi.getRelationships = async (token, meetingId) => {
 // cập nhật meeting
 MeetingApi.updateMeeting = async (meetingId, meetingData, token) => {
     try {
-        const response = await axiosInstance.patch(`/Api/V8/module`, {
-            data: {
-                type: 'Meetings',
-                id: meetingId,
-                attributes: meetingData
-            }
+        
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: {
+                    type: 'Meetings',
+                    id: meetingId,
+                    attributes: meetingData
+                }
+            })
         });
-        return response.data;
+        return response;
     } catch (error) {
-        console.warn("Update Meeting API error:", error);
+        console.error("💥 Update Account API error:", error);
         throw error;
     }
 };
