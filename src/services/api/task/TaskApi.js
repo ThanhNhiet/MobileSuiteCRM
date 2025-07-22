@@ -1,13 +1,13 @@
+import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { LOCALHOST_IP } from '../../../utils/localhost';
 
-const AccountApi = {};
+const TaskApi = {};
 
-
-// Lấy thông tin trường của mô hình Accounts
-AccountApi.getFields = async (token) => {
+// Lấy thông tin trường của mô hình Tasks
+TaskApi.getFields = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/fields/Accounts`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/fields/Tasks`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -18,14 +18,15 @@ AccountApi.getFields = async (token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Lỗi trong AccountApi:', error);
+        console.error('Lỗi trong TaskApi:', error);
         throw error;
     }
 };
+
 // lấy danh sách listfieldView
-AccountApi.getListFieldsView = async (token) => {
+TaskApi.getListFieldsView = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/default-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -42,9 +43,9 @@ AccountApi.getListFieldsView = async (token) => {
 };
 
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
-AccountApi.getLanguage = async (token) => {
+TaskApi.getLanguage = async (token) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/language/lang=en_us`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -66,27 +67,33 @@ AccountApi.getLanguage = async (token) => {
   }
 };
 
-// lấy data account theo trang
-//{{suitecrm.url}}/V8/module/Accounts?page[size]=10&page[number]=1&sort=date_entered
-AccountApi.getDataByPage = async (token, page, pageSize) => {
+// lấy data task theo trang
+TaskApi.getDataByPage = async (token, page, pageSize) => {
   try{
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts?page[size]=${pageSize}&page[number]=${page}&sort=date_entered`, {
+   
+    
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Tasks?page[size]=${pageSize}&page[number]=${page}&sort=date_entered`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
       },
     });
+    
+   
+    
     const data = await response.json();
+   
+    
     return data;
   } catch (error) {
-    console.error('Lỗi trong getDataByPage:', error);
+    console.error('💥 Lỗi trong getDataByPage:', error);
     throw error;
   }
 }
 
 // lấy metadata của tất cả modules từ V8/meta/modules
-AccountApi.getModuleMeta = async (token) => {
+TaskApi.getModuleMeta = async (token) => {
   try {
     const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/modules`, {
       method: 'GET',
@@ -103,10 +110,10 @@ AccountApi.getModuleMeta = async (token) => {
   }
 };
 
-// lấy mối quan hệ của account
-AccountApi.getRelationships = async (token,accountId) => {
+// lấy mối quan hệ của task
+TaskApi.getRelationships = async (token, taskId) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Tasks/${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -121,8 +128,9 @@ AccountApi.getRelationships = async (token,accountId) => {
   }
 };
 
-AccountApi.updateAccount = async (accountId, accountData, token) => {
-    try {
+// cập nhật task
+TaskApi.updateTask = async (taskId, taskData, token) => {
+   try {
         
         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
             method: 'PATCH',
@@ -132,22 +140,45 @@ AccountApi.updateAccount = async (accountId, accountData, token) => {
             },
             body: JSON.stringify({
                 data: {
-                    type: 'Accounts',
-                    id: accountId,
-                    attributes: accountData
+                    type: 'Tasks',
+                    id: taskId,
+                    attributes: taskData
                 }
             })
         });
         return response;
     } catch (error) {
-        console.error("💥 Update Account API error:", error);
+        console.error("💥 Update Task API error:", error);
         throw error;
     }
 };
-// xoá
-AccountApi.deleteAccount = async (accountId, token) => {
+
+// tạo task mới
+TaskApi.createTask = async (taskData, token) => {
+    try {   
+        const userId = getUserIdFromToken(token);
+
+        const response = await axiosInstance.post(`/Api/V8/module`, {
+            data: {
+                type: 'Tasks',
+                attributes: {
+                    assigned_user_id: userId,
+                    ...taskData
+                }
+            }
+        });
+        return response.data;
+    }
+    catch (error) {
+        console.warn("Create Task API error:", error);
+        throw error;
+    }
+};
+
+// xoá task
+TaskApi.deleteTask = async (taskId, token) => {
     try {
-         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Tasks/${taskId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -156,35 +187,9 @@ AccountApi.deleteAccount = async (accountId, token) => {
         });
         return response;
     } catch (error) {
-        console.warn("Delete Account API error:", error);
-        throw error;
-    }
-};
-AccountApi.createAccount = async (accountData, token) => {
-    try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                data: {
-                    type: 'Accounts',
-                    attributes: {
-                        assigned_user_id: getUserIdFromToken(token),
-                        ...accountData
-                    }
-                }
-            })
-        });
-
-        return response.data;
-    } catch (error) {
-        console.error('Error creating account:', error);
+        console.warn("Delete Task API error:", error);
         throw error;
     }
 };
 
-
-export default AccountApi;
+export default TaskApi;

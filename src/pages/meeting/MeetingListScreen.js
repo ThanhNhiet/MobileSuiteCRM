@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     FlatList,
     Modal,
@@ -13,15 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
+import { formatDateTime } from '@/src/utils/FormatDateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-
-const dummyData = new Array(20).fill(0).map((_, i) => ({
-    id: i.toString(),
-    name: `Name ${i}`,
-    date_entered: `Date ${i}`,
-    description: `description ${i}`,
-}));
+import MeetingData from '../../services/useApi/meeting/MeetingData';
 
 export default function MeetingListScreen() {
     const navigation = useNavigation();
@@ -29,7 +25,11 @@ export default function MeetingListScreen() {
 
     const [page, setPage] = useState(1);
     const totalPages = 10;
-    const [startPage, setStartPage] = useState(1);
+
+    // dữ liệu từ API
+    const [apiData, setApiData] = useState(null);
+    // loading state
+    const [loading, setLoading] = useState(true);
 
     // State cho dropdown
     const [selectedType1, setSelectedType1] = useState('All');
@@ -41,26 +41,56 @@ export default function MeetingListScreen() {
     const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
     const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
 
-    // Tính danh sách trang hiển thị (tối đa 3 trang)
-    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+    // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
+    const visiblePages = [page];
 
     // Vô hiệu hóa khi ở đầu/cuối
-    const isPrevDisabled = startPage === 1;
-    const isNextDisabled = startPage + 2 >= totalPages;
+    const isPrevDisabled = page === 1;
+    const isNextDisabled = page >= totalPages;
 
     const handlePrev = () => {
         if (!isPrevDisabled) {
-            const newStart = startPage - 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page - 1;
+            setPage(newPage);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newPage);
         }
     };
 
     const handleNext = () => {
         if (!isNextDisabled) {
-            const newStart = startPage + 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page + 1;
+            setPage(newPage);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newPage);
+        }
+    };
+
+    const handlePageClick = (pageNumber) => {
+        setPage(pageNumber);
+        // Lấy dữ liệu trang mới
+        fetchDataByPage(pageNumber);
+    };
+
+    // Function để lấy dữ liệu theo trang
+    const fetchDataByPage = async (pageNumber) => {
+        try {
+            setLoading(true);
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {   
+                navigation.navigate('LoginScreen');
+                return;
+            }
+            
+            // Lấy dữ liệu với 20 dòng mỗi trang
+            const result = await MeetingData.getDataWithFields(token, pageNumber, 20);
+           
+            setApiData(result);
+            
+        } catch (error) {
+            console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -69,13 +99,66 @@ export default function MeetingListScreen() {
         // Xử lý tìm kiếm
     };
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('MeetingDetailScreen', { meetingId: item.id })}}>
-            <Text style={styles.cell}>{item.name}</Text>
-            <Text style={styles.cell}>{item.date_entered}</Text>
-            <Text style={styles.cell}>{item.description}</Text>
-        </TouchableOpacity>
-    );
+    const renderItem = ({ item }) => {
+        // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
+        const displayFields = apiData?.detailFields
+            ?.filter(field => field.key !== 'id')
+            ?.slice(0, 3) || [];
+
+        return (
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('MeetingDetailScreen', { meeting: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshMeeting:() => fetchDataByPage(page)})}}>
+                {displayFields.map((field, index) => {
+                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
+                    
+                    // Kiểm tra và format nếu là dữ liệu ngày
+                    let displayValue = rawValue;
+                    if (rawValue && (
+                        field.key.includes('date') ||
+                        field.key.includes('time') ||
+                        field.key === 'date_entered' ||
+                        field.key === 'date_modified' ||
+                        field.key === 'created_date' ||
+                        field.key === 'modified_date' ||
+                        field.key === 'date_start' ||
+                        field.key === 'date_end'
+                    )) {
+                        displayValue = formatDateTime(rawValue);
+                    }
+                    
+                    return (
+                        <Text key={index} style={styles.cell}>
+                            {displayValue}
+                        </Text>
+                    );
+                })}
+            </TouchableOpacity>
+        );
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {   
+                    navigation.navigate('LoginScreen');
+                    return;
+                }
+                
+                // Lấy dữ liệu với 20 dòng cho trang đầu tiên
+                const result = await MeetingData.getDataWithFields(token, page, 20);
+               
+                setApiData(result);
+                
+            } catch (error) {
+                console.error('Lỗi lấy dữ liệu:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchData();
+    }, []);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -157,7 +240,12 @@ export default function MeetingListScreen() {
                                 onPress={() => {
                                     // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
                                    // console.log('Add new');
-                                    navigation.navigate('MeetingCreateScreen');
+                                    navigation.navigate('MeetingCreateScreen',{
+                                        detailFields: apiData?.detailFields,
+                                        getFieldLabel: apiData?.getFieldLabel,
+                                        getFieldValue: apiData?.getFieldValue,
+                                        refreshMeeting: () => fetchDataByPage(page)
+                                    });
                                 }}
                                 style={[styles.addNewBtn]}
                             >
@@ -170,14 +258,17 @@ export default function MeetingListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        <Text style={styles.headerCell}>Tên</Text>
-                        <Text style={styles.headerCell}>Số điện thoại</Text>
-                        <Text style={styles.headerCell}>Loại công việc</Text>
+                        {apiData?.detailFields
+                            ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                            ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
+                            ?.map((field, index) => (
+                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
+                            )) || []}
                     </View>
 
                     {/* Table Rows - Scrollable */}
                     <FlatList
-                        data={dummyData}
+                        data={apiData?.meetings || []}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id}
                         style={styles.list}
@@ -199,7 +290,7 @@ export default function MeetingListScreen() {
                         {visiblePages.map((num) => (
                             <TouchableOpacity
                                 key={num}
-                                onPress={() => setPage(num)}
+                                onPress={() => handlePageClick(num)}
                                 style={[styles.pageBtn, num === page && styles.activePage]}
                             >
                                 <Text style={num === page ? { color: '#fff' } : {}}>{num}</Text>

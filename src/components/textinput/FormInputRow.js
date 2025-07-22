@@ -1,12 +1,12 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const FormInputRow = ({
   label,
   value,
   onChangeText,
-  type = 'text', // text | phone | email | date
+  type = 'text', // text | phone | email | date | datetime | number | multiline | boolean | select | url
   placeholder,
   editable = true,
   field
@@ -19,6 +19,12 @@ const FormInputRow = ({
         return 'email-address';
       case 'phone':
         return 'phone-pad';
+      case 'number':
+        return 'numeric';
+      case 'url':
+        return 'url';
+      case 'decimal':
+        return 'decimal-pad';
       default:
         return 'default';
     }
@@ -75,13 +81,41 @@ const FormInputRow = ({
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
+    
     if (selectedDate) {
-      const isoString = selectedDate.toISOString().split('T')[0]; // yyyy-mm-dd
-      onChangeText(isoString);
+      try {
+        let formattedDate;
+        if (type === 'datetime') {
+          // Format: YYYY-MM-DD HH:MM:SS
+          const year = selectedDate.getFullYear();
+          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(selectedDate.getDate()).padStart(2, '0');
+          const hours = String(selectedDate.getHours()).padStart(2, '0');
+          const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+          const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
+          formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        } else if (type === 'time') {
+          // Format: HH:MM:SS
+          const hours = String(selectedDate.getHours()).padStart(2, '0');
+          const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+          const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
+          formattedDate = `${hours}:${minutes}:${seconds}`;
+        } else {
+          // Format: YYYY-MM-DD
+          const year = selectedDate.getFullYear();
+          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(selectedDate.getDate()).padStart(2, '0');
+          formattedDate = `${year}-${month}-${day}`;
+        }
+        onChangeText(formattedDate);
+      } catch (error) {
+        console.error('Error formatting date:', error);
+      }
     }
   };
 
-  const isDateType = type === 'datetime' || field?.dbType === 'datetime' || field?.dbType === 'date';
+  const isDateType = ['date', 'datetime', 'time'].includes(type) || 
+                     ['datetime', 'date', 'time'].includes(field?.dbType);
 
   // Tạo label với thông tin length nếu có
   const getLabelWithLength = () => {
@@ -91,6 +125,38 @@ const FormInputRow = ({
     return label;
   };
 
+  // Handle boolean type
+  if (type === 'boolean') {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.label}>{getLabelWithLength()}</Text>
+        <TouchableOpacity
+          style={[styles.valueBox, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+          onPress={() => editable && onChangeText(value === 'true' || value === '1' ? 'false' : 'true')}
+          disabled={!editable}
+        >
+          <Text style={styles.value}>
+            {value === 'true' || value === '1' ? 'Yes' : 'No'}
+          </Text>
+          <View style={[
+            {
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: (value === 'true' || value === '1') ? '#007AFF' : '#ddd',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }
+          ]}>
+            {(value === 'true' || value === '1') && (
+              <Text style={{ color: 'white', fontSize: 16 }}>✓</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{getLabelWithLength()}</Text>
@@ -98,23 +164,29 @@ const FormInputRow = ({
       <View style={styles.valueBox}>
         {isDateType ? (
           <>
-            <TouchableOpacity onPress={() => editable && setShowDatePicker(true)}>
-              <Text style={[styles.value, { paddingVertical: 8 }]}>
+            <TouchableOpacity 
+              onPress={() => editable && setShowDatePicker(true)}
+              style={{ paddingVertical: 8 }}
+            >
+              <Text style={styles.value}>
                 {value || `Chọn ${label.toLowerCase()}`}
               </Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
                 value={value ? new Date(value) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                mode={type === 'datetime' ? 'datetime' : type === 'time' ? 'time' : 'date'}
+                display="default"
                 onChange={handleDateChange}
               />
             )}
           </>
         ) : (
           <TextInput
-            style={styles.value}
+            style={[styles.value, { 
+              height: type === 'multiline' ? 80 : undefined,
+              textAlignVertical: type === 'multiline' ? 'top' : 'center'
+            }]}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder || label}
@@ -122,6 +194,8 @@ const FormInputRow = ({
             keyboardType={getKeyboard()}
             maxLength={field?.len || undefined}
             editable={editable}
+            multiline={type === 'multiline'}
+            numberOfLines={type === 'multiline' ? 4 : 1}
           />
         )}
       </View>

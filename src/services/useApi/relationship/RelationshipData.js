@@ -157,7 +157,6 @@ RelationshipsData.getListFieldsView = async (token, moduleName) => {
     
     // Kiểm tra fields response
     if (!fields) {
-      console.log(`❌ Fields is null/undefined for module: ${moduleName}`);
       return null;
     }
     
@@ -168,13 +167,11 @@ RelationshipsData.getListFieldsView = async (token, moduleName) => {
     } else if (fields.data && fields.data.default_fields) {
       defaultFieldsObject = fields.data.default_fields;
     } else {
-      console.log(`❌ No default_fields found for ${moduleName}. Available keys:`, Object.keys(fields));
       return null;
     }
 
     // Kiểm tra language response
     if (!language) {
-      console.log(`❌ Language is null/undefined for module: ${moduleName}`);
       return null;
     }
     
@@ -185,7 +182,6 @@ RelationshipsData.getListFieldsView = async (token, moduleName) => {
     } else if (language.mod_strings) {
       modStrings = language.mod_strings;
     } else {
-      console.log(`❌ No mod_strings found for ${moduleName}. Available keys:`, Object.keys(language));
       return null;
     }
 

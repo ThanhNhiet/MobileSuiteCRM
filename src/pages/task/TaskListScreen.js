@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     FlatList,
     Modal,
@@ -10,18 +10,14 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
+import { formatDateTime } from '@/src/utils/FormatDateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-
-const dummyData = new Array(20).fill(0).map((_, i) => ({
-    id: i.toString(),
-    name: `Name ${i}`,
-    date_entered: `Date ${i}`,
-    description: `description ${i}`,
-}));
+import TaskData from '../../services/useApi/task/TaskData';
 
 export default function TaskListScreen() {
     const navigation = useNavigation();
@@ -29,7 +25,11 @@ export default function TaskListScreen() {
 
     const [page, setPage] = useState(1);
     const totalPages = 10;
-    const [startPage, setStartPage] = useState(1);
+
+    // dữ liệu từ API
+    const [apiData, setApiData] = useState(null);
+    // loading state
+    const [loading, setLoading] = useState(true);
 
     // State cho dropdown
     const [selectedType1, setSelectedType1] = useState('All');
@@ -41,26 +41,55 @@ export default function TaskListScreen() {
     const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
     const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
 
-    // Tính danh sách trang hiển thị (tối đa 3 trang)
-    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+    // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
+    const visiblePages = [page];
 
     // Vô hiệu hóa khi ở đầu/cuối
-    const isPrevDisabled = startPage === 1;
-    const isNextDisabled = startPage + 2 >= totalPages;
+    const isPrevDisabled = page === 1;
+    const isNextDisabled = page >= totalPages;
 
     const handlePrev = () => {
         if (!isPrevDisabled) {
-            const newStart = startPage - 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page - 1;
+            setPage(newPage);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newPage);
         }
     };
 
     const handleNext = () => {
         if (!isNextDisabled) {
-            const newStart = startPage + 1;
-            setStartPage(newStart);
-            setPage(newStart);
+            const newPage = page + 1;
+            setPage(newPage);
+            // Lấy dữ liệu trang mới
+            fetchDataByPage(newPage);
+        }
+    };
+
+    const handlePageClick = (pageNumber) => {
+        setPage(pageNumber);
+        // Lấy dữ liệu trang mới
+        fetchDataByPage(pageNumber);
+    };
+
+    // Function để lấy dữ liệu theo trang
+    const fetchDataByPage = async (pageNumber) => {
+        try {
+            setLoading(true);
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {   
+                navigation.navigate('LoginScreen');
+                return;
+            }
+            
+            // Lấy dữ liệu với 20 dòng mỗi trang
+            const result = await TaskData.getDataWithFields(token, pageNumber, 20);
+            setApiData(result);
+            
+        } catch (error) {
+            console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -69,13 +98,66 @@ export default function TaskListScreen() {
         // Xử lý tìm kiếm
     };
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { taskId: item.id })}}>
-            <Text style={styles.cell}>{item.name}</Text>
-            <Text style={styles.cell}>{item.date_entered}</Text>
-            <Text style={styles.cell}>{item.description}</Text>
-        </TouchableOpacity>
-    );
+    const renderItem = ({ item }) => {
+        // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
+        const displayFields = apiData?.detailFields
+            ?.filter(field => field.key !== 'id')
+            ?.slice(0, 3) || [];
+
+        return (
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { task: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshTask:() => fetchDataByPage(page)})}}>
+                {displayFields.map((field, index) => {
+                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
+                    
+                    // Kiểm tra và format nếu là dữ liệu ngày
+                    let displayValue = rawValue;
+                    if (rawValue && (
+                        field.key.includes('date') ||
+                        field.key.includes('time') ||
+                        field.key === 'date_entered' ||
+                        field.key === 'date_modified' ||
+                        field.key === 'created_date' ||
+                        field.key === 'modified_date' ||
+                        field.key === 'date_due' ||
+                        field.key === 'date_start'
+                    )) {
+                        displayValue = formatDateTime(rawValue);
+                    }
+                    
+                    return (
+                        <Text key={index} style={styles.cell}>
+                            {displayValue}
+                        </Text>
+                    );
+                })}
+            </TouchableOpacity>
+        );
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {   
+                    navigation.navigate('LoginScreen');
+                    return;
+                }
+                
+                // Lấy dữ liệu với 20 dòng cho trang đầu tiên
+                const result = await TaskData.getDataWithFields(token, page, 20);
+                
+                setApiData(result);
+                
+            } catch (error) {
+                console.error('Lỗi lấy dữ liệu:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchData();
+    }, []);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -118,7 +200,6 @@ export default function TaskListScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
                 
                 <TopNavigation moduleName={mdName} navigation={navigation}/>
@@ -155,7 +236,12 @@ export default function TaskListScreen() {
                         <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
                                 onPress={() => {
-                                    navigation.navigate('TaskCreateScreen');
+                                    navigation.navigate('TaskCreateScreen',{
+                                        detailFields: apiData?.detailFields,
+                                        getFieldLabel: apiData?.getFieldLabel,
+                                        getFieldValue: apiData?.getFieldValue,
+                                        refreshTask: () => fetchDataByPage(page)
+                                    });
                                 }}
                                 style={[styles.addNewBtn]}
                             >
@@ -168,20 +254,34 @@ export default function TaskListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        <Text style={styles.headerCell}>Tên chủ đề</Text>
-                        <Text style={styles.headerCell}>Ngày tạo</Text>
-                        <Text style={styles.headerCell}>Mô tả</Text>
+                        {apiData?.detailFields
+                            ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
+                            ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
+                            ?.map((field, index) => (
+                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
+                            )) || []}
                     </View>
 
                     {/* Table Rows - Scrollable */}
-                    <FlatList
-                        data={dummyData}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id}
-                        style={styles.list}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        showsVerticalScrollIndicator={false}
-                    />
+                    {loading ? (
+                        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50}}>
+                            <Text>Đang tải dữ liệu...</Text>
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={apiData?.tasks || []}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            style={styles.list}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={() => (
+                                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50}}>
+                                    <Text>Không có dữ liệu</Text>
+                                </View>
+                            )}
+                        />
+                    )}
 
                     <View style={styles.pagination}>
                         {/* Prev */}
@@ -197,7 +297,7 @@ export default function TaskListScreen() {
                         {visiblePages.map((num) => (
                             <TouchableOpacity
                                 key={num}
-                                onPress={() => setPage(num)}
+                                onPress={() => handlePageClick(num)}
                                 style={[styles.pageBtn, num === page && styles.activePage]}
                             >
                                 <Text style={num === page ? { color: '#fff' } : {}}>{num}</Text>
@@ -232,7 +332,6 @@ export default function TaskListScreen() {
                     visible={showDropdown2}
                     onClose={() => setShowDropdown2(false)}
                 />
-            </SafeAreaProvider>
         </SafeAreaView>
     );
 }

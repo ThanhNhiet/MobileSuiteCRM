@@ -6,9 +6,6 @@ RelationshipsApi.getRelationships = async (token, relatedLink, page, pageSize) =
         // Tạo URL đầy đủ cho SuiteCRM API
         // relatedLink có format: /V8/module/Accounts/xxx/relationships/contacts
         const fullUrl = `${LOCALHOST_IP}/Api/${relatedLink}?page[size]=${pageSize}&page[number]=${page}`;
-        
-        console.log(`🌐 Fetching relationships from: ${fullUrl}`);
-        
         const response = await fetch(fullUrl, {
             method: 'GET',
             headers: {
@@ -25,10 +22,7 @@ RelationshipsApi.getRelationships = async (token, relatedLink, page, pageSize) =
         }
         
         const data = await response.json();
-        console.log(`✅ Relationships data received:`, {
-            dataCount: data.data?.length || 0,
-            meta: data.meta || 'No meta'
-        });
+       
         
         return data;
     } catch (error) {

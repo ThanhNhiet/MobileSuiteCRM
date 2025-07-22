@@ -1,13 +1,13 @@
+import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { LOCALHOST_IP } from '../../../utils/localhost';
 
-const AccountApi = {};
+const MeetingApi = {};
 
-
-// Lấy thông tin trường của mô hình Accounts
-AccountApi.getFields = async (token) => {
+// Lấy thông tin trường của mô hình Meetings
+MeetingApi.getFields = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/fields/Accounts`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/fields/Meetings`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -18,14 +18,15 @@ AccountApi.getFields = async (token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Lỗi trong AccountApi:', error);
+        console.error('Lỗi trong MeetingApi:', error);
         throw error;
     }
 };
+
 // lấy danh sách listfieldView
-AccountApi.getListFieldsView = async (token) => {
+MeetingApi.getListFieldsView = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/default-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -42,9 +43,9 @@ AccountApi.getListFieldsView = async (token) => {
 };
 
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
-AccountApi.getLanguage = async (token) => {
+MeetingApi.getLanguage = async (token) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/language/lang=en_us`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -66,11 +67,10 @@ AccountApi.getLanguage = async (token) => {
   }
 };
 
-// lấy data account theo trang
-//{{suitecrm.url}}/V8/module/Accounts?page[size]=10&page[number]=1&sort=date_entered
-AccountApi.getDataByPage = async (token, page, pageSize) => {
+// lấy data meeting theo trang
+MeetingApi.getDataByPage = async (token, page, pageSize) => {
   try{
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts?page[size]=${pageSize}&page[number]=${page}&sort=date_entered`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Meetings?page[size]=${pageSize}&page[number]=${page}&sort=date_entered`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -86,7 +86,7 @@ AccountApi.getDataByPage = async (token, page, pageSize) => {
 }
 
 // lấy metadata của tất cả modules từ V8/meta/modules
-AccountApi.getModuleMeta = async (token) => {
+MeetingApi.getModuleMeta = async (token) => {
   try {
     const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/modules`, {
       method: 'GET',
@@ -103,10 +103,10 @@ AccountApi.getModuleMeta = async (token) => {
   }
 };
 
-// lấy mối quan hệ của account
-AccountApi.getRelationships = async (token,accountId) => {
+// lấy mối quan hệ của meeting
+MeetingApi.getRelationships = async (token, meetingId) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Meetings/${meetingId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -121,7 +121,8 @@ AccountApi.getRelationships = async (token,accountId) => {
   }
 };
 
-AccountApi.updateAccount = async (accountId, accountData, token) => {
+// cập nhật meeting
+MeetingApi.updateMeeting = async (meetingId, meetingData, token) => {
     try {
         
         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
@@ -132,9 +133,9 @@ AccountApi.updateAccount = async (accountId, accountData, token) => {
             },
             body: JSON.stringify({
                 data: {
-                    type: 'Accounts',
-                    id: accountId,
-                    attributes: accountData
+                    type: 'Meetings',
+                    id: meetingId,
+                    attributes: meetingData
                 }
             })
         });
@@ -144,10 +145,34 @@ AccountApi.updateAccount = async (accountId, accountData, token) => {
         throw error;
     }
 };
-// xoá
-AccountApi.deleteAccount = async (accountId, token) => {
+
+// tạo meeting mới
+MeetingApi.createMeeting = async (meetingData, token) => {
+    try {   
+        // Use the provided token instead of getting it from AsyncStorage
+        const userId = getUserIdFromToken(token);
+
+        const response = await axiosInstance.post(`/Api/V8/module`, {
+            data: {
+                type: 'Meetings',
+                attributes: {
+                    assigned_user_id: userId,
+                    ...meetingData
+                }
+            }
+        });
+        return response.data;
+    }
+    catch (error) {
+        console.warn("Create Meeting API error:", error);
+        throw error;
+    }
+};
+
+// xoá meeting
+MeetingApi.deleteMeeting = async (meetingId, token) => {
     try {
-         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Accounts/${accountId}`, {
+         const response = await fetch(`${LOCALHOST_IP}/Api/V8/module/Meetings/${meetingId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -156,35 +181,11 @@ AccountApi.deleteAccount = async (accountId, token) => {
         });
         return response;
     } catch (error) {
-        console.warn("Delete Account API error:", error);
-        throw error;
-    }
-};
-AccountApi.createAccount = async (accountData, token) => {
-    try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/module`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                data: {
-                    type: 'Accounts',
-                    attributes: {
-                        assigned_user_id: getUserIdFromToken(token),
-                        ...accountData
-                    }
-                }
-            })
-        });
-
-        return response.data;
-    } catch (error) {
-        console.error('Error creating account:', error);
+        console.warn("Delete Meeting API error:", error);
         throw error;
     }
 };
 
+export default MeetingApi;
 
-export default AccountApi;
+

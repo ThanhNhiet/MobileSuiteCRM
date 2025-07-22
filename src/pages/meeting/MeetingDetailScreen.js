@@ -1,12 +1,11 @@
+import MeetingData from '@/src/services/useApi/meeting/MeetingData';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useMemo } from "react";
+import React, { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
-    FlatList,
-    Pressable,
     RefreshControl,
     ScrollView,
     StatusBar,
@@ -19,115 +18,67 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
-const useMeetingDetail = (meetingId) => {
+const useMeetingDetail = (meeting, detailFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
+    const [deleting, setDeleting] = useState(false);
+
+    const deleteMeeting = async () => {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            navigation.navigate('LoginScreen');
+            return false;
+        }
+
+        try {
+            setDeleting(true);
+            const result = await MeetingData.DeleteMeeting(meeting.id, token);
+            setDeleting(false);
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi xoá:', error);
+            setDeleting(false);
+            return false;
+        }
+    };
+
     return {
-        meeting: {
-            id: meetingId,
-            name: "Cuộc họp chiến lược Q1 2025",
-            date_start: "2025-07-20T09:00:00Z",
-            date_end: "2025-07-20T11:00:00Z",
-            location: "Phòng họp A, Tầng 5",
-            description: "Thảo luận về kế hoạch kinh doanh và chiến lược phát triển quý 1 năm 2025.",
-            status: "Planned",
-            assigned_user_name: "Nguyễn Văn A",
-            parent_name: "Công ty ABC",
-            parent_type: "Accounts",
-            duration_hours: 2,
-            duration_minutes: 0,
-            date_entered: "2025-07-15T08:30:00Z",
-            date_modified: "2025-07-16T14:45:00Z",
-        },
-        detailFields: [
-            { key: 'name', label: 'Tên cuộc họp' },
-            { key: 'date_start', label: 'Thời gian bắt đầu' },
-            { key: 'date_end', label: 'Thời gian kết thúc' },
-            { key: 'location', label: 'Địa điểm' },
-            { key: 'status', label: 'Trạng thái' },
-            { key: 'assigned_user_name', label: 'Người phụ trách' },
-            { key: 'parent_name', label: 'Liên quan đến' },
-            { key: 'date_entered', label: 'Ngày tạo' },
-            { key: 'date_modified', label: 'Ngày cập nhật' },
-            { key: 'description', label: 'Mô tả' },
-        ],
+        meeting,
+        detailFields,
         loading: false,
         refreshing: false,
         error: null,
-        deleting: false,
-        refreshMeeting: () => console.log("Đang làm mới cuộc họp..."),
-        deleteMeeting: async () => {
-            alert("Cuộc họp đã bị xóa (giả lập)");
-            return true;
-        },
-        getFieldValue: (key) => {
-            const map = {
-                name: "Cuộc họp chiến lược Q1 2025",
-                date_start: "2025-07-20T09:00:00Z",
-                date_end: "2025-07-20T11:00:00Z",
-                location: "Phòng họp A, Tầng 5",
-                status: "Planned",
-                assigned_user_name: "Nguyễn Văn A",
-                parent_name: "Công ty ABC",
-                parent_type: "Accounts",
-                date_entered: "2025-07-15T08:30:00Z",
-                date_modified: "2025-07-16T14:45:00Z",
-                description: "Thảo luận về kế hoạch kinh doanh và chiến lược phát triển quý 1 năm 2025.",
-            };
-            return map[key] || "";
-        },
-        getFieldLabel: (key) => key,
+        deleting,
+        refreshMeeting: refreshMeeting || (() => console.log("Đang làm mới cuộc họp...")),
+        deleteMeeting,
+        getFieldValue: getFieldValue || ((item, key) => item[key]),
+        getFieldLabel: getFieldLabel || ((key) => key),
         shouldDisplayField: (key) => true,
     };
 };
-
-const { width } = Dimensions.get('window');
-const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 
 export default function MeetingDetailScreen() {
     const mdName = 'Cuộc họp';
     const navigation = useNavigation();
     const route = useRoute();
-    const { meetingId } = route.params;
+    const {meeting: routeMeeting, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshMeeting: routeRefreshMeeting} = route.params;
 
-    const data = [
-        { id: '1', name: 'Tài liệu' },
-        { id: '2', name: 'Ghi chú' },
-        { id: '3', name: 'Khách hàng' },
-        { id: '4', name: 'Liên hệ' },
-        { id: '5', name: 'Công việc' }
-    ];
+    // State để quản lý dữ liệu meeting hiện tại
+    const [currentMeeting, setCurrentMeeting] = useState(routeMeeting);
+    const [meetingRefreshing, setMeetingRefreshing] = useState(false);
 
-    const padData = (raw, cols) => {
-        const fullRows = Math.floor(raw.length / cols);
-        let lastRowCount = raw.length - fullRows * cols;
-        while (lastRowCount !== 0 && lastRowCount < cols) {
-            raw.push({ id: `blank-${lastRowCount}`, empty: true });
-            lastRowCount++;
+    // Function để refresh dữ liệu meeting hiện tại
+    const handleRefreshMeeting = useCallback(async () => {
+        if (!routeRefreshMeeting) return;
+        
+        setMeetingRefreshing(true);
+        try {
+            await routeRefreshMeeting();
+            // Có thể thêm logic để reload meeting data nếu cần
+        } catch (error) {
+            console.error('Lỗi khi refresh meeting:', error);
+        } finally {
+            setMeetingRefreshing(false);
         }
-        return raw;
-    };
-
-    // trong component
-    const paddedData = useMemo(() => padData([...data], 4), [data]);
-
-    const renderItem = ({ item }) => {
-        if (item.empty) {
-            return <View style={styles.cardInvisible} />;
-        }
-
-        return (
-            <Pressable
-                onPress={() => console.log('Bạn vừa chạm: ', item.id)}
-                style={({ pressed }) => [
-                    styles.card,
-                    pressed && styles.cardPressed,   // thêm nền khi nhấn
-                ]}
-            >
-                <Text style={({ pressed }) => [pressed ? styles.cardText : styles.text]}>
-                    {item.name}
-                </Text>
-            </Pressable>
-        );
-    };
+    }, [routeRefreshMeeting]);
 
     // Sử dụng custom hook
     const {
@@ -142,14 +93,22 @@ export default function MeetingDetailScreen() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField
-    } = useMeetingDetail(meetingId);
+    } = useMeetingDetail(currentMeeting, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshMeeting);
 
     // Handle delete with confirmation
     const handleDelete = () => {
-        Alert.alert(
-            'Xác nhận xóa',
-            'Bạn có chắc chắn muốn xóa cuộc họp này không? Hành động này không thể hoàn tác.',
-            [
+        if (!canEditMeeting()) {
+            Alert.alert(
+                'Không thể xóa',
+                'Bạn không có quyền xóa cuộc họp này.',
+                [{ text: 'OK' }]
+            );
+            return;
+        } else {
+            Alert.alert(
+                'Xác nhận xóa',
+                'Bạn có chắc chắn muốn xóa cuộc họp này không? Hành động này không thể hoàn tác.',
+                [
                 { text: 'Hủy', style: 'cancel' },
                 {
                     text: 'Xóa',
@@ -157,6 +116,9 @@ export default function MeetingDetailScreen() {
                     onPress: async () => {
                         const success = await deleteMeeting();
                         if (success) {
+                            if (typeof handleRefreshMeeting === 'function') {
+                                handleRefreshMeeting();
+                            }
                             Alert.alert(
                                 'Thành công',
                                 'Đã xóa cuộc họp thành công',
@@ -168,10 +130,43 @@ export default function MeetingDetailScreen() {
             ]
         );
     };
+}
+
+    // Check if user can edit this meeting
+    const canEditMeeting = () => {
+        if (!meeting) return false;
+        
+        // If assigned_user_name is different from created_by_name, disable editing
+        if (meeting.assigned_user_name && meeting.created_by_name && 
+            meeting.assigned_user_name !== meeting.created_by_name) {
+            return false;
+        }
+        
+        return true;
+    };
 
     // Navigate to update screen
     const handleUpdate = () => {
-        navigation.navigate('MeetingUpdateScreen', { meetingData: meeting });
+        navigation.navigate('MeetingUpdateScreen', { 
+            routeMeeting: currentMeeting,
+            routeDetailFields,
+            routeGetFieldValue,
+            routeGetFieldLabel,
+            refreshMeeting: (updatedMeetingData) => {
+                // Cập nhật dữ liệu meeting hiện tại trong DetailScreen
+                if (updatedMeetingData) {
+                    setCurrentMeeting(prevMeeting => ({
+                        ...prevMeeting,
+                        ...updatedMeetingData
+                    }));
+                }
+                // Gọi refresh callback nếu có
+                if (typeof handleRefreshMeeting === 'function') {
+                    handleRefreshMeeting();
+                }
+            },
+            refreshMeetingList: routeRefreshMeeting // Truyền callback từ MeetingListScreen để refresh list
+        });
     };
 
     // Format field value for display
@@ -207,7 +202,7 @@ export default function MeetingDetailScreen() {
 
     // Render field item
     const renderFieldItem = (field) => {
-        const value = getFieldValue(field.key);
+        const value = getFieldValue(meeting, field.key);
 
         if (!shouldDisplayField(field.key)) {
             return null;
@@ -215,7 +210,7 @@ export default function MeetingDetailScreen() {
 
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{field.label}:</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}:</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -257,7 +252,7 @@ export default function MeetingDetailScreen() {
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
                     <Text style={styles.errorTitle}>Không thể tải cuộc họp</Text>
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={refreshMeeting}>
+                    <TouchableOpacity style={styles.retryButton} onPress={handleRefreshMeeting}>
                         <Text style={styles.retryButtonText}>Thử lại</Text>
                     </TouchableOpacity>
                 </View>
@@ -279,8 +274,8 @@ export default function MeetingDetailScreen() {
                     style={styles.content}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={refreshMeeting}
+                            refreshing={meetingRefreshing || refreshing}
+                            onRefresh={handleRefreshMeeting}
                             colors={['#4B84FF']}
                             title="Kéo để tải lại..."
                         />
@@ -320,39 +315,12 @@ export default function MeetingDetailScreen() {
                                 </View>
                             )}
 
-                            {meeting.parent_name && meeting.parent_type && (
-                                <View style={styles.parentInfo}>
-                                    <Ionicons name="link-outline" size={16} color="#666" />
-                                    <Text style={styles.parentText}>
-                                        Liên quan: {meeting.parent_name}
-                                        ({formatFieldValue('parent_type', meeting.parent_type)})
-                                    </Text>
-                                </View>
-                            )}
-
                             <View style={styles.fieldsContainer}>
                                 {detailFields.map(field => renderFieldItem(field))}
                             </View>
                         </View>
                     )}
                 </ScrollView>
-
-                {/* ===== Box 2: Mối quan hệ ===== */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Mối quan hệ</Text>
-                </View>
-
-                <View style={styles.infoCard}>
-                    <FlatList
-                        data={paddedData}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id}
-                        numColumns={4}
-                        columnWrapperStyle={styles.row}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        showsVerticalScrollIndicator={false}
-                    />
-                </View>
 
                 {/* Action Buttons */}
                 {meeting && (
@@ -585,51 +553,5 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
-    },
-
-     /* Thẻ thông tin */
-    infoCard: {
-        paddingVertical: 5,
-        paddingHorizontal: 5,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        marginBottom: 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowOffset: { width: 0, height: 1 },
-        shadowRadius: 4,
-        height: 220
-    },
-    row: {
-        paddingHorizontal: 8,
-        justifyContent: 'flex-start',
-    },
-    card: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        aspectRatio: 1,
-        borderRadius: 8,
-        backgroundColor: '#ececec',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cardInvisible: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        backgroundColor: 'transparent',
-    },
-    cardPressed: {
-        backgroundColor: "blue",
-    },
-    cardText: {
-        fontSize: 13,
-        color: 'black',
-    },
-    text: {
-        fontSize: 20,
-        color: "#333",
     },
 });
