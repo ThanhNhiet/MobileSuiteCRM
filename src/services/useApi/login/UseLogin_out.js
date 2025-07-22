@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import { loginApi, logoutApi } from '../../api/login/Login_outApi';
+import { eventEmitter } from '../../EventEmitter';
 
 export const useLogin_out = () => {
   const navigation = useNavigation();
@@ -46,7 +47,12 @@ export const useLogin_out = () => {
   // function to handle logout
   const handleLogout = async () => {
     try {
+      // Emit logout event to clear all data in other hooks
+      eventEmitter.emit('logout');
+      
       await logoutApi();
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('refreshToken');
       navigation.navigate('LoginScreen');
     } catch (error) {
       console.warn('Logout failed', error);

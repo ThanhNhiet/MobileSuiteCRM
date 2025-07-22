@@ -55,7 +55,7 @@ export const useNoteCreate = () => {
             });
             
             setCreateFields(fieldsConfig);
-            console.log('Initialized create fields and language for Note');
+            // console.log('Initialized create fields and language for Note');
         } catch (err) {
             console.warn('Initialize create fields error:', err);
             setError('Không thể tải cấu hình tạo ghi chú');
