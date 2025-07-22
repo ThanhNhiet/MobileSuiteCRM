@@ -175,3 +175,49 @@ export const checkParentNameExistsApi = async (parentType, parentId) => {
         throw error;
     }
 };
+
+//Create relation between Note and Parent
+//POST /Api/V8/module/{parent_type}/{parent_id}/relationships
+export const createNoteParentRelationApi = async (parentType, parentId, noteId) => {
+    try {
+        const response = await axiosInstance.post(`/Api/V8/module/${parentType}/${parentId}/relationships`, {
+            data: {
+                type: 'Notes',
+                id: noteId
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn("Create Note Parent Relation API error:", error);
+        throw error;
+    }
+};
+
+//Delete relation between Note and Parent
+//DELETE /Api/V8/module/{parent_type}/{parent_id}/relationships/notes/{note_id}
+export const deleteNoteParentRelationApi = async (parentType, parentId, noteId) => {
+    try {
+        const response = await axiosInstance.delete(`/Api/V8/module/${parentType}/${parentId}/relationships/notes/${noteId}`);
+        return response.data;
+    } catch (error) {
+        console.warn("Delete Note Parent Relation API error:", error);
+        throw error;
+    }
+};
+
+//Get parent_id by note_id
+//GET /Api/V8/module/Notes/{note_id}?fields[Notes]=parent_id
+export const getParentIdByNoteIdApi = async (noteId) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Notes/${noteId}`, {
+            params: {
+                'fields[Notes]': 'parent_id'
+            }
+        });
+        console.log("Get Parent ID by Note ID API response:", response.data.data.attributes.parent_id);
+        return response.data.data.attributes.parent_id;
+    } catch (error) {
+        console.warn("Get Parent ID by Note ID API error:", error);
+        throw error;
+    }
+};
