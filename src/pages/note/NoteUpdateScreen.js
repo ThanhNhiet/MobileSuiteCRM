@@ -25,7 +25,6 @@ export default function NoteUpdateScreen() {
   const {
     formData,
     updateFields,
-    parentTypeOptions,
     loading,
     error,
     validationErrors,
@@ -127,26 +126,6 @@ export default function NoteUpdateScreen() {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
 
-              // Handle parent_type as dropdown (simplified for now)
-              if (field.key === 'parent_type') {
-                return (
-                  <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
-                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                      <TextInput
-                        style={styles.value}
-                        value={fieldValue}
-                        onChangeText={(value) => updateField(field.key, value)}
-                        placeholder={`Chọn ${field.label.toLowerCase()}`}
-                        autoCapitalize="none"
-                        returnKeyType="done"
-                      />
-                    </View>
-                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                  </View>
-                );
-              }
-
               return (
                 <View key={field.key} style={styles.row}>
                   <Text style={styles.label}>{field.label}</Text>
@@ -159,7 +138,6 @@ export default function NoteUpdateScreen() {
                       value={fieldValue}
                       onChangeText={(value) => updateField(field.key, value)}
                       placeholder={`Nhập ${field.label.toLowerCase()}`}
-                      keyboardType={field.key === 'parent_name' ? 'default' : 'default'}
                       autoCapitalize="none"
                       returnKeyType={field.key === 'description' ? 'default' : 'done'}
                       multiline={field.key === 'description'}

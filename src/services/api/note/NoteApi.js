@@ -137,6 +137,7 @@ export const updateNoteApi = async (noteId, noteData) => {
                 attributes: noteData
             }
         });
+        console.log("Update Note API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Update Note API error:", error);
@@ -157,17 +158,18 @@ export const deleteNoteApi = async (noteId) => {
 
 //Check if parent_name is exists
 //GET /Api/V8/module/{Modules}?filter[name][eq]={parentName}
-export const checkParentNameExistsApi = async (parentType, parentName) => {
+export const checkParentNameExistsApi = async (parentType, parentId) => {
     try {
-        const response = await axiosInstance.get(`/Api/V8/module/${parentType}`, {
+        const response = await axiosInstance.get(`/Api/V8/module/${parentType}/${parentId}`, {
             params: {
-                'filter[name][eq]': parentName,
+                'fields[Accounts]': 'name'
             }
         });
-        if (response.data.data.length > 0) {
-            return true;
+        if (response.data.data !== null) {
+            return response.data.data.attributes.name;
+        }else{
+            return null;
         }
-        return false;
     } catch (error) {
         console.warn("Check Parent Name Exists API error:", error);
         throw error;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { checkParentNameExistsApi, getNoteFieldsApi, getNotesLanguageApi, updateNoteApi } from '../../api/note/NoteApi';
+import { getNoteFieldsApi, getNotesLanguageApi, updateNoteApi } from '../../api/note/NoteApi';
 
 export const useNoteUpdate = (initialNoteData = null) => {
     const [loading, setLoading] = useState(false);
@@ -10,9 +10,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
     const [formData, setFormData] = useState({
         id: '',
         name: '',
-        description: '',
-        parent_type: '',
-        parent_name: ''
+        description: ''
     });
     
     // Track original data for comparison
@@ -20,13 +18,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
     
     // Fields configuration
     const [updateFields, setUpdateFields] = useState([]);
-    const [parentTypeOptions, setParentTypeOptions] = useState([
-        { value: '', label: 'Chọn loại' },
-        { value: 'Accounts', label: 'Khách hàng' },
-        { value: 'Users', label: 'Người dùng' },
-        { value: 'Tasks', label: 'Công việc' },
-        { value: 'Meetings', label: 'Cuộc họp' }
-    ]);
 
     // Initialize update fields and language
     const initializeUpdateFields = useCallback(async () => {
@@ -40,7 +31,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             const modStrings = languageResponse.data.mod_strings;
             
             // Filter fields for update form (editable fields)
-            const updateFieldNames = ['name', 'description', 'parent_type', 'parent_name'];
+            const updateFieldNames = ['name', 'description'];
             
             const fieldsConfig = updateFieldNames.map(fieldName => {
                 const fieldInfo = allFields[fieldName] || {};
@@ -73,9 +64,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
         const formValues = {
             id: noteData.id || '',
             name: noteData.name || '',
-            description: noteData.description || '',
-            parent_type: noteData.parent_type || '',
-            parent_name: noteData.parent_name || ''
+            description: noteData.description || ''
         };
         
         setFormData(formValues);
@@ -121,33 +110,9 @@ export const useNoteUpdate = (initialNoteData = null) => {
             }
         });
         
-        // Check parent_name exists if parent_type is selected
-        if (formData.parent_type && formData.parent_name?.trim()) {
-            try {
-                const exists = await checkParentNameExistsApi(formData.parent_type, formData.parent_name.trim());
-                if (!exists) {
-                    errors.parent_name = `${formData.parent_name} không tồn tại trong ${getParentTypeLabel(formData.parent_type)}`;
-                }
-            } catch (err) {
-                console.warn('Check parent name error:', err);
-                errors.parent_name = 'Không thể kiểm tra tên liên quan';
-            }
-        }
-        
-        // If parent_name is provided, parent_type must be selected
-        if (formData.parent_name?.trim() && !formData.parent_type) {
-            errors.parent_type = 'Phải chọn loại khi có tên liên quan';
-        }
-        
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [formData, updateFields]);
-
-    // Get parent type label
-    const getParentTypeLabel = useCallback((parentType) => {
-        const option = parentTypeOptions.find(opt => opt.value === parentType);
-        return option ? option.label : parentType;
-    }, [parentTypeOptions]);
 
     // Update note
     const updateNote = useCallback(async () => {
@@ -175,19 +140,9 @@ export const useNoteUpdate = (initialNoteData = null) => {
             const updateData = {};
             Object.keys(formData).forEach(key => {
                 if (key !== 'id' && formData[key] !== originalData[key]) {
-                    if (key === 'name' || key === 'description') {
-                        updateData[key] = formData[key].trim();
-                    } else {
-                        updateData[key] = formData[key];
-                    }
+                    updateData[key] = formData[key].trim();
                 }
             });
-            
-            // If parent info is being updated, include both fields
-            if ('parent_type' in updateData || 'parent_name' in updateData) {
-                updateData.parent_type = formData.parent_type;
-                updateData.parent_name = formData.parent_name?.trim() || '';
-            }
             
             const response = await updateNoteApi(formData.id, updateData);
             
@@ -259,7 +214,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
         formData,
         originalData,
         updateFields,
-        parentTypeOptions,
         loading,
         error,
         validationErrors,
@@ -275,7 +229,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
         getFieldValue,
         getFieldLabel,
         getFieldError,
-        getParentTypeLabel,
         isFormValid,
         hasChanges
     };
