@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -23,7 +24,6 @@ export default function NoteCreateScreen() {
   const {
     formData,
     createFields,
-    parentTypeOptions,
     loading,
     error,
     validationErrors,
@@ -38,6 +38,17 @@ export default function NoteCreateScreen() {
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
+  
+  // Modal state for parent_type selection
+  const [showParentTypeModal, setShowParentTypeModal] = useState(false);
+  
+  // Fixed parent type options
+  const parentTypeOptions = [
+    { value: 'Accounts', label: 'Khách hàng' },
+    { value: 'Users', label: 'Người dùng' },
+    { value: 'Tasks', label: 'Công việc' },
+    { value: 'Meetings', label: 'Cuộc họp' }
+  ];
 
   // Handle save
   const handleSave = async () => {
@@ -64,6 +75,18 @@ export default function NoteCreateScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle parent type selection
+  const handleParentTypeSelect = (value) => {
+    updateField('parent_type', value);
+    setShowParentTypeModal(false);
+  };
+
+  // Get parent type label for display
+  const getParentTypeLabel = () => {
+    const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
+    return selectedOption ? selectedOption.label : 'Chọn loại';
   };
 
   // Show loading state for initialization
@@ -111,29 +134,31 @@ export default function NoteCreateScreen() {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
 
-              // Handle parent_type as dropdown (simplified for now)
+              // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {
                 return (
                   <View key={field.key} style={styles.row}>
                     <Text style={styles.label}>{field.label}</Text>
-                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                      <TextInput
-                        style={styles.value}
-                        value={fieldValue}
-                        onChangeText={(value) => updateField(field.key, value)}
-                        placeholder={`Chọn ${field.label.toLowerCase()}`}
-                        autoCapitalize="none"
-                        returnKeyType="done"
-                      />
-                    </View>
+                    <TouchableOpacity 
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => setShowParentTypeModal(true)}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {getParentTypeLabel()}
+                      </Text>
+                    </TouchableOpacity>
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
               }
 
+              // Change parentid display
+              const displayLabel = field.key === 'parentid' ? 'Parent ID' : field.label;
+              const placeholder = field.key === 'parentid' ? 'Nhập Parent ID' : `Nhập ${field.label.toLowerCase()}`;
+
               return (
                 <View key={field.key} style={styles.row}>
-                  <Text style={styles.label}>{field.label}</Text>
+                  <Text style={styles.label}>{displayLabel}</Text>
                   <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                     <TextInput
                       style={[
@@ -142,7 +167,7 @@ export default function NoteCreateScreen() {
                       ]}
                       value={fieldValue}
                       onChangeText={(value) => updateField(field.key, value)}
-                      placeholder={`Nhập ${field.label.toLowerCase()}`}
+                      placeholder={placeholder}
                       autoCapitalize="none"
                       returnKeyType={field.key === 'description' ? 'default' : 'done'}
                       multiline={field.key === 'description'}
@@ -174,6 +199,35 @@ export default function NoteCreateScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Parent Type Modal */}
+        <Modal
+          visible={showParentTypeModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowParentTypeModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Chọn Parent Type</Text>
+              {parentTypeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.modalOption}
+                  onPress={() => handleParentTypeSelect(option.value)}
+                >
+                  <Text style={styles.modalOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowParentTypeModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -281,5 +335,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
     elevation: 0,
     shadowOpacity: 0,
+  },
+  // Modal styles for parent type selection
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    minWidth: 280,
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalCancelButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#6c757d',
+  },
+  modalCancelText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  placeholderText: {
+    color: '#999',
   },
 });

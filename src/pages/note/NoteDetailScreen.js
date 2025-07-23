@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React from "react";
+import * as Clipboard from 'expo-clipboard';
 import {
     ActivityIndicator,
     Alert,
@@ -37,7 +37,26 @@ export default function NoteDetailScreen() {
         getFieldLabel,
         shouldDisplayField
     } = useNoteDetail(noteId);
-   
+
+    // Handle navigate to parent detail
+    // const handleParentPress = (parentId, parentType) => {
+    //     if (!parentId || !parentType) return;
+    //     switch (parentType) {
+    //         case 'Accounts':
+    //             navigation.navigate('AccountDetailScreen', { accountId: parentId });
+    //             break;
+    //         case 'Users':
+    //             break;
+    //         case 'Tasks':
+    //             navigation.navigate('TaskDetailScreen', { taskId: parentId });
+    //             break;
+    //         case 'Meetings':
+    //             navigation.navigate('MeetingDetailScreen', { meetingId: parentId });
+    //             break;
+    //         default:
+    //             break;
+    //     }
+    // };
 
     // Handle delete with confirmation
     const handleDelete = () => {
@@ -120,12 +139,45 @@ export default function NoteDetailScreen() {
         }
     };
 
+    // Handle copy ID to clipboard
+    const handleCopyId = async () => {
+        if (note?.id) {
+            try {
+                await Clipboard.setStringAsync(note.id);
+                Alert.alert('Thành công', 'ID đã được sao chép vào clipboard');
+            } catch (err) {
+                Alert.alert('Lỗi', 'Không thể sao chép ID');
+                console.warn('Copy ID error:', err);
+            }
+        }
+    };
+
     // Render field item
     const renderFieldItem = (field) => {
         const value = getFieldValue(field.key);
 
         if (!shouldDisplayField(field.key)) {
             return null;
+        }
+
+        // Special handling for ID field with copy button
+        if (field.key === 'id') {
+            return (
+                <View key={field.key} style={styles.fieldContainer}>
+                    <Text style={styles.fieldLabel}>{field.label}:</Text>
+                    <View style={styles.idContainer}>
+                        <Text style={[styles.fieldValue, styles.idValue]}>
+                            {formatFieldValue(field.key, value)}
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.copyButton}
+                            onPress={handleCopyId}
+                        >
+                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            );
         }
 
         return (
@@ -215,13 +267,15 @@ export default function NoteDetailScreen() {
                             <Text style={styles.noteTitle}>{note.name}</Text>
 
                             {note.parent_name && note.parent_type && (
-                                <View style={styles.parentInfo}>
+                                <TouchableOpacity style={styles.parentInfo}
+                                    // onPress={() => handleParentPress(note.parent_id, note.parent_type)}
+                                >
                                     <Ionicons name="link-outline" size={16} color="#666" />
                                     <Text style={styles.parentText}>
                                         Liên quan: {note.parent_name}
                                         ({formatFieldValue('parent_type', note.parent_type)})
                                     </Text>
-                                </View>
+                                </TouchableOpacity>
                             )}
 
                             <View style={styles.fieldsContainer}>
@@ -456,5 +510,27 @@ const styles = StyleSheet.create({
     },
     disabledButtonText: {
         color: '#999',
+    },
+    // ID field with copy button styles
+    idContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flex: 1,
+    },
+    idValue: {
+        flex: 1,
+        marginRight: 8,
+    },
+    copyButton: {
+        padding: 6,
+        borderRadius: 6,
+        backgroundColor: '#f0f8ff',
+        borderWidth: 1,
+        borderColor: '#007AFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 32,
+        minHeight: 32,
     },
 });

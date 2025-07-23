@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { checkParentNameExistsApi, createNoteApi, getNoteFieldsApi, getNotesLanguageApi } from '../../api/note/NoteApi';
+import { createNoteApi, createNoteParentRelationApi, getNoteFieldsApi, getNotesLanguageApi } from '../../api/note/NoteApi';
 
 export const useNoteCreate = () => {
     const [loading, setLoading] = useState(false);
@@ -11,18 +11,11 @@ export const useNoteCreate = () => {
         name: '',
         description: '',
         parent_type: '',
-        parent_name: ''
+        parentid: ''
     });
     
     // Fields configuration
     const [createFields, setCreateFields] = useState([]);
-    const [parentTypeOptions, setParentTypeOptions] = useState([
-        { value: '', label: 'Chọn loại' },
-        { value: 'Accounts', label: 'Khách hàng' },
-        { value: 'Users', label: 'Người dùng' },
-        { value: 'Tasks', label: 'Công việc' },
-        { value: 'Meetings', label: 'Cuộc họp' }
-    ]);
 
     // Initialize create fields and language
     const initializeCreateFields = useCallback(async () => {
@@ -36,7 +29,7 @@ export const useNoteCreate = () => {
             const modStrings = languageResponse.data.mod_strings;
             
             // Filter fields for create form (required + commonly used)
-            const createFieldNames = ['name', 'description', 'parent_type', 'parent_name'];
+            const createFieldNames = ['name', 'description', 'parent_type', 'parentid'];
             
             const fieldsConfig = createFieldNames.map(fieldName => {
                 const fieldInfo = allFields[fieldName] || {};
@@ -90,33 +83,14 @@ export const useNoteCreate = () => {
             }
         });
         
-        // Check parent_name exists if parent_type is selected
-        if (formData.parent_type && formData.parent_name?.trim()) {
-            try {
-                const exists = await checkParentNameExistsApi(formData.parent_type, formData.parent_name.trim());
-                if (!exists) {
-                    errors.parent_name = `${formData.parent_name} không tồn tại trong ${getParentTypeLabel(formData.parent_type)}`;
-                }
-            } catch (err) {
-                console.warn('Check parent name error:', err);
-                errors.parent_name = 'Không thể kiểm tra tên liên quan';
-            }
-        }
-        
-        // If parent_name is provided, parent_type must be selected
-        if (formData.parent_name?.trim() && !formData.parent_type) {
-            errors.parent_type = 'Phải chọn loại khi có tên liên quan';
+        // If parentid is provided, parent_type must be selected
+        if (formData.parentid?.trim() && !formData.parent_type) {
+            errors.parent_type = 'Phải chọn loại khi có ID liên quan';
         }
         
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [formData, createFields]);
-
-    // Get parent type label
-    const getParentTypeLabel = useCallback((parentType) => {
-        const option = parentTypeOptions.find(opt => opt.value === parentType);
-        return option ? option.label : parentType;
-    }, [parentTypeOptions]);
 
     // Create note
     const createNote = useCallback(async () => {
@@ -132,22 +106,54 @@ export const useNoteCreate = () => {
             }
             // console.log('Creating note with data:', formData);
             
-            // Prepare note data
+            // Prepare note data (only basic fields)
             const noteData = {
                 name: formData.name.trim(),
                 description: formData.description.trim(),
             };
             
-            // Add parent info if provided
-            if (formData.parent_type && formData.parent_name?.trim()) {
-                noteData.parent_type = formData.parent_type;
-                noteData.parent_name = formData.parent_name.trim();
+            // Create the note first
+            const response = await createNoteApi(noteData);
+            // console.log('Note created successfully:', response);
+            
+            // Extract note ID from response - handle multiple possible structures
+            let noteId = null;
+            
+            // Try different ways to extract the ID
+            if (response?.data?.id) {
+                noteId = response.data.id;
+            } else if (response?.id) {
+                noteId = response.id;
+            } else if (response?.data?.data?.id) {
+                noteId = response.data.data.id;
+            } else if (typeof response === 'string') {
+                // If response is a string containing JSON, try to parse it
+                try {
+                    const jsonMatch = response.match(/"id":\s*"([^"]+)"/);
+                    if (jsonMatch) {
+                        noteId = jsonMatch[1];
+                    }
+                } catch (parseErr) {
+                    console.warn('Failed to parse ID from string response:', parseErr);
+                }
             }
             
-            const response = await createNoteApi(noteData);
+            // console.log('Extracted noteId:', noteId);
+            
+            if (!noteId) {
+                console.error('Full response structure:', JSON.stringify(response, null, 2));
+                throw new Error('Không thể lấy ID của ghi chú vừa tạo');
+            }
+            
+            // Create parent relationship if specified
+            if (formData.parent_type && formData.parentid?.trim()) {
+                console.log('Creating relationship:', formData.parent_type, formData.parentid.trim(), noteId);
+                await createNoteParentRelationApi(formData.parent_type, formData.parentid.trim(), noteId);
+            }
             
             return {
                 success: true,
+                noteId: noteId
             };
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tạo ghi chú';
@@ -168,7 +174,7 @@ export const useNoteCreate = () => {
             name: '',
             description: '',
             parent_type: '',
-            parent_name: ''
+            parentid: ''
         });
         setValidationErrors({});
         setError(null);
@@ -204,7 +210,6 @@ export const useNoteCreate = () => {
         // Data
         formData,
         createFields,
-        parentTypeOptions,
         loading,
         error,
         validationErrors,
@@ -219,7 +224,6 @@ export const useNoteCreate = () => {
         getFieldValue,
         getFieldLabel,
         getFieldError,
-        getParentTypeLabel,
         isFormValid
     };
 };

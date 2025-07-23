@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteNoteApi, getNoteDetailApi, getNoteFieldsApi, getNotesLanguageApi } from '../../api/note/NoteApi';
+import { deleteNoteApi, getNoteDetailApi, getNoteFieldsApi, getNotesLanguageApi, getParentIdByNoteIdApi } from '../../api/note/NoteApi';
 
 export const useNoteDetail = (noteId) => {
     const [note, setNote] = useState(null);
@@ -11,6 +11,7 @@ export const useNoteDetail = (noteId) => {
     // Fields and labels
     const [detailFields, setDetailFields] = useState([]);
     const [nameFields, setNameFields] = useState('');
+    const [parentId, setParentId] = useState('');
 
     // Initialize fields and language for detail view
     const initializeDetailFields = useCallback(async () => {
@@ -73,17 +74,25 @@ export const useNoteDetail = (noteId) => {
             }
             setError(null);
 
+            // First, get parent ID
+            const parentIdResponse = await getParentIdByNoteIdApi(noteId);
+            if (parentIdResponse) {
+                setParentId(parentIdResponse);
+            }
+
+            // Then, get note detail
             const response = await getNoteDetailApi(noteId, nameFields);
             
             // Process note data
             const noteData = {
                 id: response.data.id,
                 type: response.data.type,
+                parent_id: parentIdResponse || parentId,
                 ...response.data.attributes
             };
             
             setNote(noteData);
-            // console.log('Loaded note detail:', noteData.name);
+            // console.log('Loaded note detail:', noteData);
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải chi tiết ghi chú';
             setError(errorMessage);
@@ -92,7 +101,7 @@ export const useNoteDetail = (noteId) => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [noteId, nameFields]);
+    }, [noteId, nameFields, parentId]);
 
     // Delete note
     const deleteNote = useCallback(async () => {
