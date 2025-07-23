@@ -214,7 +214,6 @@ export const getParentIdByNoteIdApi = async (noteId) => {
                 'fields[Notes]': 'parent_id'
             }
         });
-        console.log("Get Parent ID by Note ID API response:", response.data.data.attributes.parent_id);
         return response.data.data.attributes.parent_id;
     } catch (error) {
         console.warn("Get Parent ID by Note ID API error:", error);

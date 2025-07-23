@@ -92,7 +92,7 @@ export const useNoteDetail = (noteId) => {
             };
             
             setNote(noteData);
-            console.log('Loaded note detail:', noteData);
+            // console.log('Loaded note detail:', noteData);
         } catch (err) {
             const errorMessage = err.response?.data?.message || err.message || 'Không thể tải chi tiết ghi chú';
             setError(errorMessage);

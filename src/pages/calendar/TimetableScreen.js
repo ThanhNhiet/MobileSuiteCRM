@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
 import {
     Alert,
     ScrollView,
@@ -41,19 +40,19 @@ export default function TimetableScreen({ navigation, route }) {
                     text: 'Đóng',
                     style: 'cancel'
                 },
-                {
-                    text: 'Xem chi tiết',
-                    onPress: () => {
-                        // Navigate to detail screen based on type
-                        if (event.type === 'task') {
-                            // navigation.navigate('TaskDetailScreen', { taskId: event.id, taskData: event.rawData });
-                            Alert.alert('Thông báo', event.id);
-                        } else {
-                            // navigation.navigate('MeetingDetailScreen', { meetingId: event.id, meetingData: event.rawData });
-                            Alert.alert('Thông báo', event.id);
-                        }
-                    }
-                }
+                // {
+                //     text: 'Xem chi tiết',
+                //     onPress: () => {
+                //         // Navigate to detail screen based on type
+                //         if (event.type === 'task') {
+                //             // navigation.navigate('TaskDetailScreen', { taskId: event.id, taskData: event.rawData });
+                //             Alert.alert('Thông báo', event.id);
+                //         } else {
+                //             // navigation.navigate('MeetingDetailScreen', { meetingId: event.id, meetingData: event.rawData });
+                //             Alert.alert('Thông báo', event.id);
+                //         }
+                //     }
+                // }
             ]
         );
     };
