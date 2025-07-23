@@ -37,9 +37,14 @@ export default function AccountListScreen() {
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
+    // State cho search
+    const [searchText, setSearchText] = useState('');
+    const [filteredData, setFilteredData] = useState([]);
+
     // Options cho dropdown
-    const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
-    const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
+   // const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
+    const [typeOptions1, setTypeOptions1] = useState([]);
+    const typeOptions2 = ['All', 'Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month'];
 
     // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
     const visiblePages = [page];
@@ -81,12 +86,11 @@ export default function AccountListScreen() {
                 navigation.navigate('LoginScreen');
                 return;
             }
-            
             // Lấy dữ liệu với 20 dòng mỗi trang
             const result = await AccountData.getDataWithFields(token, pageNumber, 20);
-           
+            setTypeOptions1(['All', ...result.detailFields.map(field => field.label)]);
             setApiData(result);
-            
+            setFilteredData(result.accounts || []); // Khởi tạo filtered data
         } catch (error) {
             console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
         } finally {
@@ -94,10 +98,119 @@ export default function AccountListScreen() {
         }
     };
 
+    // Function để tìm kiếm và lọc dữ liệu
+    const filterData = (searchQuery, fieldFilter, dateFilter) => {
+        if (!apiData?.accounts) return [];
+
+        let filtered = apiData.accounts;
+
+        // Filter theo search text
+        if (searchQuery && searchQuery.trim() !== '') {
+            const searchLower = searchQuery.toLowerCase();
+            filtered = filtered.filter(account => {
+                // Tìm kiếm trong tất cả các fields
+                return apiData.detailFields?.some(field => {
+                    const value = apiData.getFieldValue(account, field.key);
+                    return value && value.toString().toLowerCase().includes(searchLower);
+                });
+            });
+        }
+
+        // Filter theo field (dropdown 1)
+        if (fieldFilter && fieldFilter !== 'All') {
+            // Tìm field tương ứng với label được chọn
+            const selectedField = apiData.detailFields?.find(field => field.label === fieldFilter);
+            if (selectedField) {
+                filtered = filtered.filter(account => {
+                    const value = apiData.getFieldValue(account, selectedField.key);
+                    return value && value.toString().trim() !== '';
+                });
+            }
+        }
+
+        // Filter theo date created (dropdown 2)
+        if (dateFilter && dateFilter !== 'All') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            filtered = filtered.filter(account => {
+                const dateCreated = apiData.getFieldValue(account, 'date_entered') || 
+                                  apiData.getFieldValue(account, 'date_created') ||
+                                  apiData.getFieldValue(account, 'created_date');
+                
+                if (!dateCreated) return false;
+
+                const accountDate = new Date(dateCreated);
+                if (isNaN(accountDate.getTime())) return false;
+
+                const accountDateOnly = new Date(accountDate.getFullYear(), accountDate.getMonth(), accountDate.getDate());
+
+                switch (dateFilter) {
+                    case 'Today':
+                        return accountDateOnly.getTime() === today.getTime();
+                    
+                    case 'Yesterday':
+                        const yesterday = new Date(today);
+                        yesterday.setDate(today.getDate() - 1);
+                        return accountDateOnly.getTime() === yesterday.getTime();
+                    
+                    case 'This Week':
+                        const startOfWeek = new Date(today);
+                        startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+                        const endOfWeek = new Date(startOfWeek);
+                        endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+                        return accountDateOnly >= startOfWeek && accountDateOnly <= endOfWeek;
+                    
+                    case 'Last Week':
+                        const lastWeekStart = new Date(today);
+                        lastWeekStart.setDate(today.getDate() - today.getDay() - 7); // Sunday of last week
+                        const lastWeekEnd = new Date(lastWeekStart);
+                        lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Saturday of last week
+                        return accountDateOnly >= lastWeekStart && accountDateOnly <= lastWeekEnd;
+                    
+                    case 'This Month':
+                        return accountDate.getMonth() === now.getMonth() && 
+                               accountDate.getFullYear() === now.getFullYear();
+                    
+                    case 'Last Month':
+                        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        return accountDate.getMonth() === lastMonth.getMonth() && 
+                               accountDate.getFullYear() === lastMonth.getFullYear();
+                    
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        return filtered;
+    };
 
     const handleSearch = () => {
-        // Xử lý tìm kiếm
+        const filtered = filterData(searchText, selectedType1, selectedType2);
+        setFilteredData(filtered);
     };
+
+    // Function để reset search
+    const handleReset = () => {
+        setSearchText('');
+        setSelectedType1('All');
+        setSelectedType2('All');
+        setFilteredData(apiData?.accounts || []);
+    };
+
+    // Auto search khi thay đổi filters
+    useEffect(() => {
+        if (apiData?.accounts) {
+            const filtered = filterData(searchText, selectedType1, selectedType2);
+            setFilteredData(filtered);
+        }
+    }, [searchText, selectedType1, selectedType2, apiData]);
+
+    // Load dữ liệu khi component mount
+    useEffect(() => {
+        fetchDataByPage(1);
+    }, []);
 
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
@@ -132,31 +245,6 @@ export default function AccountListScreen() {
             </TouchableOpacity>
         );
     };
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const token = await AsyncStorage.getItem('token');
-                if (!token) {   
-                    navigation.navigate('LoginScreen');
-                    return;
-                }
-                
-                // Lấy dữ liệu với 20 dòng cho trang đầu tiên
-                const result = await AccountData.getDataWithFields(token, page, 20);
-               
-                setApiData(result);
-            } catch (error) {
-                console.error('Lỗi lấy dữ liệu:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
-        fetchData();
-    }, []);
-
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
         <Modal
@@ -208,25 +296,40 @@ export default function AccountListScreen() {
                         {/* Search Form */}
                         <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                             <View style={styles.searchBar}>
-                                <TextInput style={styles.input} placeholder="Key search" />
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder="Tìm kiếm..." 
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                    onSubmitEditing={handleSearch}
+                                    returnKeyType="search"
+                                />
+                            </View>
+                            {/* Filter Labels */}
+                            <View style={styles.filterLabels}>
+                                <Text style={styles.filterLabel}>Trường:</Text>
+                                <Text style={styles.filterLabel}>Ngày tạo:</Text>
                             </View>
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
                                     style={styles.select} 
                                     onPress={() => setShowDropdown1(true)}
                                 >
-                                    <Text>{selectedType1}</Text>
+                                    <Text numberOfLines={1} style={{ flex: 1 }}>{selectedType1}</Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    style={styles.select} 
+                                    style={[styles.select, { minWidth: 80 }]} 
                                     onPress={() => setShowDropdown2(true)}
                                 >
-                                    <Text>{selectedType2}</Text>
+                                    <Text numberOfLines={1} style={{ flex: 1 }}>{selectedType2}</Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
                                     <Text style={{ color: '#fff' }}>Tìm</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+                                    <Text style={{ color: '#666' }}>Reset</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -264,14 +367,30 @@ export default function AccountListScreen() {
                             )) || []}
                     </View>
 
+                    {/* Result Counter */}
+                    {(filteredData.length !== (apiData?.accounts?.length || 0)) && (
+                        <View style={styles.resultCounter}>
+                            <Text style={styles.resultText}>
+                                Hiển thị {filteredData.length} / {apiData?.accounts?.length || 0} kết quả
+                            </Text>
+                        </View>
+                    )}
+
                     {/* Table Rows - Scrollable */}
                     <FlatList
-                        data={apiData?.accounts || []}
+                        data={filteredData}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id}
                         style={styles.list}
                         contentContainerStyle={{ paddingBottom: 20 }}
                         showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={() => (
+                            <View style={styles.emptyContainer}>
+                                <Text style={styles.emptyText}>
+                                    {searchText ? 'Không tìm thấy kết quả phù hợp' : 'Không có dữ liệu'}
+                                </Text>
+                            </View>
+                        )}
                     />
 
                     <View style={styles.pagination}>
@@ -354,6 +473,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
+    filterLabels: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 4,
+        marginBottom: 4,
+    },
+    filterLabel: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+        flex: 1,
+    },
     input: {
         borderWidth: 1,
         padding: 6,
@@ -382,10 +513,30 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 4,
     },
+    resetButton: {
+        backgroundColor: '#f0f0f0',
+        padding: 6,
+        paddingHorizontal: 16,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
     tableHeader: {
         flexDirection: 'row',
         backgroundColor: '#C9B4AB',
         padding: 8,
+    },
+    resultCounter: {
+        backgroundColor: '#f8f9fa',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    resultText: {
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
     },
     headerCell: {
         flex: 1,
@@ -471,5 +622,17 @@ const styles = StyleSheet.create({
     selectedText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    // Empty state styles
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 50,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
     },
 });
