@@ -220,7 +220,7 @@ export default function TaskListScreen() {
             ?.slice(0, 3) || [];
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { task: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshTask:() => fetchDataByPage(page)})}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { task: item, detailFields: apiData?.detailFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshTask:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
                     const rawValue = apiData?.getFieldValue(item, field.key) || '';
                     

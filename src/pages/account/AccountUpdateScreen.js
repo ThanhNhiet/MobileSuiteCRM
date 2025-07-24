@@ -7,6 +7,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -15,12 +16,14 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 
 const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshAccount) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
+
     
     // Tạo updateAccount từ account và detailFields
     const initializeUpdateAccount = useCallback(() => {
@@ -31,14 +34,14 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                 initialData[key] = account[key] || '';
             });
         }
-        if (detailFields && Array.isArray(detailFields)) {
+        if (detailFields && Array.isArray(detailFields) && detailFields.length > 0) {
             detailFields.forEach(field => {
-                // Đảm bảo tất cả fields có giá trị
-                if (!(field.key in initialData)) {
+                // Đảm bảo tất cả fields có giá trị và field có key
+                if (field && field.key && !(field.key in initialData)) {
                     initialData[field.key] = '';
                 }
             });
-          }
+        }
         return initialData;
     }, [account, detailFields]);
     
@@ -55,10 +58,13 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
     
     // Function để cập nhật field
     const updateField = (fieldKey, value) => {
-        setUpdateAccountData(prev => ({
-            ...prev,
-            [fieldKey]: value
-        }));
+        setUpdateAccountData(prev => {
+            const newData = {
+                ...prev,
+                [fieldKey]: value
+            };
+            return newData;
+        });
         
         // Clear validation error when field is updated
         if (validationErrors[fieldKey]) {
@@ -82,7 +88,7 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
     };
    
     return {
-        detailFields,
+        detailFields: detailFields || [],
         formData: account || updateAccountData,
         updateAccountData, // Expose để component có thể access
         loading,
@@ -125,10 +131,13 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                 const fieldsToUpdate = {};
                 
                 // Danh sách các field system không nên update
-                const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
+                const systemFields = ['id', 'created_by', 'modified_user_id', 'deleted'];
                 
-                if (detailFields && Array.isArray(detailFields)) {
+                if (detailFields && Array.isArray(detailFields) && detailFields.length > 0) {
                     detailFields.forEach(field => {
+                        // Kiểm tra field có tồn tại và có key không
+                        if (!field || !field.key) return;
+                        
                         // Bỏ qua system fields
                         if (!systemFields.includes(field.key)) {
                             const currentValue = updateAccountData[field.key];
@@ -138,26 +147,19 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                             // Normalize giá trị để so sánh (handle null, undefined, empty string)
                             const normalizedCurrent = currentValue || '';
                             const normalizedOriginal = originalValue || '';
-                            
                             if (normalizedCurrent !== normalizedOriginal) {
                                 fieldsToUpdate[field.key] = currentValue;
-                               
                             }
                         }
                     });
                 }
-
-                console.log('📤 Fields to update:', fieldsToUpdate);
-                
                 // Nếu không có field nào thay đổi, không cần gọi API
                 if (Object.keys(fieldsToUpdate).length === 0) {
                     setLoading(false);
                     return { success: true, message: 'Không có thay đổi nào để cập nhật' };
                 }
-
                 const result = await AccountData.UpdateAccount(account.id, fieldsToUpdate, token);
-              
-                setLoading(false);
+                //setLoading(false);
                 if (result) {
                     // Success if we have any meaningful response
                     return { success: true, data: result };
@@ -179,6 +181,9 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
 export default function AccountUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  
+  // Safely extract route parameters with fallbacks
+  const routeParams = route.params || {};
   const { 
     routeAccount, 
     routeDetailFields, 
@@ -186,11 +191,38 @@ export default function AccountUpdateScreen() {
     routeGetFieldLabel, 
     refreshAccount,
     refreshAccountList // Thêm callback để refresh AccountListScreen
-  } = route.params || {};
+  } = routeParams;
+
+  // Early return if essential data is missing
+  if (!routeAccount || !routeDetailFields) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+        <TopNavigationUpdate
+          moduleName="Cập nhật khách hàng"
+          navigation={navigation}
+        />
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#ff6b6b', fontSize: 16, textAlign: 'center' }}>
+            Lỗi: Không tìm thấy dữ liệu khách hàng
+          </Text>
+          <Text style={{ color: '#666', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+            Vui lòng thử lại hoặc quay lại trang trước
+          </Text>
+          <TouchableOpacity 
+            style={[styles.saveButton, { marginTop: 20, marginHorizontal: 40 }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.saveButtonText}>Quay lại</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Alias để dễ sử dụng
   const account = routeAccount;
-  const detailFields = routeDetailFields;
+  const detailFields = routeDetailFields || [];
   const routeGetFieldValueFunc = routeGetFieldValue;
   const routeGetFieldLabelFunc = routeGetFieldLabel;
   const {
@@ -210,6 +242,43 @@ export default function AccountUpdateScreen() {
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
+
+
+
+  const showDatePicker = (fieldKey) => {
+    setCurrentDateField(fieldKey);
+    setDatePickerVisibility(true);
+  };
+  
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+    setCurrentDateField(null);
+  };
+
+  const handleConfirm = (selectedDate) => {
+    if (currentDateField && selectedDate) {
+      // Format date to ISO 8601 format with local timezone
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const hours = String(selectedDate.getHours()).padStart(2, '0');
+      const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+      const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
+      
+      // Get timezone offset
+      const timezoneOffset = selectedDate.getTimezoneOffset();
+      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+      const offsetMinutes = Math.abs(timezoneOffset) % 60;
+      const offsetSign = timezoneOffset <= 0 ? '+' : '-';
+      const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+      
+      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
+      updateField(currentDateField, formattedDate);
+    }
+    hideDatePicker();
+  };
 
   // Handle save
   const handleSave = async () => {
@@ -222,6 +291,7 @@ export default function AccountUpdateScreen() {
         setSaving(false);
         return;
       }
+      
       const result = await updateAccount();
       if (result && result.success) {
         const message = result.message || 'Cập nhật khách hàng thành công!';
@@ -285,7 +355,17 @@ export default function AccountUpdateScreen() {
         />
         <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải dữ liệu...</Text>
+          {!account && (
+            <Text style={{ marginTop: 8, color: '#ff6b6b', fontSize: 12 }}>
+              Không tìm thấy thông tin khách hàng
+            </Text>
+          )}
+          {(!detailFields || detailFields.length === 0) && (
+            <Text style={{ marginTop: 8, color: '#ff6b6b', fontSize: 12 }}>
+              Không tìm thấy cấu trúc form
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -314,11 +394,12 @@ export default function AccountUpdateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
-              .filter(field => field.key !== 'id')
-              .map((field) => {
-                const fieldError = getFieldError(field.key);
-                const fieldValue = getFieldValue(field.key);
+            {detailFields && Array.isArray(detailFields) && detailFields.length > 0 ? (
+              detailFields
+                .filter(field => field && field.key && field.key !== 'id')
+                .map((field) => {
+                  const fieldError = getFieldError(field.key);
+                  const fieldValue = getFieldValue(field.key);
 
                 // Handle account_type as dropdown (simplified for now)
                 if (field.key === 'account_type') {
@@ -334,6 +415,47 @@ export default function AccountUpdateScreen() {
                           autoCapitalize="none"
                           returnKeyType="done"
                         />
+                      </View>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                  );
+                }
+                if (field.key === 'date_entered' || field.key === 'date_modified') {
+                  // Format display value for date fields
+                  const rawValue = getFieldValue(field.key);
+                  let displayValue = '';
+                  
+                  if (rawValue) {
+                    try {
+                      // Parse ISO date format (2025-07-24T07:35:00+02:00)
+                      const date = new Date(rawValue);
+                      if (!isNaN(date.getTime())) {
+                        // Display as YYYY-MM-DD format
+                        displayValue = date.toISOString().split('T')[0];
+                      } else {
+                        // Fallback for simple date format
+                        displayValue = rawValue.includes('T') ? rawValue.split('T')[0] : rawValue;
+                      }
+                    } catch (e) {
+                      console.log('Error parsing date:', rawValue, e);
+                      displayValue = rawValue;
+                    }
+                  }
+                  
+                  return (
+                    <View key={field.key} style={styles.row}>
+                      <Text style={styles.label}>{field.label}</Text>
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <Pressable onPress={() => showDatePicker(field.key)}>
+                          <TextInput
+                            style={styles.value}
+                            value={displayValue}
+                            placeholder={`Chọn ${field.label.toLowerCase()}`}
+                            editable={false}
+                            pointerEvents='none'
+                            key={`${field.key}-${displayValue}`} // Force re-render when value changes
+                          />
+                        </Pressable>
                       </View>
                       {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                     </View>
@@ -362,10 +484,18 @@ export default function AccountUpdateScreen() {
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
-              })}
+              })
+            ) : (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#666', fontSize: 16 }}>
+                  Không có dữ liệu để hiển thị
+                </Text>
+              </View>
+            )}
 
             {/* Save Button */}
             <View style={styles.buttonContainer}>
+              
               <TouchableOpacity
                 style={[
                   styles.saveButton,
@@ -382,6 +512,37 @@ export default function AccountUpdateScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
+          
+          {/* Date Picker Modal - Shared for all date fields */}
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode="date"
+            onConfirm={handleConfirm}
+            onCancel={hideDatePicker}
+            date={currentDateField ? (() => {
+              const fieldValue = getFieldValue(currentDateField);
+              if (fieldValue) {
+                try {
+                  // Parse ISO format date (2025-07-24T07:35:00+02:00)
+                  const date = new Date(fieldValue);
+                  if (!isNaN(date.getTime())) {
+                    return date;
+                  }
+                  // Fallback parsing
+                  return fieldValue.includes('T') ? 
+                    new Date(fieldValue) : 
+                    new Date(fieldValue + 'T00:00:00');
+                } catch (e) {
+                  console.log('Error parsing date for picker:', fieldValue, e);
+                  return new Date();
+                }
+              }
+              return new Date();
+            })() : new Date()}
+            locale="vi_VN"
+            confirmTextIOS="Chọn"
+            cancelTextIOS="Hủy"
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>

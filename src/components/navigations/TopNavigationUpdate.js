@@ -1,6 +1,6 @@
 // src/components/navigations/TopNavigation.js
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 /**
  * Thanh điều hướng ở đầu màn hình.
@@ -22,23 +22,7 @@ export default function TopNavigationUpdate({
     default: 'arrow-back',
   });
 
-  const notify = (message) => {
-  Alert.alert(
-    'Thông báo',
-    message,
-    [
-      {
-        text: 'Không',          // ❌ Không đi
-        style: 'cancel',        // iOS sẽ tô đậm & tự đóng dialog
-      },
-      {
-        text: 'Có',             // ✅ Đồng ý đi
-        onPress: () => navigation?.navigate(name),
-      },
-    ],
-    { cancelable: true }
-  );
-};
+
 
 
 const handleSave = () => {
@@ -61,15 +45,8 @@ const handleSave = () => {
       {/* Tiêu đề */}
       <Text style={styles.title}>{moduleName}</Text>
 
-      {/* Nút bên phải (mặc định là “…”), truyền vào prop rightIcon nếu muốn khác */}
-      <Pressable
-        onPress={handleSave}
-        hitSlop={12}
-        android_ripple={{ borderless: true }}
-        style={styles.iconBtn}
-      >
-        <Ionicons name={rightIcon.name} size={24} color="#1e1e1e" />
-      </Pressable>
+      
+     <View style={styles.placeholder} />
     </View>
   );
 }
@@ -86,6 +63,10 @@ container: {
   },
   title: {
     fontWeight: 'bold',
+    justifyContent: 'center',
     fontSize: 24,
+  },
+  placeholder: {
+    width: 26, // Same width as back icon to balance
   },
 });

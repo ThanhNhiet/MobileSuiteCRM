@@ -38,15 +38,8 @@ export default function TopNavigationDetail({
       {/* Tiêu đề */}
       <Text style={styles.title}>Chi tiết {moduleName}</Text>
 
-      {/* Nút bên phải (mặc định là “…”), truyền vào prop rightIcon nếu muốn khác */}
-      <Pressable
-        onPress={()=>navigation.navigate(name)}
-        hitSlop={12}
-        android_ripple={{ borderless: true }}
-        style={styles.iconBtn}
-      >
-        <Ionicons name={rightIcon.name} size={24} color="#1e1e1e" />
-      </Pressable>
+      <View style={styles.placeholder} />
+     
     </View>
   );
 }
@@ -63,5 +56,8 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     fontSize: 24,
+  },
+  placeholder: {
+    width: 26, // Same width as back icon to balance
   },
 });

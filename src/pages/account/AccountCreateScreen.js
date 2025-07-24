@@ -73,7 +73,21 @@ const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation
         getFieldValue: getFieldValueLocal,
         getFieldLabel,
         getFieldError: getFieldErrorLocal,
-        isFormValid: () => newAccount.name && newAccount.name.trim() !== '',
+        isFormValid: () => {
+            // Kiểm tra field name không được để trống
+            if (!newAccount.name || newAccount.name.trim() === '') {
+                return false;
+            }
+            return true;
+        },
+        validateForm: () => {
+            const errors = {};
+            if (!newAccount.name || newAccount.name.trim() === '') {
+                errors.name = 'Tên khách hàng không được để trống';
+            }
+            setValidationErrors(errors);
+            return Object.keys(errors).length === 0;
+        },
         createAccount: async () => {
             try {
                 setLoading(true);
@@ -115,7 +129,8 @@ export default function AccountCreateScreen() {
     getFieldValue,
     getFieldLabel,
     getFieldError,
-    isFormValid
+    isFormValid,
+    validateForm
   } = useAccountCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
 
   // Local loading state for save button
@@ -123,6 +138,12 @@ export default function AccountCreateScreen() {
 
   // Handle save
   const handleSave = async () => {
+    // Validate form trước khi save
+    if (!validateForm()) {
+      Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin đã nhập');
+      return;
+    }
+
     try {
       setSaving(true);
       const result = await createAccount();
@@ -143,6 +164,8 @@ export default function AccountCreateScreen() {
             }
           ]
         );
+      } else {
+        Alert.alert('Lỗi', result?.error || 'Không thể tạo khách hàng');
       }
     } catch (err) {
       Alert.alert('Lỗi', err.message || 'Không thể tạo khách hàng');
@@ -198,6 +221,10 @@ export default function AccountCreateScreen() {
               .map((field) => {
                 const fieldError = getFieldError(field.key);
                 const fieldValue = getFieldValue(field.key);
+                if (field.key ==='date_entered' || field.key === 'date_modified') {
+                  // Skip date_entered and date_modified fields
+                  return ;
+                }
 
                 // Handle account_type as dropdown (simplified for now)
                 if (field.key === 'account_type') {

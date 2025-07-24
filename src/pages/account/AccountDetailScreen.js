@@ -2,6 +2,7 @@ import AccountData from '@/src/services/useApi/account/AccountData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
@@ -27,9 +28,7 @@ const useAccountDetail = (account, detailFields, getFieldValue, getFieldLabel, n
 
     // Function để update account data
     const updateAccountData = (updatedData) => {
-        console.log('🔄 AccountDetailScreen: Updating account data with:', updatedData);
         setData(updatedData);
-        console.log('✅ AccountDetailScreen: Account data updated successfully');
     };
 
     const deleteAccount = async () => {
@@ -76,7 +75,8 @@ export default function AccountDetailScreen() {
     const route = useRoute();
     const {account: routeAccount, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshAccount: routeRefreshAccount} = route.params;
     const [relationships, setRelationships] = React.useState([]);
-    
+   
+
     // Giả lập dữ liệu mối quan hệ
     useEffect(() => {
         const fetchRelationships = async () => {
@@ -128,7 +128,6 @@ export default function AccountDetailScreen() {
         if (item.empty) {
             return <View style={styles.cardInvisible} />;
         }
-
         return (
             <Pressable
                 onPress={() => {navigation.navigate('RelationshipListScreen', { relationship: item }); }}
@@ -237,6 +236,17 @@ export default function AccountDetailScreen() {
             refreshAccountList: routeRefreshAccount // Truyền callback từ AccountListScreen
         });
     };
+    const handleCopyId = async () => {
+            if (account?.id) {
+                try {
+                    await Clipboard.setStringAsync(account.id);
+                    Alert.alert('Thành công', 'ID đã được sao chép vào clipboard');
+                } catch (err) {
+                    Alert.alert('Lỗi', 'Không thể sao chép ID');
+                    console.warn('Copy ID error:', err);
+                }
+            }
+        };
 
     // Format field value for display
     const formatFieldValue = (fieldKey, value) => {
@@ -260,10 +270,29 @@ export default function AccountDetailScreen() {
         if (!shouldDisplayField(field.key)) {
             return null;
         }
+        // Special handling for ID field with copy button
+                if (field.key === 'id') {
+                    return (
+                        <View key={field.key} style={styles.fieldContainer}>
+                            <Text style={styles.fieldLabel}>{field.label}:</Text>
+                            <View style={styles.idContainer}>
+                                <Text style={[styles.fieldValue, styles.idValue]}>
+                                    {formatFieldValue(field.key, value)}
+                                </Text>
+                                <TouchableOpacity 
+                                    style={styles.copyButton}
+                                    onPress={handleCopyId}
+                                >
+                                    <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    );
+                }
 
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}:</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -388,7 +417,7 @@ export default function AccountDetailScreen() {
                             columnWrapperStyle={styles.row}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             showsVerticalScrollIndicator={false}
-                            scrollEnabled={false}
+                            scrollEnabled={paddedData.length > 8} // Enable scroll nếu có > 2 rows
                         />
                     </View>
                 </ScrollView>
@@ -606,7 +635,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 4,
-        height: 220
+        minHeight: 120, // Đổi từ height cố định sang minHeight
+        maxHeight: 300, // Thêm maxHeight để giới hạn khi có quá nhiều items
     },
     row: {
         paddingHorizontal: 8,
@@ -634,5 +664,22 @@ const styles = StyleSheet.create({
     cardText: {
         fontSize: 13,
         color: 'black',
+    },
+     copyButton: {
+        padding: 6,
+        borderRadius: 6,
+        backgroundColor: '#f0f8ff',
+        borderWidth: 1,
+        borderColor: '#007AFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 32,
+        minHeight: 32,
+    },
+    idContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flex: 1,
     },
 });

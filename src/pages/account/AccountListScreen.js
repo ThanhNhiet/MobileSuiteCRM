@@ -219,7 +219,7 @@ export default function AccountListScreen() {
             ?.slice(0, 3) || [];
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: displayFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel,refreshAccount:() => fetchDataByPage(page)})}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: apiData?.detailFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel,refreshAccount:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
                     const rawValue = apiData?.getFieldValue(item, field.key) || '';
                     
@@ -306,10 +306,6 @@ export default function AccountListScreen() {
                                 />
                             </View>
                             {/* Filter Labels */}
-                            <View style={styles.filterLabels}>
-                                <Text style={styles.filterLabel}>Trường:</Text>
-                                <Text style={styles.filterLabel}>Ngày tạo:</Text>
-                            </View>
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
                                     style={styles.select} 
@@ -599,7 +595,6 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         backgroundColor: 'white',
         minWidth: 150,
-        maxHeight: 200,
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: {

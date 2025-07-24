@@ -7,6 +7,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -15,6 +16,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 
@@ -252,6 +254,81 @@ export default function MeetingUpdateScreen() {
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
 
+  // Date picker states
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
+
+  // Date picker functions
+  const showDatePicker = (fieldKey) => {
+    setCurrentDateField(fieldKey);
+    setDatePickerVisibility(true);
+  };
+  
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+    setCurrentDateField(null);
+  };
+
+  const handleConfirm = (selectedDate) => {
+    if (currentDateField && selectedDate) {
+      // Format date to ISO 8601 format with local timezone
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const hours = String(selectedDate.getHours()).padStart(2, '0');
+      const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+      const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
+      
+      // Get timezone offset
+      const timezoneOffset = selectedDate.getTimezoneOffset();
+      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+      const offsetMinutes = Math.abs(timezoneOffset) % 60;
+      const offsetSign = timezoneOffset <= 0 ? '+' : '-';
+      const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+      
+      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
+      
+      console.log('📅 Date selected for field:', currentDateField);
+      console.log('📅 Formatted date:', formattedDate);
+      
+      updateField(currentDateField, formattedDate);
+    }
+    hideDatePicker();
+  };
+
+  // Function to check if field is date type
+  const isDateField = (fieldKey) => {
+    return fieldKey && (
+      fieldKey.toLowerCase().includes('date') ||
+      fieldKey.toLowerCase().includes('time') ||
+      fieldKey === 'date_start' ||
+      fieldKey === 'date_end' ||
+      fieldKey === 'date_due' ||
+      fieldKey === 'date_entered' ||
+      fieldKey === 'date_modified'
+    );
+  };
+
+  // Function to format date for display
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   // Handle save
   const handleSave = async () => {
     if (!isDataChanged) {
@@ -355,30 +432,55 @@ export default function MeetingUpdateScreen() {
               .map((field) => {
                 const fieldError = getFieldError(field.key);
                 const fieldValue = getFieldValue(field.key);
+                const isDate = isDateField(field.key);
 
                 return (
                   <View key={field.key} style={styles.row}>
                     <Text style={styles.label}>{field.label}</Text>
-                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                      <TextInput
-                        style={[
-                          styles.value,
-                          field.key === 'description' && styles.multilineInput
-                        ]}
-                        value={fieldValue}
-                        onChangeText={(value) => updateField(field.key, value)}
-                        placeholder={`Nhập ${field.label.toLowerCase()}`}
-                        autoCapitalize="none"
-                        returnKeyType={field.key === 'description' ? 'default' : 'done'}
-                        multiline={field.key === 'description'}
-                        numberOfLines={field.key === 'description' ? 4 : 1}
-                        textAlignVertical={field.key === 'description' ? 'top' : 'center'}
-                      />
-                    </View>
+                    
+                    {isDate ? (
+                      // Date picker field
+                      <Pressable
+                        style={[styles.valueBox, fieldError && styles.errorInput]}
+                        onPress={() => showDatePicker(field.key)}
+                      >
+                        <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                          {fieldValue ? formatDateForDisplay(fieldValue) : `Chọn ${field.label.toLowerCase()}`}
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      // Regular text input
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <TextInput
+                          style={[
+                            styles.value,
+                            field.key === 'description' && styles.multilineInput
+                          ]}
+                          value={fieldValue}
+                          onChangeText={(value) => updateField(field.key, value)}
+                          placeholder={`Nhập ${field.label.toLowerCase()}`}
+                          autoCapitalize="none"
+                          returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                          multiline={field.key === 'description'}
+                          numberOfLines={field.key === 'description' ? 4 : 1}
+                          textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                        />
+                      </View>
+                    )}
+                    
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
               })}
+
+            {/* Date Time Picker Modal */}
+            <DateTimePickerModal
+              isVisible={isDatePickerVisible}
+              mode="datetime"
+              onConfirm={handleConfirm}
+              onCancel={hideDatePicker}
+              date={currentDateField ? (getFieldValue(currentDateField) ? new Date(getFieldValue(currentDateField)) : new Date()) : new Date()}
+            />
 
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
@@ -473,6 +575,11 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: '#000',
+  },
+
+  placeholderText: {
+    color: '#666',
+    fontStyle: 'italic',
   },
 
   // Additional styles for the enhanced version

@@ -62,14 +62,7 @@ const handleSave = () => {
       <Text style={styles.title}>{moduleName}</Text>
 
       {/* Nút bên phải (mặc định là “…”), truyền vào prop rightIcon nếu muốn khác */}
-      <Pressable
-        onPress={handleSave}
-        hitSlop={12}
-        android_ripple={{ borderless: true }}
-        style={styles.iconBtn}
-      >
-        <Ionicons name={rightIcon.name} size={24} color="#1e1e1e" />
-      </Pressable>
+      <View style={styles.isNaN}/>      
     </View>
   );
 }
@@ -87,4 +80,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 24,
   },
+  isNaN: {
+    width: 26
+  }
 });

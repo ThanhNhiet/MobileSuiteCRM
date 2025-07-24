@@ -2,10 +2,14 @@ import TaskData from '@/src/services/useApi/task/TaskData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useState } from "react";
+import * as Clipboard from 'expo-clipboard';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
+    FlatList,
+    Pressable,
     RefreshControl,
     ScrollView,
     StatusBar,
@@ -18,8 +22,17 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
+const { width } = Dimensions.get('window');
+const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
+
 const useTaskDetail = (task, detailFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
     const [deleting, setDeleting] = useState(false);
+    const [data, setData] = useState(task);
+
+    // Function để update task data
+    const updateTaskData = (updatedData) => {
+        setData(updatedData);
+    };
 
     const deleteTask = async () => {
         const token = await AsyncStorage.getItem('token');
@@ -41,13 +54,14 @@ const useTaskDetail = (task, detailFields, getFieldValue, getFieldLabel, navigat
     };
 
     return {
-        task,
+        task: data || task,
         detailFields,
         loading: false,
         refreshing: false,
         error: null,
         deleting,
-        refreshTask: refreshTask || (() => console.log("Đang làm mới công việc...")),
+        refreshTask,
+        updateTaskData, // Expose function để update data
         deleteTask,
         getFieldValue: getFieldValue || ((item, key) => item[key]),
         getFieldLabel: getFieldLabel || ((key) => key),
@@ -60,10 +74,65 @@ export default function TaskDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const {task: routeTask, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshTask: routeRefreshTask} = route.params;
-
+    const [relationships, setRelationships] = useState([]);
     // State để quản lý dữ liệu task hiện tại
     const [currentTask, setCurrentTask] = useState(routeTask);
     const [taskRefreshing, setTaskRefreshing] = useState(false);
+
+    useEffect(() => {
+        const fetchRelationships = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                if (!token) {
+                    navigation.navigate('LoginScreen');
+                    return;
+                }
+
+                const response = await TaskData.getRelationships(token, currentTask.id);
+                if (response && response.relationships) {
+                    setRelationships(response.relationships);
+                } else {
+                    setRelationships([]);
+                }
+            } catch (error) {
+                console.error('Lỗi khi lấy mối quan hệ:', error);
+            }
+        }
+
+        fetchRelationships();
+    }, [currentTask.id]);
+
+    const padData = (raw, cols) => {
+        const fullRows = Math.floor(raw.length / cols);
+        let lastRowCount = raw.length - fullRows * cols;
+        while (lastRowCount !== 0 && lastRowCount < cols) {
+            raw.push({ id: `blank-${lastRowCount}`, empty: true });
+            lastRowCount++;
+        }
+        return raw;
+    }
+
+    const paddedData = useMemo(() => {
+        const safeRelationships = Array.isArray(relationships) ? relationships : [];
+        return padData([...safeRelationships], 4);
+    }, [relationships]);
+
+    const renderItem = ({ item }) => {
+        if (item.empty) {
+            return <View style={styles.cardInvisible} />;
+        }
+        return (
+            <Pressable 
+                onPress={() => navigation.navigate('RelationshipListScreen', { relationship: item })}
+                style={({ pressed }) => [
+                    styles.card,
+                    pressed && styles.cardPressed,
+                ]}
+            >
+                <Text style={styles.cardText}>{item.moduleLabel}</Text>
+            </Pressable>
+        );
+    }
 
     // Function để refresh dữ liệu task hiện tại
     const handleRefreshTask = useCallback(async () => {
@@ -89,6 +158,7 @@ export default function TaskDetailScreen() {
         error,
         deleting,
         refreshTask,
+        updateTaskData,
         deleteTask,
         getFieldValue,
         getFieldLabel,
@@ -104,11 +174,12 @@ export default function TaskDetailScreen() {
                 [{ text: 'OK' }]
             );
             return;
-        } else {
-            Alert.alert(
-                'Xác nhận xóa',
-                'Bạn có chắc chắn muốn xóa công việc này không? Hành động này không thể hoàn tác.',
-                [
+        }
+
+        Alert.alert(
+            'Xác nhận xóa',
+            'Bạn có chắc chắn muốn xóa công việc này không? Hành động này không thể hoàn tác.',
+            [
                 { text: 'Hủy', style: 'cancel' },
                 {
                     text: 'Xóa',
@@ -124,12 +195,17 @@ export default function TaskDetailScreen() {
                                 'Đã xóa công việc thành công',
                                 [{ text: 'OK', onPress: () => navigation.goBack() }]
                             );
+                        } else {
+                            Alert.alert(
+                                'Thất bại',
+                                'Không thể xóa công việc, vui lòng thử lại.',
+                                [{ text: 'OK' }]
+                            );
                         }
                     }
                 }
             ]
-            );
-        }
+        );
     };
 
     // Check if user can edit this task
@@ -147,26 +223,34 @@ export default function TaskDetailScreen() {
 
     // Navigate to update screen
     const handleUpdate = () => {
+        if (!canEditTask()) {
+            Alert.alert(
+                'Không thể chỉnh sửa',
+                'Bạn không có quyền chỉnh sửa công việc này.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
         navigation.navigate('TaskUpdateScreen', { 
-            taskId: currentTask?.id,
+            taskId: task?.id, // Truyền updated task ID
             detailFields: routeDetailFields, 
             getFieldValue: routeGetFieldValue, 
             getFieldLabel: routeGetFieldLabel, 
-            refreshTask: (updatedTaskData) => {
-                // Cập nhật dữ liệu task hiện tại trong DetailScreen
-                if (updatedTaskData) {
-                    setCurrentTask(prevTask => ({
-                        ...prevTask,
-                        ...updatedTaskData
-                    }));
-                }
-                // Gọi refresh callback nếu có
-                if (typeof handleRefreshTask === 'function') {
-                    handleRefreshTask();
-                }
-            },
+            refreshTask: updateTaskData, // Truyền update function cho DetailScreen
             refreshTaskList: routeRefreshTask // Truyền callback từ TaskListScreen để refresh list
         });
+    };
+
+    const handleCopyId = async () => {
+        if (task?.id) {
+            try {
+                await Clipboard.setStringAsync(task.id);
+                Alert.alert('Thành công', 'ID đã được sao chép vào clipboard');
+            } catch (err) {
+                Alert.alert('Lỗi', 'Không thể sao chép ID');
+                console.warn('Copy ID error:', err);
+            }
+        }
     };
 
     // Format field value for display
@@ -216,9 +300,29 @@ export default function TaskDetailScreen() {
             return null;
         }
 
+        // Special handling for ID field with copy button
+        if (field.key === 'id') {
+            return (
+                <View key={field.key} style={styles.fieldContainer}>
+                    <Text style={styles.fieldLabel}>{field.label}:</Text>
+                    <View style={styles.idContainer}>
+                        <Text style={[styles.fieldValue, styles.idValue]}>
+                            {formatFieldValue(field.key, value)}
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.copyButton}
+                            onPress={handleCopyId}
+                        >
+                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            );
+        }
+
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}:</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -337,6 +441,24 @@ export default function TaskDetailScreen() {
                             </View>
                         </View>
                     )}
+                    
+                    {/* Mối quan hệ */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Mối quan hệ</Text>
+                    </View>
+
+                    <View style={styles.infoCard}>
+                        <FlatList
+                            data={paddedData}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            numColumns={4}
+                            columnWrapperStyle={styles.row}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            scrollEnabled={paddedData.length > 8} // Enable scroll nếu có > 2 rows
+                        />
+                    </View>
                 </ScrollView>
 
                 {/* Action Buttons */}
@@ -529,6 +651,22 @@ const styles = StyleSheet.create({
         color: '#333',
         lineHeight: 22,
     },
+    idContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    idValue: {
+        flex: 1,
+        marginRight: 10,
+    },
+    copyButton: {
+        padding: 8,
+        borderRadius: 4,
+        backgroundColor: '#f0f4ff',
+        borderWidth: 1,
+        borderColor: '#007AFF',
+    },
     actionContainer: {
         flexDirection: 'row',
         paddingHorizontal: 10,
@@ -570,5 +708,46 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    row: {
+        paddingHorizontal: 8,
+        justifyContent: 'flex-start',
+    },
+    infoCard: {
+        paddingVertical: 5,
+        paddingHorizontal: 5,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        marginBottom: 10,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowOffset: { width: 0, height: 1 },
+        shadowRadius: 4,
+        minHeight: 120, // Đổi từ height cố định sang minHeight
+        maxHeight: 300, // Thêm maxHeight để giới hạn khi có quá nhiều items
+    },
+    card: {
+        width: ITEM_W,
+        marginHorizontal: 2,
+        marginVertical: 8,
+        aspectRatio: 1,
+        borderRadius: 8,
+        backgroundColor: '#ececec',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cardInvisible: {
+        width: ITEM_W,
+        marginHorizontal: 2,
+        marginVertical: 8,
+        backgroundColor: 'transparent',
+    },
+    cardPressed: {
+        backgroundColor: "blue",
+    },
+    cardText: {
+        fontSize: 13,
+        color: 'black',
     },
 });
