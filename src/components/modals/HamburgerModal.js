@@ -56,14 +56,15 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
 
     const handleReadJsonFile = async () => {
         try {
-          const data = await cacheManager.readJsonFromCache("Notes", "vi_VN");
+            const data = await cacheManager.getModuleLanguage_Pretty("Notes", "vi_VN");
+            // const data = await cacheManager.getSystemLanguage_Pretty('vi_VN');
           if (data) {
             console.log(data);
           } else {
-            console.warn('No data found for Notes/vi_VN');
+            console.warn('No data found');
           }
         } catch (error) {
-          console.warn('Error reading Notes/vi_VN:', error);
+          console.warn('Error reading:', error);
         }
       }
 
