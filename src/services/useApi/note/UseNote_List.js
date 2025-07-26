@@ -1,8 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { cacheManager } from '../../../utils/CacheManager';
+import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
+import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import {
     getNoteListFieldsApi,
-    getNotesApi,
-    getNotesLanguageApi
+    getNotesApi
 } from '../../api/note/NoteApi';
 
 export const useNoteList = () => {
@@ -50,36 +53,141 @@ export const useNoteList = () => {
     // Initialize fields and language
     const initializeFieldsAndLanguage = useCallback(async () => {
         try {
-            // Get default fields for list view
-            const fieldsResponse = await getNoteListFieldsApi();
-            const defaultFields = fieldsResponse.default_fields;
+            // 1. Kiểm tra cache listviewdefs.json có tồn tại không
+            let fieldsData;
+            const cachedFields = await readCacheView.readCacheFile('listviewdefs', 'Notes');
             
-            // Create nameFields string (include parent_type, parent_name for filtering)
-            const fieldKeys = Object.keys(defaultFields).map(key => key.toLowerCase());
+            if (!cachedFields) {
+                // Nếu chưa có cache, fetch từ API
+                const fieldsResponse = await getNoteListFieldsApi();
+                
+                // Kiểm tra cấu trúc response và lấy default_fields
+                if (fieldsResponse && fieldsResponse.default_fields) {
+                    fieldsData = fieldsResponse.default_fields;
+                } else {
+                    console.warn('⚠️ Unexpected API response structure');
+                    fieldsData = {};
+                }
+                
+                // Lưu vào cache (chỉ lưu default_fields)
+                await writeCacheView.writeCacheFile('listviewdefs', 'Notes', fieldsData);
+            } else {
+                // Nếu có cache, sử dụng cache
+                fieldsData = cachedFields;
+            }
+            
+            // 2. Lấy ngôn ngữ hiện tại
+            const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
+            let languageData = await cacheManager.getModuleLanguage('Notes', selectedLanguage);
+            
+            // Nếu không có language data, thử fetch lại
+            if (!languageData) {
+                const languageExists = await cacheManager.checkModuleLanguageExists('Notes', selectedLanguage);
+                if (!languageExists) {
+                    console.warn('⚠️ Language cache does not exist. Please login to fetch language data.');
+                }
+            }
+            
+            // Lấy mod_strings từ cấu trúc language data
+            let modStrings = null;
+            if (languageData && languageData.data && languageData.data.mod_strings) {
+                modStrings = languageData.data.mod_strings;
+            }
+            
+            // Kiểm tra fieldsData có hợp lệ không
+            if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
+                console.warn('⚠️ fieldsData is empty or invalid, using default structure');
+                fieldsData = {
+                    "NAME": {
+                        "label": "LBL_LIST_SUBJECT",
+                        "width": "40%",
+                        "type": "varchar",
+                        "link": true
+                    },
+                    "DATE_ENTERED": {
+                        "label": "LBL_DATE_ENTERED",
+                        "width": "10%",
+                        "type": "datetime",
+                        "link": false
+                    }
+                };
+            }
+            
+            // Chỉ lấy 2 field đầu tiên
+            const fieldEntries = Object.entries(fieldsData).slice(0, 2);
+            
+            // 3. Tạo nameFields string từ fieldsData (chỉ 2 field đầu tiên)
+            const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
             const requiredFields = [...fieldKeys, 'parent_type', 'parent_name'];
-            const nameFieldsString = requiredFields.join(',');
-            setNameFields(nameFieldsString);
             
-            // Get language data
-            const languageResponse = await getNotesLanguageApi();
-            const modStrings = languageResponse.data.mod_strings;
+            // Lọc bỏ các trường rỗng hoặc invalid
+            const validFields = requiredFields.filter(field => 
+                field && 
+                typeof field === 'string' && 
+                field.trim() !== '' &&
+                !field.includes(' ') // Không chứa khoảng trắng
+            );
             
-            // Create columns with Vietnamese labels
-            const columnsData = Object.entries(defaultFields).map(([fieldKey, fieldInfo]) => {
-                const labelKey = fieldInfo.label;
-                const vietnameseLabel = modStrings[labelKey] || fieldKey;
+            const nameFieldsString = validFields.join(',');
+            
+            // Kiểm tra nameFields có hợp lệ không
+            if (!nameFieldsString || nameFieldsString.trim() === '') {
+                console.warn('⚠️ nameFields is empty, using default fields');
+                setNameFields('name,date_entered,parent_type,parent_name,description');
+            } else {
+                setNameFields(nameFieldsString);
+            }
+            
+            // 4. Tạo columns với bản dịch (chỉ 2 field đầu tiên)
+            const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
+                let vietnameseLabel = fieldKey; // Default fallback
+                const labelValue = fieldInfo?.label;
+                
+                if (modStrings) {
+                    // Kiểm tra labelValue có tồn tại và là string
+                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                        // Sử dụng label từ API để tìm trong modStrings
+                        let translation = modStrings[labelValue];
+                        
+                        // Nếu không tìm thấy, thử tìm với các pattern khác
+                        if (!translation) {
+                            // Thử tìm với LBL_LIST_ prefix
+                            const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
+                            translation = modStrings[listKey];
+                        }
+                        
+                        vietnameseLabel = translation || labelValue;
+                    } else {
+                        // Nếu không có label, áp dụng phương pháp cũ: chuyển thành định dạng LBL_FIELD
+                        const lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                        let translation = modStrings[lblKey];
+                        
+                        // Thử các pattern khác nếu không tìm thấy
+                        if (!translation) {
+                            const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
+                            translation = modStrings[listKey];
+                        }
+                        
+                        vietnameseLabel = translation || fieldKey;
+                    }
+                } else {
+                    // Nếu không có dữ liệu ngôn ngữ, sử dụng labelValue hoặc fieldKey
+                    vietnameseLabel = (labelValue && typeof labelValue === 'string') ? labelValue : fieldKey;
+                }
                 
                 return {
                     key: fieldKey.toLowerCase(),
                     label: vietnameseLabel,
-                    width: fieldInfo.width,
-                    type: fieldInfo.type
+                    width: fieldInfo?.width || '150px',
+                    type: fieldInfo?.type || 'text',
+                    link: fieldInfo?.link || false
                 };
             });
             
             setColumns(columnsData);
+            
         } catch (err) {
-            console.warn('Initialize fields and language error:', err);
+            console.warn('❌ Initialize fields and language error:', err);
             setError('Không thể tải cấu hình hiển thị');
         }
     }, []);

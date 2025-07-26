@@ -2,17 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 
-//GET /Api/V8/custom/Notes/language/lang=vi_VN
-export const getNotesLanguageApi = async (lang = "vi_VN") => {
-    try {
-        const response = await axiosInstance.get(`/Api/V8/custom/Notes/language/lang=${lang}`);
-        return response.data;
-    } catch (error) {
-        console.warn("Get Notes Language API error:", error);
-        throw error;
-    }
-};
-
 //What fields are available for Note list view
 //GET /Api/V8/custom/Notes/list-fields
 export const getNoteListFieldsApi = async () => {
@@ -49,7 +38,7 @@ export const getNoteEditFieldsApi = async () => {
     }
 }
 
-//What fields are available for Note detail
+//Get field required for Note in create and update
 //GET /Api/V8/meta/fields/Notes
 export const getNoteFieldsApi = async () => {
     try {
