@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
-import { loginApi, logoutApi } from '../../api/login/Login_outApi';
+import { cacheManager } from '../../../utils/CacheManager';
+import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
 export const useLogin_out = () => {
@@ -12,6 +13,56 @@ export const useLogin_out = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('vi_VN'); // Default language
+
+  // Định nghĩa các module cần cache language
+  const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users'];
+
+  // Function để fetch và cache language data cho tất cả modules
+  const fetchAndCacheLanguageData = async (lang) => {
+    try {
+      console.log(`Starting to fetch and cache language data for: ${lang}`);
+      
+      // Fetch và cache system language
+      try {
+        const systemLanguageExists = await cacheManager.checkSystemLanguageExists(lang);
+        if (!systemLanguageExists) {
+          console.log(`Fetching system language: ${lang}`);
+          const systemLangData = await getSystemLanguageApi(lang);
+          await cacheManager.saveSystemLanguage(lang, systemLangData);
+        } else {
+          console.log(`System language ${lang} already exists`);
+        }
+      } catch (error) {
+        console.warn('Error fetching system language:', error);
+      }
+
+      // Fetch và cache language cho từng module
+      for (const module of modules) {
+        try {
+          const languageExists = await cacheManager.checkModuleLanguageExists(module, lang);
+          if (!languageExists) {
+            console.log(`Fetching language for module: ${module} (${lang})`);
+            const languageData = await getLanguageApi(module, lang);
+            await cacheManager.saveModuleLanguage(module, lang, languageData);
+          } else {
+            console.log(`Language ${lang} for module ${module} already exists`);
+          }
+        } catch (error) {
+          console.warn(`Error fetching language for module ${module}:`, error);
+        }
+      }
+      
+      console.log(`Completed caching language data for: ${lang}`);
+    } catch (error) {
+      console.warn('Error in fetchAndCacheLanguageData:', error);
+    }
+  };
+
+  // Function để handle chọn ngôn ngữ
+  const handleLanguageSelect = (lang) => {
+    setSelectedLanguage(lang);
+  };
 
   // Function to handle login
   const handleLogin = async () => {
@@ -29,6 +80,11 @@ export const useLogin_out = () => {
       if (token) {
         await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
+        await AsyncStorage.setItem('selectedLanguage', selectedLanguage);
+        
+        // Sau khi đăng nhập thành công, fetch và cache language data
+        await fetchAndCacheLanguageData(selectedLanguage);
+        
         //log
         // console.log('Login successful, token:', token);
         // console.log('Refresh token:', refreshToken);
@@ -66,6 +122,8 @@ export const useLogin_out = () => {
     password, setPassword,
     handleLogin,
     handleLogout,
-    loading
+    loading,
+    selectedLanguage,
+    handleLanguageSelect
   };
 };
