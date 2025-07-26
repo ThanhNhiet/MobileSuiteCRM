@@ -1,3 +1,4 @@
+import { cacheManager } from '@/src/utils/CacheManager';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -53,6 +54,19 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         navigation.navigate(moduleName);
     };
 
+    const handleReadJsonFile = async () => {
+        try {
+          const data = await cacheManager.readJsonFromCache("Notes", "vi_VN");
+          if (data) {
+            console.log(data);
+          } else {
+            console.warn('No data found for Notes/vi_VN');
+          }
+        } catch (error) {
+          console.warn('Error reading Notes/vi_VN:', error);
+        }
+      }
+
     return (
         <Modal
             animationType="none"
@@ -62,16 +76,16 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         >
             <View style={styles.overlay}>
                 {/* Background overlay - close when tapped */}
-                <TouchableOpacity 
-                    style={styles.backgroundOverlay} 
-                    activeOpacity={1} 
+                <TouchableOpacity
+                    style={styles.backgroundOverlay}
+                    activeOpacity={1}
                     onPress={handleClose}
                 />
-                
+
                 {/* Animated Sidebar Menu */}
-                <Animated.View 
+                <Animated.View
                     style={[
-                        styles.sidebar, 
+                        styles.sidebar,
                         {
                             transform: [{ translateX: slideAnim }]
                         }
@@ -79,7 +93,10 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                 >
                     {/* Header with Profile and Close */}
                     <View style={styles.header}>
-                        <TouchableOpacity style={styles.profileSection} onPress={() => navigateTo('ProfileScreen')}>
+                        <TouchableOpacity style={styles.profileSection}
+                            // onPress={() => navigateTo('ProfileScreen')}
+                            onPress={handleReadJsonFile} // For testing reading JSON file
+                        >
                             <View style={styles.profileIcon}>
                                 <Ionicons name="person" size={24} color="white" />
                             </View>
@@ -90,41 +107,41 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                     </View>
 
                     {/* Menu Items */}
-                    <ScrollView 
+                    <ScrollView
                         style={styles.menuContainer}
                         contentContainerStyle={styles.menuContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        <TouchableOpacity 
-                            style={styles.menuItem} 
+                        <TouchableOpacity
+                            style={styles.menuItem}
                             onPress={() => navigateTo('AccountListScreen')}
                         >
                             <Text style={styles.menuText}>Khách hàng</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={styles.menuItem} 
+                        <TouchableOpacity
+                            style={styles.menuItem}
                             onPress={() => navigateTo('NoteListScreen')}
                         >
                             <Text style={styles.menuText}>Ghi chú</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={styles.menuItem} 
+                        <TouchableOpacity
+                            style={styles.menuItem}
                             onPress={() => navigateTo('TaskListScreen')}
                         >
                             <Text style={styles.menuText}>Công việc</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={styles.menuItem} 
+                        <TouchableOpacity
+                            style={styles.menuItem}
                             onPress={() => navigateTo('MeetingListScreen')}
                         >
                             <Text style={styles.menuText}>Cuộc họp</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={styles.menuItem} 
+                        <TouchableOpacity
+                            style={styles.menuItem}
                             onPress={() => navigateTo('CalendarScreen')}
                         >
                             <Text style={styles.menuText}>Lịch của tôi</Text>
@@ -133,12 +150,12 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
 
                     {/* Logout Button */}
                     <View style={styles.logoutContainer}>
-                        <TouchableOpacity style={styles.logoutButton} 
+                        <TouchableOpacity style={styles.logoutButton}
                             onPress={() => {
                                 handleClose();
                                 handleLogout();
                             }
-                        }>
+                            }>
                             <Text style={styles.logoutText}>Logout</Text>
                             <Ionicons name="log-out" size={20} color="white" />
                         </TouchableOpacity>

@@ -33,7 +33,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             const modStrings = languageResponse.data.mod_strings;
             
             // Filter fields for update form (editable fields)
-            const updateFieldNames = ['name', 'description', 'parent_type', 'parentid'];
+            const updateFieldNames = ['name', 'description', 'parent_type', 'parent_id'];
             
             const fieldsConfig = updateFieldNames.map(fieldName => {
                 const fieldInfo = allFields[fieldName] || {};

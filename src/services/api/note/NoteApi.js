@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 
-//GET /Api/V8/custom/Notes/language/lang=vi_vn
-export const getNotesLanguageApi = async (lang = "vi_vn") => {
+//GET /Api/V8/custom/Notes/language/lang=vi_VN
+export const getNotesLanguageApi = async (lang = "vi_VN") => {
     try {
         const response = await axiosInstance.get(`/Api/V8/custom/Notes/language/lang=${lang}`);
         return response.data;
@@ -13,17 +13,41 @@ export const getNotesLanguageApi = async (lang = "vi_vn") => {
     }
 };
 
-//What fields are available for Note list
-//GET /Api/V8/custom/Notes/default-fields
+//What fields are available for Note list view
+//GET /Api/V8/custom/Notes/list-fields
 export const getNoteListFieldsApi = async () => {
     try {
-        const response = await axiosInstance.get(`/Api/V8/custom/Notes/default-fields`);
+        const response = await axiosInstance.get(`/Api/V8/custom/Notes/list-fields`);
         return response.data;
     } catch (error) {
         console.warn("Get Note List Fields API error:", error);
         throw error;
     }
 };
+
+//What fields are available for Note detail view
+//GET /Api/V8/custom/Notes/detail-fields
+export const getNoteDetailFieldsApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/Notes/detail-fields`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Note Detail Fields API error:", error);
+        throw error;
+    }
+};
+
+//Edit view for create and update Note
+//GET /Api/V8/custom/Notes/edit-fields
+export const getNoteEditFieldsApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/Notes/edit-fields`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Note Edit Fields API error:", error);
+        throw error;
+    }
+}
 
 //What fields are available for Note detail
 //GET /Api/V8/meta/fields/Notes
@@ -62,30 +86,6 @@ export const getNotesApi = async (pageSize = 10, pageNumber = 1, nameFields) => 
         throw error;
     }
 };
-
-//For search by parent_type
-// export const searchNotesByParentTypeApi = async (parentType, pageSize = 10, pageNumber = 1, nameFields) => {
-//     try {
-//         const token = await AsyncStorage.getItem('token');
-//         const userId = getUserIdFromToken(token);
-//         const response = await axiosInstance.get(`/Api/V8/module/Notes`, {
-//             params: {
-//                 'filter[assigned_user_id][eq]': userId,
-//                 'filter[deleted][eq]': 0,
-//                 'filter[parent_type][eq]': parentType,
-//                 'fields[Notes]': nameFields,
-//                 'page[size]': pageSize,
-//                 'page[number]': pageNumber,
-//                 'sort': '-date_entered'
-//             }
-//         });
-//         console.log("Search Notes by Parent Type API response:", response.data);
-//         return response.data;
-//     } catch (error) {
-//         console.warn("Search Notes by Parent Type API error:", error);
-//         throw error;
-//     }
-// };
 
 //For detail view
 //GET /Api/V8/module/Notes/{id}?fields[Notes]={nameFields}

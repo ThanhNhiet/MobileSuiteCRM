@@ -29,7 +29,7 @@ export const useNoteCreate = () => {
             const modStrings = languageResponse.data.mod_strings;
             
             // Filter fields for create form (required + commonly used)
-            const createFieldNames = ['name', 'description', 'parent_type', 'parentid'];
+            const createFieldNames = ['name', 'description', 'parent_type', 'parent_id'];
             
             const fieldsConfig = createFieldNames.map(fieldName => {
                 const fieldInfo = allFields[fieldName] || {};
