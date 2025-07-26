@@ -118,8 +118,8 @@ class CacheManager {
         }
     }
 
-    // đọc file json từ cache để debug, hiển thị nội dung dưới dạng console log
-    async readJsonFromCache(module, language) {
+    // Pretty print JSON from cache
+    async getModuleLanguage_Pretty(module, language) {
         try {
             const filePath = `${this.cacheDir}${module}/language/${language}.json`;
             const fileExists = await this.fileExists(filePath);
@@ -130,8 +130,6 @@ class CacheManager {
 
                 // ✅ In ra định dạng đẹp
                 const prettyJson = JSON.stringify(jsonData, null, 2);
-                // console.log(`📄 Content of ${module}/${language}:\n${prettyJson}`);
-
                 return prettyJson;
             } else {
                 console.warn(`⚠️ File not found: ${filePath}`);
@@ -139,6 +137,29 @@ class CacheManager {
             }
         } catch (error) {
             console.warn(`❌ Error reading JSON from cache for ${module}/${language}:`, error);
+            return null;
+        }
+    }
+
+    // Pretty print JSON from cache for system language
+    async getSystemLanguage_Pretty(language) {
+        try {
+            const filePath = `${this.cacheDir}Include/${language}.json`;
+            const fileExists = await this.fileExists(filePath);
+
+            if (fileExists) {
+                const content = await FileSystem.readAsStringAsync(filePath);
+                const jsonData = JSON.parse(content);
+
+                // ✅ In ra định dạng đẹp
+                const prettyJson = JSON.stringify(jsonData, null, 2);
+                return prettyJson;
+            } else {
+                console.warn(`⚠️ System language file not found: ${filePath}`);
+                return null;
+            }
+        } catch (error) {
+            console.warn(`❌ Error reading system language from cache for ${language}:`, error);
             return null;
         }
     }
