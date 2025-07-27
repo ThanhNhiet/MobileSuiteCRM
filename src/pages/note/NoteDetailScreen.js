@@ -164,7 +164,7 @@ export default function NoteDetailScreen() {
         if (field.key === 'id') {
             return (
                 <View key={field.key} style={styles.fieldContainer}>
-                    <Text style={styles.fieldLabel}>{field.label}:</Text>
+                    <Text style={styles.fieldLabel}>{field.label}</Text>
                     <View style={styles.idContainer}>
                         <Text style={[styles.fieldValue, styles.idValue]}>
                             {formatFieldValue(field.key, value)}
@@ -182,12 +182,13 @@ export default function NoteDetailScreen() {
 
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{field.label}:</Text>
+                <Text style={styles.fieldLabel}>{field.label}</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
             </View>
         );
+
     };
 
     // Loading state
