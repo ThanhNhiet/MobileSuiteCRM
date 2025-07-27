@@ -40,7 +40,7 @@ export const getNoteEditFieldsApi = async () => {
 
 //Get field required for Note in create and update
 //GET /Api/V8/meta/fields/Notes
-export const getNoteFieldsApi = async () => {
+export const getNoteFieldsRequiredApi = async () => {
     try {
         const response = await axiosInstance.get(`/Api/V8/meta/fields/Notes`);
         return response.data;
@@ -126,7 +126,6 @@ export const updateNoteApi = async (noteId, noteData) => {
                 attributes: noteData
             }
         });
-        console.log("Update Note API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Update Note API error:", error);
@@ -151,7 +150,7 @@ export const checkParentNameExistsApi = async (parentType, parentId) => {
     try {
         const response = await axiosInstance.get(`/Api/V8/module/${parentType}/${parentId}`, {
             params: {
-                'fields[Accounts]': 'name'
+                [`fields[${parentType}]`]: 'name'
             }
         });
         if (response.data.data !== null) {

@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -33,24 +34,35 @@ export default function NoteUpdateScreen() {
     updateNote,
     getFieldValue,
     getFieldLabel,
+    getStyledFieldLabel,
     getFieldError,
     isFormValid,
-    hasChanges
+    hasChanges,
+    hasParentNameField,
+    checkParentName,
+    getParentTypeOptions
   } = useNoteUpdate(noteData);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
   
+  // Loading state for parent check
+  const [checkingParent, setCheckingParent] = useState(false);
+  
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
   
-  // Fixed parent type options
-  const parentTypeOptions = [
-    { value: 'Accounts', label: 'Khách hàng' },
-    { value: 'Users', label: 'Người dùng' },
-    { value: 'Tasks', label: 'Công việc' },
-    { value: 'Meetings', label: 'Cuộc họp' }
-  ];
+  // Parent type options with translations
+  const [parentTypeOptions, setParentTypeOptions] = useState([]);
+  
+  // Load parent type options
+  useEffect(() => {
+    const loadParentTypeOptions = async () => {
+      const options = await getParentTypeOptions();
+      setParentTypeOptions(options);
+    };
+    loadParentTypeOptions();
+  }, [getParentTypeOptions]);
 
   // Handle save
   const handleSave = async () => {
@@ -93,15 +105,42 @@ export default function NoteUpdateScreen() {
   };
 
   // Handle parent type selection
-  const handleParentTypeSelect = (value) => {
-    updateField('parent_type', value);
+  const handleParentTypeSelect = async (value) => {
+    await updateField('parent_type', value);
     setShowParentTypeModal(false);
   };
 
   // Get parent type label for display
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
-    return selectedOption ? selectedOption.label : 'Chọn loại';
+    return selectedOption ? selectedOption.label : '--------';
+  };
+
+  // Handle check parent ID
+  const handleCheckParentId = async () => {
+    setCheckingParent(true);
+    await checkParentName();
+    setCheckingParent(false);
+  };
+
+  // Render field label with red asterisk for required fields
+  const renderFieldLabel = (fieldKey) => {
+    const labelData = getStyledFieldLabel(fieldKey);
+    
+    if (typeof labelData === 'string') {
+      return <Text style={styles.label}>{labelData}</Text>;
+    }
+    
+    if (labelData.required) {
+      return (
+        <Text style={styles.label}>
+          {labelData.text}
+          <Text style={styles.requiredAsterisk}> *</Text>
+        </Text>
+      );
+    }
+    
+    return <Text style={styles.label}>{labelData.text}</Text>;
   };
 
   // Show loading state
@@ -150,11 +189,16 @@ export default function NoteUpdateScreen() {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
 
+              // Skip parent_name field - use logic cũ với parent_type modal và parent_id input
+              if (field.key === 'parent_name') {
+                return null;
+              }
+
               // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {
                 return (
                   <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
+                    {renderFieldLabel(field.key)}
                     <TouchableOpacity 
                       style={[styles.valueBox, fieldError && styles.errorInput]}
                       onPress={() => setShowParentTypeModal(true)}
@@ -168,13 +212,75 @@ export default function NoteUpdateScreen() {
                 );
               }
 
-              // Change parentid display
-              const displayLabel = field.key === 'parentid' ? 'Parent ID' : field.label;
-              const placeholder = field.key === 'parentid' ? 'Nhập Parent ID' : `Nhập ${field.label.toLowerCase()}`;
+              // Special handling for parent_id field with check button
+              if (field.key === 'parent_id') {
+                return (
+                  <View key={field.key}>
+                    <View style={styles.row}>
+                      {renderFieldLabel(field.key)}
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <TextInput
+                          style={[styles.value]}
+                          value={fieldValue}
+                          onChangeText={async (value) => await updateField(field.key, value)}
+                          autoCapitalize="none"
+                          returnKeyType="done"
+                        />
+                      </View>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                    
+                    {/* Check button as label and result field below */}
+                    <View style={styles.row}>
+                      <View style={styles.checkLabelContainer}>
+                        <TouchableOpacity 
+                          style={[styles.checkButton, checkingParent && styles.disabledButton]}
+                          onPress={handleCheckParentId}
+                          disabled={checkingParent}
+                        >
+                          {checkingParent ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.checkButtonText}>Check</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                      {(getFieldValue('parent_name') || getFieldValue('parent_check_error')) ? (
+                        getFieldValue('parent_name') ? (
+                          <View style={[styles.valueBox, styles.successBox]}>
+                            <Text style={[styles.value, styles.successFieldText]}>
+                              ✓ {getFieldValue('parent_name')}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.valueBox, styles.errorBox]}>
+                            <Text style={[styles.value, styles.errorFieldText]}>
+                              ✗ {getFieldValue('parent_check_error')}
+                            </Text>
+                          </View>
+                        )
+                      ) : (
+                        <View style={[styles.valueBox, styles.placeholderBox]}>
+                          <Text style={[styles.value, styles.placeholderText]}>
+                            Nhấn Check để kiểm tra
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              }
+
+              // Change parent_id display
+              const displayLabel = field.key === 'parent_id' ? 'Parent ID' : field.label;
 
               return (
                 <View key={field.key} style={styles.row}>
-                  <Text style={styles.label}>{displayLabel}</Text>
+                  {field.key === 'parent_id' ? (
+                    <Text style={styles.label}>{displayLabel}</Text>
+                  ) : (
+                    renderFieldLabel(field.key)
+                  )}
                   <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                     <TextInput
                       style={[
@@ -182,8 +288,7 @@ export default function NoteUpdateScreen() {
                         field.key === 'description' && styles.multilineInput
                       ]}
                       value={fieldValue}
-                      onChangeText={(value) => updateField(field.key, value)}
-                      placeholder={placeholder}
+                      onChangeText={async (value) => await updateField(field.key, value)}
                       autoCapitalize="none"
                       returnKeyType={field.key === 'description' ? 'default' : 'done'}
                       multiline={field.key === 'description'}
@@ -209,7 +314,7 @@ export default function NoteUpdateScreen() {
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
+                  <Ionicons name="save-outline" size={24} color="#fff" />
                 )}
               </TouchableOpacity>
             </View>
@@ -223,9 +328,16 @@ export default function NoteUpdateScreen() {
           animationType="slide"
           onRequestClose={() => setShowParentTypeModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Chọn Parent Type</Text>
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowParentTypeModal(false)}
+          >
+            <TouchableOpacity 
+              style={styles.modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               {parentTypeOptions.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -235,14 +347,8 @@ export default function NoteUpdateScreen() {
                   <Text style={styles.modalOptionText}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowParentTypeModal(false)}
-              >
-                <Text style={styles.modalCancelText}>Hủy</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -264,6 +370,61 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: 'bold',
     paddingHorizontal: 20,
+  },
+  requiredAsterisk: {
+    color: '#f44336',
+    fontWeight: 'bold',
+  },
+  readOnlyBox: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  readOnlyText: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  checkLabelContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  checkButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  placeholderBox: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  successBox: {
+    backgroundColor: '#d4edda',
+    borderLeftWidth: 4,
+    borderLeftColor: '#28a745',
+  },
+  successFieldText: {
+    color: '#155724',
+    fontWeight: '500',
+  },
+  errorBox: {
+    backgroundColor: '#f8d7da',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc3545',
+  },
+  errorFieldText: {
+    color: '#721c24',
+    fontWeight: '500',
   },
   valueBox: {
     backgroundColor: '#e07c7c',
@@ -328,11 +489,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   disabledButton: {
     backgroundColor: '#ccc',
     elevation: 0,
@@ -377,19 +533,6 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 16,
     color: '#333',
-    textAlign: 'center',
-  },
-  modalCancelButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#6c757d',
-  },
-  modalCancelText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
     textAlign: 'center',
   },
   placeholderText: {

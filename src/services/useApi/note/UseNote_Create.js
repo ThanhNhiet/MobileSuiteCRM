@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createNoteApi, createNoteParentRelationApi, getNoteFieldsApi, getNotesLanguageApi } from '../../api/note/NoteApi';
+import { createNoteApi, createNoteParentRelationApi, getNoteFieldsRequiredApi, getNotesLanguageApi } from '../../api/note/NoteApi';
 
 export const useNoteCreate = () => {
     const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export const useNoteCreate = () => {
     const initializeCreateFields = useCallback(async () => {
         try {
             // Get all fields for Notes module
-            const fieldsResponse = await getNoteFieldsApi();
+            const fieldsResponse = await getNoteFieldsRequiredApi();
             const allFields = fieldsResponse.data.attributes;
             
             // Get language data

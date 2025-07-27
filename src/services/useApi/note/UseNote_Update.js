@@ -1,18 +1,18 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteFieldsApi, getNotesLanguageApi, updateNoteApi } from '../../api/note/NoteApi';
+import { cacheManager } from '../../../utils/CacheManager';
+import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
+import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
+import { checkParentNameExistsApi, createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi, updateNoteApi } from '../../api/note/NoteApi';
 
 export const useNoteUpdate = (initialNoteData = null) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
     
-    // Form fields
+    // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({
-        id: '',
-        name: '',
-        description: '',
-        parent_type: '',
-        parentid: ''
+        id: ''
     });
     
     // Track original data for comparison
@@ -24,64 +24,260 @@ export const useNoteUpdate = (initialNoteData = null) => {
     // Initialize update fields and language
     const initializeUpdateFields = useCallback(async () => {
         try {
-            // Get all fields for Notes module
-            const fieldsResponse = await getNoteFieldsApi();
-            const allFields = fieldsResponse.data.attributes;
+            // 1. Kiểm tra cache editviewdefs.json có tồn tại không
+            let fieldsData;
+            const cachedFields = await readCacheView.readCacheFile('editviewdefs', 'Notes');
             
-            // Get language data
-            const languageResponse = await getNotesLanguageApi();
-            const modStrings = languageResponse.data.mod_strings;
+            if (!cachedFields) {
+                // Nếu chưa có cache, fetch từ API
+                const fieldsResponse = await getNoteEditFieldsApi();
+                fieldsData = fieldsResponse;
+                
+                // Lưu vào cache
+                await writeCacheView.writeCacheFile('editviewdefs', 'Notes', fieldsData);
+            } else {
+                // Nếu có cache, sử dụng cache
+                fieldsData = cachedFields;
+            }
             
-            // Filter fields for update form (editable fields)
-            const updateFieldNames = ['name', 'description', 'parent_type', 'parent_id'];
+            // 2. Lấy ngôn ngữ hiện tại
+            const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
+            let languageData = await cacheManager.getModuleLanguage('Notes', selectedLanguage);
             
-            const fieldsConfig = updateFieldNames.map(fieldName => {
-                const fieldInfo = allFields[fieldName] || {};
-                const labelKey = `LBL_${fieldName.toUpperCase()}`;
-                const vietnameseLabel = modStrings[labelKey] || 
-                                     modStrings[`LBL_LIST_${fieldName.toUpperCase()}`] ||
-                                     fieldName.replace(/_/g, ' ').toUpperCase();
+            // Nếu không có language data, thử fetch lại
+            if (!languageData) {
+                const languageExists = await cacheManager.checkModuleLanguageExists('Notes', selectedLanguage);
+                if (!languageExists) {
+                    // Language cache missing - user needs to login to fetch data
+                }
+            }
+            
+            // 3. Lấy required fields từ API
+            const requiredFieldsResponse = await getNoteFieldsRequiredApi();
+            const requiredFields = requiredFieldsResponse.data.attributes;
+            
+            // Lấy mod_strings và app_strings từ cấu trúc language data
+            let modStrings = null;
+            let appStrings = null;
+            if (languageData && languageData.data) {
+                modStrings = languageData.data.mod_strings;
+                appStrings = languageData.data.app_strings;
+            }
+            
+            // Kiểm tra fieldsData có hợp lệ không
+            if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
+                // Using default fields structure
+                fieldsData = {
+                    "contact_name": "",
+                    "parent_name": "",
+                    "name": "",
+                    "filename": "",
+                    "description": "LBL_NOTE_STATUS",
+                    "assigned_user_name": "LBL_ASSIGNED_TO"
+                };
+            }
+            
+            // 4. Tạo updateFields với bản dịch và required info
+            const updateFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
+                let vietnameseLabel = fieldKey; // Default fallback
+                
+                if (modStrings || appStrings) {
+                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                        // Sử dụng labelValue từ API để tìm trong modStrings trước, sau đó app_strings
+                        let translation = null;
+                        
+                        if (modStrings && modStrings[labelValue]) {
+                            translation = modStrings[labelValue];
+                        } else if (appStrings && appStrings[labelValue]) {
+                            translation = appStrings[labelValue];
+                        }
+                        
+                        // Nếu không tìm thấy, thử tìm với các pattern khác
+                        if (!translation) {
+                            const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
+                            if (modStrings && modStrings[listKey]) {
+                                translation = modStrings[listKey];
+                            } else if (appStrings && appStrings[listKey]) {
+                                translation = appStrings[listKey];
+                            }
+                        }
+                        
+                        vietnameseLabel = translation || labelValue;
+                    } else {
+                        // Nếu labelValue rỗng, áp dụng phương pháp cũ: chuyển thành định dạng LBL_FIELD
+                        let translation = null;
+                        
+                        // Xử lý trường hợp đặc biệt cho từng field
+                        if (fieldKey === 'assigned_user_name') {
+                            // Thử nhiều pattern cho assigned_user_name
+                            const patterns = ['LBL_ASSIGNED_TO', 'LBL_LIST_ASSIGNED_TO_NAME', 'LBL_ASSIGNED_TO_USER'];
+                            for (const pattern of patterns) {
+                                if (modStrings && modStrings[pattern]) {
+                                    translation = modStrings[pattern];
+                                    break;
+                                } else if (appStrings && appStrings[pattern]) {
+                                    translation = appStrings[pattern];
+                                    break;
+                                }
+                            }
+                        } else if (fieldKey === 'name') {
+                            // Thử nhiều pattern cho name field
+                            const patterns = ['LBL_NAME', 'LBL_EMAIL_ACCOUNTS_NAME', 'LBL_FIRST_NAME'];
+                            for (const pattern of patterns) {
+                                if (modStrings && modStrings[pattern]) {
+                                    translation = modStrings[pattern];
+                                    break;
+                                } else if (appStrings && appStrings[pattern]) {
+                                    translation = appStrings[pattern];
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Các field khác
+                            const lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                            if (modStrings && modStrings[lblKey]) {
+                                translation = modStrings[lblKey];
+                            } else if (appStrings && appStrings[lblKey]) {
+                                translation = appStrings[lblKey];
+                            }
+                        }
+                        
+                        // Thử các pattern khác nếu không tìm thấy
+                        if (!translation && !['assigned_user_name', 'name'].includes(fieldKey)) {
+                            const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
+                            if (modStrings && modStrings[listKey]) {
+                                translation = modStrings[listKey];
+                            } else if (appStrings && appStrings[listKey]) {
+                                translation = appStrings[listKey];
+                            }
+                        }
+                        
+                        vietnameseLabel = translation || fieldKey;
+                    }
+                } else {
+                    // Nếu không có dữ liệu ngôn ngữ, sử dụng labelValue hoặc fieldKey
+                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                        vietnameseLabel = labelValue;
+                    } else if (fieldKey === 'assigned_user_name') {
+                        // Xử lý trường hợp đặc biệt cho assigned_user_name - thử nhiều pattern
+                        vietnameseLabel = 'LBL_LIST_ASSIGNED_TO_NAME';
+                    } else {
+                        vietnameseLabel = fieldKey;
+                    }
+                }
+                
+                // Lấy thông tin required từ requiredFields
+                const fieldInfo = requiredFields[fieldKey] || {};
+                const isRequired = fieldInfo.required || false;
+                
+                // Thêm dấu * đỏ cho required fields
+                const finalLabel = isRequired ? `${vietnameseLabel} *` : vietnameseLabel;
                 
                 return {
-                    key: fieldName,
-                    label: vietnameseLabel,
+                    key: fieldKey,
+                    label: finalLabel,
                     type: fieldInfo.type || 'text',
-                    required: fieldInfo.required || fieldName === 'name', // name is always required
-                    placeholder: `Nhập ${vietnameseLabel.toLowerCase()}`
+                    required: isRequired
                 };
             });
             
-            setUpdateFields(fieldsConfig);
-            // console.log('Initialized update fields and language for Note');
+            // Nếu có parent_name trong editviewdefs, thêm parent_type và parent_id để có modal
+            const hasParentName = fieldsData.hasOwnProperty('parent_name');
+            if (hasParentName) {
+                // Lấy bản dịch cho parent_type
+                let parentTypeLabel = 'parent_type';
+                if (modStrings || appStrings) {
+                    const patterns = ['LBL_PARENT_TYPE', 'LBL_TYPE', 'LBL_LIST_PARENT_TYPE'];
+                    for (const pattern of patterns) {
+                        if (modStrings && modStrings[pattern]) {
+                            parentTypeLabel = modStrings[pattern];
+                            break;
+                        } else if (appStrings && appStrings[pattern]) {
+                            parentTypeLabel = appStrings[pattern];
+                            break;
+                        }
+                    }
+                }
+                
+                // Lấy bản dịch cho parent_id
+                let parentIdLabel = 'parent_id';
+                if (modStrings || appStrings) {
+                    const patterns = ['LBL_PARENT_ID', 'LBL_ID', 'LBL_LIST_PARENT_ID'];
+                    for (const pattern of patterns) {
+                        if (modStrings && modStrings[pattern]) {
+                            parentIdLabel = modStrings[pattern];
+                            break;
+                        } else if (appStrings && appStrings[pattern]) {
+                            parentIdLabel = appStrings[pattern];
+                            break;
+                        }
+                    }
+                }
+                
+                // Thêm parent_type field (modal)
+                const parentTypeField = {
+                    key: 'parent_type',
+                    label: parentTypeLabel,
+                    type: 'select',
+                    required: false
+                };
+                
+                // Thêm parent_id field (input)
+                const parentIdField = {
+                    key: 'parent_id',
+                    label: parentIdLabel,
+                    type: 'text',
+                    required: false
+                };
+                
+                // Thêm vào đầu danh sách để hiển thị trước
+                updateFieldsData.unshift(parentIdField);
+                updateFieldsData.unshift(parentTypeField);
+            }
+            
+            setUpdateFields(updateFieldsData);
+            
         } catch (err) {
             console.warn('Initialize update fields error:', err);
-            setError('Không thể tải cấu hình cập nhật ghi chú');
+            setError('Error loading note update fields');
         }
     }, []);
 
     // Load note data into form
     const loadNoteData = useCallback((noteData) => {
-        console.log('Loading note data into update form:', noteData);
         if (!noteData) return;
         
-        const formValues = {
-            id: noteData.id || '',
-            name: noteData.name || '',
-            description: noteData.description || '',
-            parent_type: noteData.parent_type || '',
-            parentid: noteData.parent_id || ''
-        };
+        // Tạo formValues dựa trên updateFields đã được khởi tạo
+        const formValues = { id: noteData.id || '' };
+        
+        // Thêm các field từ updateFields vào formData
+        updateFields.forEach(field => {
+            if (field.key === 'parent_name') {
+                // Xử lý đặc biệt cho parent_name
+                formValues[field.key] = noteData.parent_name || '';
+                formValues['parent_type'] = noteData.parent_type || '';
+                formValues['parent_id'] = noteData.parent_id || '';
+            } else {
+                formValues[field.key] = noteData[field.key] || '';
+            }
+        });
+        
+        // Create clean originalData without temporary fields
+        const cleanOriginalData = { ...formValues };
+        // Remove temporary fields that should not be tracked for changes
+        delete cleanOriginalData.parent_check_error;
+        delete cleanOriginalData.parent_name; // This is derived from check operation
         
         setFormData(formValues);
-        setOriginalData(formValues);
+        setOriginalData(cleanOriginalData);
         setValidationErrors({});
         setError(null);
         
-        // console.log('Loaded note data into update form:', noteData.name);
-    }, []);
+    }, [updateFields]);
 
     // Update form field
-    const updateField = useCallback((fieldKey, value) => {
+    const updateField = useCallback(async (fieldKey, value) => {
+        // Update form data first
         setFormData(prev => ({
             ...prev,
             [fieldKey]: value
@@ -99,10 +295,16 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
     // Check if form has changes
     const hasChanges = useCallback(() => {
+        const excludeFields = ['parent_check_error']; // Exclude temporary fields
         return Object.keys(formData).some(key => 
-            formData[key] !== originalData[key]
+            !excludeFields.includes(key) && formData[key] !== originalData[key]
         );
     }, [formData, originalData]);
+
+    // Check if parent_name field exists in editviewdefs
+    const hasParentNameField = useCallback(() => {
+        return updateFields.some(field => field.key === 'parent_name');
+    }, [updateFields]);
 
     // Validate form
     const validateForm = useCallback(async () => {
@@ -111,13 +313,13 @@ export const useNoteUpdate = (initialNoteData = null) => {
         // Check required fields
         updateFields.forEach(field => {
             if (field.required && !formData[field.key]?.trim()) {
-                errors[field.key] = `${field.label} là bắt buộc`;
+                errors[field.key] = `${field.label} is required`;
             }
         });
         
-        // If parentid is provided, parent_type must be selected
-        if (formData.parentid?.trim() && !formData.parent_type) {
-            errors.parent_type = 'Phải chọn loại khi có ID liên quan';
+        // If parent_id is provided, parent_type must be selected
+        if (formData.parent_id?.trim() && !formData.parent_type) {
+            errors.parent_type = 'Please select a parent type';
         }
         
         setValidationErrors(errors);
@@ -135,7 +337,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 setLoading(false);
                 return {
                     success: false,
-                    error: 'Không có thay đổi nào để lưu'
+                    error: 'No changes to save'
                 };
             }
             
@@ -146,11 +348,13 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 return false;
             }
             
-            // Prepare basic update data (only name and description)
+            // Prepare basic update data (exclude parent-related and special fields)
             const updateData = {};
-            ['name', 'description'].forEach(key => {
-                if (formData[key] !== originalData[key]) {
-                    updateData[key] = formData[key].trim();
+            const excludeFields = ['id', 'parent_type', 'parent_id', 'parent_name', 'parent_check_error'];
+            
+            Object.keys(formData).forEach(key => {
+                if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
+                    updateData[key] = formData[key]?.trim ? formData[key].trim() : formData[key];
                 }
             });
             
@@ -161,9 +365,9 @@ export const useNoteUpdate = (initialNoteData = null) => {
             
             // Handle parent relationship changes
             const oldParentType = originalData.parent_type;
-            const oldParentId = originalData.parentid;
+            const oldParentId = originalData.parent_id;
             const newParentType = formData.parent_type;
-            const newParentId = formData.parentid?.trim();
+            const newParentId = formData.parent_id?.trim();
             
             // If parent relationship has changed
             if (oldParentType !== newParentType || oldParentId !== newParentId) {
@@ -183,8 +387,11 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 }
             }
             
-            // Update original data to reflect saved state
-            setOriginalData({ ...formData });
+            // Update original data to reflect saved state (exclude temporary fields)
+            const newOriginalData = { ...formData };
+            delete newOriginalData.parent_check_error;
+            delete newOriginalData.parent_name;
+            setOriginalData(newOriginalData);
             
             return {
                 success: true,
@@ -192,7 +399,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 updatedFields: Object.keys(updateData)
             };
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'Không thể cập nhật ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || 'An error occurred while updating the note';
             setError(errorMessage);
             console.warn('Update note error:', err);
             return {
@@ -216,7 +423,27 @@ export const useNoteUpdate = (initialNoteData = null) => {
         return formData[fieldKey] || '';
     }, [formData]);
 
-    // Get field label
+    // Get field label with styled required indicator
+    const getStyledFieldLabel = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        if (!field) return fieldKey;
+        
+        if (field.required) {
+            // Tách label và dấu * để có thể style riêng
+            const labelText = field.label.replace(' *', '');
+            return {
+                text: labelText,
+                required: true
+            };
+        }
+        
+        return {
+            text: field.label,
+            required: false
+        };
+    }, [updateFields]);
+
+    // Get field label (original function for backward compatibility)
     const getFieldLabel = useCallback((fieldKey) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field ? field.label : fieldKey;
@@ -231,6 +458,85 @@ export const useNoteUpdate = (initialNoteData = null) => {
     const isFormValid = useCallback(() => {
         return formData.name?.trim() && Object.keys(validationErrors).length === 0 && hasChanges();
     }, [formData.name, validationErrors, hasChanges]);
+
+    // Check parent name manually
+    const checkParentName = useCallback(async () => {
+        const parentType = formData.parent_type;
+        const parentId = formData.parent_id?.trim();
+        
+        if (!parentType || !parentId) {
+            setFormData(prev => ({
+                ...prev,
+                parent_name: '',
+                parent_check_error: 'Please select a parent type and enter an ID'
+            }));
+            return;
+        }
+        
+        try {
+            const parentName = await checkParentNameExistsApi(parentType, parentId);
+            if (parentName) {
+                setFormData(prev => ({
+                    ...prev,
+                    parent_name: parentName,
+                    parent_check_error: null
+                }));
+            } else {
+                setFormData(prev => ({
+                    ...prev,
+                    parent_name: '',
+                    parent_check_error: 'No record found with this ID'
+                }));
+            }
+        } catch (err) {
+            console.warn('Check parent name error:', err);
+            setFormData(prev => ({
+                ...prev,
+                parent_name: '',
+                parent_check_error: 'Error checking ID'
+            }));
+        }
+    }, [formData.parent_type, formData.parent_id]);
+
+    // Get translated parent type options
+    const getParentTypeOptions = useCallback(async () => {
+        const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
+        let languageData = await cacheManager.getModuleLanguage('Notes', selectedLanguage);
+        
+        let modStrings = null;
+        let appStrings = null;
+        if (languageData && languageData.data) {
+            modStrings = languageData.data.mod_strings;
+            appStrings = languageData.data.app_strings;
+        }
+        
+        const baseOptions = [
+            { value: 'Accounts', labelKeys: ['LBL_ACCOUNTS', 'LBL_ACCOUNT'], fallback: 'Khách hàng' },
+            { value: 'Contacts', labelKeys: ['LBL_CONTACTS', 'LBL_CONTACT'], fallback: 'Liên hệ' },
+            { value: 'Tasks', labelKeys: ['LBL_EMAIL_QC_TASKS', 'LBL_TASKS'], fallback: 'Công việc' },
+            { value: 'Meetings', labelKeys: ['LBL_CALLS', 'LBL_MEETINGS'], fallback: 'Cuộc gọi' }
+        ];
+        
+        return baseOptions.map(option => {
+            let label = option.fallback;
+            
+            // Try to find translation in mod_strings first, then app_strings
+            for (const labelKey of option.labelKeys) {
+                if (modStrings && modStrings[labelKey]) {
+                    label = modStrings[labelKey];
+                    break;
+                } else if (appStrings && appStrings[labelKey]) {
+                    label = appStrings[labelKey];
+                    break;
+                }
+            }
+            
+            return {
+                value: option.value,
+                label: label
+            };
+        });
+    }, []);
 
     // Initialize on component mount
     useEffect(() => {
@@ -263,8 +569,12 @@ export const useNoteUpdate = (initialNoteData = null) => {
         // Helpers
         getFieldValue,
         getFieldLabel,
+        getStyledFieldLabel,
         getFieldError,
         isFormValid,
-        hasChanges
+        hasChanges,
+        hasParentNameField,
+        checkParentName,
+        getParentTypeOptions
     };
 };

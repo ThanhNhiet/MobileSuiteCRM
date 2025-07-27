@@ -48,24 +48,37 @@ export const useNoteDetail = (noteId) => {
                 }
             }
             
-            // Lấy mod_strings từ cấu trúc language data
+            // Lấy mod_strings và app_strings từ cấu trúc language data
             let modStrings = null;
-            if (languageData && languageData.data && languageData.data.mod_strings) {
+            let appStrings = null;
+            if (languageData && languageData.data) {
                 modStrings = languageData.data.mod_strings;
+                appStrings = languageData.data.app_strings;
             }
+            
+            // Helper function để tìm translation với fallback pattern
+            const findTranslation = (key) => {
+                if (modStrings && modStrings[key]) {
+                    return modStrings[key];
+                }
+                if (appStrings && appStrings[key]) {
+                    return appStrings[key];
+                }
+                return null;
+            };
             
             // Kiểm tra fieldsData có hợp lệ không
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                // Using default fields structure
+                // Using default fields structure với key có trong language file
                 fieldsData = {
-                    "name": "LBL_SUBJECT",
-                    "parent_name": "LBL_MODULE_NAME",
-                    "date_entered": "",
+                    "name": "LBL_NOTE_SUBJECT",
+                    "parent_name": "LBL_RELATED_TO", 
+                    "date_entered": "LBL_DATE_ENTERED",
                     "date_modified": "LBL_DATE_MODIFIED",
                     "created_by_name": "LBL_CREATED_BY",
                     "modified_by_name": "LBL_MODIFIED_BY",
-                    "assigned_user_name": "",
-                    "description": "LBL_NOTE_STATUS"
+                    "assigned_user_name": "LBL_LIST_ASSIGNED_TO_NAME",
+                    "description": "LBL_DESCRIPTION"
                 };
             }
             
@@ -78,47 +91,47 @@ export const useNoteDetail = (noteId) => {
             const detailFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
                 let vietnameseLabel = fieldKey; // Default fallback
                 
-                if (modStrings) {
+                if (modStrings || appStrings) {
                     if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                        // Sử dụng labelValue từ API để tìm trong modStrings
-                        let translation = modStrings[labelValue];
+                        // Sử dụng labelValue từ API để tìm trong modStrings/appStrings
+                        let translation = findTranslation(labelValue);
                         
                         // Nếu không tìm thấy, thử tìm với các pattern khác
                         if (!translation) {
                             const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
-                            translation = modStrings[listKey];
+                            translation = findTranslation(listKey);
                         }
                         
                         vietnameseLabel = translation || labelValue;
                     } else {
-                        // Nếu labelValue rỗng, áp dụng phương pháp cũ: chuyển thành định dạng LBL_FIELD
-                        let lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                        // Nếu labelValue rỗng, áp dụng phương pháp tự động tạo key
                         let translation = null;
                         
                         // Xử lý trường hợp đặc biệt cho assigned_user_name
                         if (fieldKey === 'assigned_user_name') {
-                            // Thử nhiều pattern cho assigned_user_name
-                            lblKey = 'LBL_ASSIGNED_TO';
-                            translation = modStrings[lblKey];
+                            // Thử các pattern cho assigned_user_name theo thứ tự ưu tiên
+                            const patterns = [
+                                'LBL_LIST_ASSIGNED_TO_NAME',
+                                'LBL_ASSIGNED_TO',
+                                'LBL_ASSIGNED_TO_USER'
+                            ];
                             
-                            if (!translation) {
-                                lblKey = 'LBL_LIST_ASSIGNED_TO_NAME';
-                                translation = modStrings[lblKey];
-                            }
-                            
-                            if (!translation) {
-                                lblKey = 'LBL_ASSIGNED_TO_USER';
-                                translation = modStrings[lblKey];
+                            for (const pattern of patterns) {
+                                translation = findTranslation(pattern);
+                                if (translation) break;
                             }
                         } else {
-                            lblKey = `LBL_${fieldKey.toUpperCase()}`;
-                            translation = modStrings[lblKey];
-                        }
-                        
-                        // Thử các pattern khác nếu không tìm thấy
-                        if (!translation && fieldKey !== 'assigned_user_name') {
-                            const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
-                            translation = modStrings[listKey];
+                            // Các field khác - thử pattern chuẩn
+                            const upperFieldKey = fieldKey.toUpperCase();
+                            const patterns = [
+                                `LBL_${upperFieldKey}`,
+                                `LBL_LIST_${upperFieldKey}`
+                            ];
+                            
+                            for (const pattern of patterns) {
+                                translation = findTranslation(pattern);
+                                if (translation) break;
+                            }
                         }
                         
                         vietnameseLabel = translation || fieldKey;
@@ -128,7 +141,7 @@ export const useNoteDetail = (noteId) => {
                     if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
                         vietnameseLabel = labelValue;
                     } else if (fieldKey === 'assigned_user_name') {
-                        // Xử lý trường hợp đặc biệt cho assigned_user_name - thử nhiều pattern
+                        // Xử lý trường hợp đặc biệt cho assigned_user_name - fallback key
                         vietnameseLabel = 'LBL_LIST_ASSIGNED_TO_NAME';
                     } else {
                         vietnameseLabel = fieldKey;
@@ -142,13 +155,16 @@ export const useNoteDetail = (noteId) => {
                     required: false // Default required, có thể mở rộng sau
                 };
             });
-            //Thêm id vào detailFields
+            
+            // Thêm id vào detailFields với translation phù hợp
+            const idLabel = findTranslation('LBL_ID') || 'ID';
             detailFieldsData.unshift({
                 key: 'id',
-                label: 'ID',
+                label: idLabel,
                 type: 'text',
-                required: false // Default required, có thể mở rộng sau
+                required: false
             });
+            
             setDetailFields(detailFieldsData);
             
         } catch (err) {
