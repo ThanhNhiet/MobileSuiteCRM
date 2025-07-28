@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
+import { languageUtils } from '../../../utils/LanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import {
@@ -35,20 +36,8 @@ export const useNoteList = () => {
     const [timeFilter, setTimeFilter] = useState('all');
     
     // Available filter options
-    const parentTypeOptions = [
-        { value: '', label: 'Tất cả' },
-        { value: 'Accounts', label: 'Khách hàng' },
-        { value: 'Users', label: 'Người dùng' },
-        { value: 'Tasks', label: 'Công việc' },
-        { value: 'Meetings', label: 'Cuộc họp' }
-    ];
-    
-    const timeFilterOptions = [
-        { value: 'all', label: 'Tất cả' },
-        { value: 'today', label: 'Hôm nay' },
-        { value: 'this_week', label: 'Tuần này' },
-        { value: 'this_month', label: 'Tháng này' }
-    ];
+    const [parentTypeOptions, setParentTypeOptions] = useState([]);
+    const [timeFilterOptions, setTimeFilterOptions] = useState([]);
 
     // Initialize fields and language
     const initializeFieldsAndLanguage = useCallback(async () => {
@@ -65,7 +54,7 @@ export const useNoteList = () => {
                 if (fieldsResponse && fieldsResponse.default_fields) {
                     fieldsData = fieldsResponse.default_fields;
                 } else {
-                    console.warn('⚠️ Unexpected API response structure');
+                    console.warn('Unexpected API response structure');
                     fieldsData = {};
                 }
                 
@@ -84,7 +73,7 @@ export const useNoteList = () => {
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists('Notes', selectedLanguage);
                 if (!languageExists) {
-                    console.warn('⚠️ Language cache does not exist. Please login to fetch language data.');
+                    console.warn('Language cache does not exist. Please login to fetch language data.');
                 }
             }
             
@@ -96,7 +85,7 @@ export const useNoteList = () => {
             
             // Kiểm tra fieldsData có hợp lệ không
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                console.warn('⚠️ fieldsData is empty or invalid, using default structure');
+                console.warn('fieldsData is empty or invalid, using default structure');
                 fieldsData = {
                     "NAME": {
                         "label": "LBL_LIST_SUBJECT",
@@ -132,7 +121,7 @@ export const useNoteList = () => {
             
             // Kiểm tra nameFields có hợp lệ không
             if (!nameFieldsString || nameFieldsString.trim() === '') {
-                console.warn('⚠️ nameFields is empty, using default fields');
+                console.warn('nameFields is empty, using default fields');
                 setNameFields('name,date_entered,parent_type,parent_name,description');
             } else {
                 setNameFields(nameFieldsString);
@@ -187,8 +176,9 @@ export const useNoteList = () => {
             setColumns(columnsData);
             
         } catch (err) {
-            console.warn('❌ Initialize fields and language error:', err);
-            setError('Không thể tải cấu hình hiển thị');
+            console.warn('Initialize fields and language error:', err);
+            const errorMsg = await languageUtils.translate('ERROR_CANNOT_LOAD_DISPLAY_CONFIG');
+            setError(errorMsg);
         }
     }, []);
 
@@ -275,7 +265,7 @@ export const useNoteList = () => {
             setError(null);
 
             // Load all notes by requesting a large page size
-            const response = await getNotesApi(1000, 1, nameFields);
+            const response = await getNotesApi(10, 1, nameFields);
             
             // Process notes data
             const processedNotes = response.data.map(note => ({
@@ -292,7 +282,8 @@ export const useNoteList = () => {
             setAllNotes(processedNotes);
         
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'Không thể tải danh sách ghi chú';
+            const fallbackError = await languageUtils.translate('ERROR_CANNOT_LOAD_NOTES_LIST');
+            const errorMessage = err.response?.data?.message || err.message || fallbackError;
             setError(errorMessage);
             console.warn('Load all notes error:', err);
         } finally {
@@ -388,9 +379,43 @@ export const useNoteList = () => {
         fetchNotes(true, currentPage);
     }, [fetchNotes, currentPage]);
 
-    // Initialize on component mount
+    // Initialize on component mount - including language data and filter options
     useEffect(() => {
-        initializeFieldsAndLanguage();
+        const initializeData = async () => {
+            // Initialize field definitions and language data
+            await initializeFieldsAndLanguage();
+            
+            // Get all filter translations at once
+            const filterTranslations = await languageUtils.translateKeys([
+                'LBL_ALL',
+                'LBL_ACCOUNTS', 
+                'LBL_USERS',
+                'LBL_TASKS',
+                'LBL_MEETINGS',
+                'LBL_TODAY',
+                'LBL_THIS_WEEK',
+                'LBL_THIS_MONTH'
+            ], 'Notes');
+            
+            // Set parent type options with translations
+            setParentTypeOptions([
+                { value: '', label: filterTranslations.LBL_ALL },
+                { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS },
+                { value: 'Users', label: filterTranslations.LBL_USERS },
+                { value: 'Tasks', label: filterTranslations.LBL_TASKS },
+                { value: 'Meetings', label: filterTranslations.LBL_MEETINGS }
+            ]);
+            
+            // Set time filter options with translations
+            setTimeFilterOptions([
+                { value: 'all', label: filterTranslations.LBL_ALL },
+                { value: 'today', label: filterTranslations.LBL_TODAY },
+                { value: 'this_week', label: filterTranslations.LBL_THIS_WEEK },
+                { value: 'this_month', label: filterTranslations.LBL_THIS_MONTH }
+            ]);
+        };
+        
+        initializeData();
     }, [initializeFieldsAndLanguage]);
 
     // Load all notes when fields are ready

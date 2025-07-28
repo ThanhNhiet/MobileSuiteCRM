@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -18,15 +18,29 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useNoteList } from '../../services/useApi/note/UseNote_List';
+import { languageUtils } from '../../utils/LanguageUtils';
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
-    const mdName = 'Ghi chú';
+    
+    // Translation states
+    const [translations, setTranslations] = useState({
+        mdName: 'Ghi chú',
+        searchPlaceholder: 'Nhập từ khóa tìm kiếm',
+        selectedTypeDefault: 'Tất cả',
+        searchButton: 'Tìm',
+        addButton: 'Thêm',
+        loading: 'Đang tải...',
+        tryAgain: 'Thử lại',
+        pullToRefresh: 'Kéo để tải lại...'
+    });
+    
+    const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
     // State cho search và filter
     const [searchText, setSearchText] = useState('');
-    const [selectedType1, setSelectedType1] = useState('Tất cả');
-    const [selectedType2, setSelectedType2] = useState('Tất cả');
+    const [selectedType1, setSelectedType1] = useState('');
+    const [selectedType2, setSelectedType2] = useState('');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
@@ -47,6 +61,44 @@ export default function NoteListScreen() {
         handleParentTypeFilter,
         handleTimeFilter
     } = useNoteList();
+
+    // Initialize translations
+    useEffect(() => {
+        const initializeTranslations = async () => {
+            await languageUtils.loadLanguageData('Notes');
+            
+            // Get all translations at once
+            const translatedLabels = await languageUtils.translateKeys([
+                'LBL_MODULE_NAME',
+                'LBL_INPUT_KEY_SEARCH_PLACEHOLDER', 
+                'LBL_ALL',
+                'LBL_SEARCH',
+                'LBL_ADD_NEW',
+                'LBL_LOADING',
+                'LBL_TRY_AGAIN',
+                'LBL_PULL_TO_REFRESH'
+            ], 'Notes');
+            
+            setTranslations({
+                mdName: translatedLabels.LBL_MODULE_NAME,
+                searchPlaceholder: translatedLabels.LBL_INPUT_KEY_SEARCH_PLACEHOLDER,
+                selectedTypeDefault: translatedLabels.LBL_ALL,
+                searchButton: translatedLabels.LBL_SEARCH,
+                addButton: translatedLabels.LBL_ADD_NEW,
+                loading: translatedLabels.LBL_LOADING,
+                tryAgain: translatedLabels.LBL_TRY_AGAIN,
+                pullToRefresh: translatedLabels.LBL_PULL_TO_REFRESH
+            });
+            
+            // Set default filter values with translations
+            setSelectedType1(translatedLabels.LBL_ALL);
+            setSelectedType2(translatedLabels.LBL_ALL);
+            
+            setTranslationsLoaded(true);
+        };
+        
+        initializeTranslations();
+    }, []);
 
     // Utility functions for data display
     const getFieldValue = (item, fieldKey) => {
@@ -210,7 +262,7 @@ export default function NoteListScreen() {
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
                 
-                <TopNavigation moduleName={mdName} navigation={navigation}/>
+                <TopNavigation moduleName={translations.mdName} navigation={navigation}/>
 
                 <View style={styles.content}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
@@ -219,7 +271,7 @@ export default function NoteListScreen() {
                             <View style={styles.searchBar}>
                                 <TextInput 
                                     style={styles.input} 
-                                    placeholder="Key search" 
+                                    placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
                                 />
@@ -240,7 +292,7 @@ export default function NoteListScreen() {
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                                    <Text style={{ color: '#fff' }}>Tìm</Text>
+                                    <Text style={{ color: '#fff' }}>{translations.searchButton}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -255,7 +307,7 @@ export default function NoteListScreen() {
                             >
                                 <Text style={styles.plusText}>+</Text>
                             </TouchableOpacity>
-                            <Text>Thêm</Text>
+                            <Text>{translations.addButton}</Text>
                         </View>
                     </View>
 
@@ -273,7 +325,7 @@ export default function NoteListScreen() {
                     {loading && (
                         <View style={{ padding: 20, alignItems: 'center' }}>
                             <ActivityIndicator size="large" color="#4B84FF" />
-                            <Text style={{ marginTop: 10, color: '#666' }}>Đang tải...</Text>
+                            <Text style={{ marginTop: 10, color: '#666' }}>{translations.loading}</Text>
                         </View>
                     )}
 
@@ -285,7 +337,7 @@ export default function NoteListScreen() {
                                 style={styles.searchButton} 
                                 onPress={refreshNotes}
                             >
-                                <Text style={{ color: '#fff' }}>Thử lại</Text>
+                                <Text style={{ color: '#fff' }}>{translations.tryAgain}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -304,7 +356,7 @@ export default function NoteListScreen() {
                                     refreshing={refreshing}
                                     onRefresh={refreshNotes}
                                     colors={['#4B84FF']}
-                                    title="Kéo để tải lại..."
+                                    title={translations.pullToRefresh}
                                 />
                             }
                         />

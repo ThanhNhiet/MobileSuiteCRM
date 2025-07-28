@@ -1,0 +1,32 @@
+{
+    "LBL_MODULE_NAME": "Ghi chú",
+    "LBL_INPUT_KEY_SEARCH_PLACEHOLDER": "Nhập từ khóa tìm kiếm",
+    "LBL_SEARCH": "Tìm",
+    "LBL_ADD_NEW": "Thêm",
+    "LBL_LOADING": "Đang tải...",
+    "LBL_TRY_AGAIN": "Thử lại",
+    "LBL_PULL_TO_REFRESH": "Kéo xuống để làm mới",
+
+    "LBL_ALL": "Tất cả",
+    "LBL_ACCOUNTS": "Khách hàng",
+    "LBL_USERS": "Người dùng", 
+    "LBL_TASKS": "Công việc",
+    "LBL_MEETINGS": "Cuộc họp",
+    
+    "LBL_TODAY": "Hôm nay",
+    "LBL_THIS_WEEK": "Tuần này",
+    "LBL_THIS_MONTH": "Tháng này",
+    
+    "ERROR_CANNOT_LOAD_DISPLAY_CONFIG": "Không thể tải cấu hình hiển thị",
+    "ERROR_CANNOT_LOAD_NOTES_LIST": "Không thể tải danh sách ghi chú",
+    
+    "LBL_LIST_SUBJECT": "Tiêu đề",
+    "LBL_DATE_ENTERED": "Ngày tạo",
+    "LBL_LIST_RELATED_TO_TYPE": "Loại liên quan",
+    "LBL_PARENT_NAME": "Tên đối tượng liên quan",
+    "LBL_DESCRIPTION": "Mô tả",
+    "LBL_NAME": "Tên",
+    "LBL_PARENT_TYPE": "Loại cha",
+    
+    "LBL_DEFAULT_FIELDS": "name,date_entered,parent_type,parent_name,description"
+}
