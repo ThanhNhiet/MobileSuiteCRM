@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
-import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentIdByNoteIdApi } from '../../api/note/NoteApi';
+import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentId_typeByNoteIdApi } from '../../api/note/NoteApi';
 
 export const useNoteDetail = (noteId) => {
     const [note, setNote] = useState(null);
@@ -16,6 +16,7 @@ export const useNoteDetail = (noteId) => {
     const [detailFields, setDetailFields] = useState([]);
     const [nameFields, setNameFields] = useState('');
     const [parentId, setParentId] = useState('');
+    const [parentType, setParentType] = useState('');
 
     // Initialize fields and language for detail view
     const initializeDetailFields = useCallback(async () => {
@@ -186,9 +187,10 @@ export const useNoteDetail = (noteId) => {
             setError(null);
 
             // First, get parent ID
-            const parentIdResponse = await getParentIdByNoteIdApi(noteId);
+            const parentIdResponse = await getParentId_typeByNoteIdApi(noteId);
             if (parentIdResponse) {
-                setParentId(parentIdResponse);
+                setParentId(parentIdResponse.parent_id || '');
+                setParentType(parentIdResponse.parent_type || '');
             }
 
             // Then, get note detail
@@ -198,7 +200,8 @@ export const useNoteDetail = (noteId) => {
             const noteData = {
                 id: response.data.id,
                 type: response.data.type,
-                parent_id: parentIdResponse || parentId,
+                parent_id: parentId,
+                parent_type: parentType,
                 ...response.data.attributes
             };
             

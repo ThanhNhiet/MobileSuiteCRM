@@ -52,9 +52,21 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 }
             }
             
-            // 3. Lấy required fields từ API
-            const requiredFieldsResponse = await getNoteFieldsRequiredApi();
-            const requiredFields = requiredFieldsResponse.data.attributes;
+            // 3. Lấy required fields từ cache hoặc API
+            let requiredFields;
+            const cachedRequiredFields = await readCacheView.readCacheFile('requiredfields', 'Notes');
+            
+            if (!cachedRequiredFields) {
+                // Nếu chưa có cache, fetch từ API
+                const requiredFieldsResponse = await getNoteFieldsRequiredApi();
+                requiredFields = requiredFieldsResponse.data.attributes;
+                
+                // Lưu vào cache với tên requiredfields.json
+                await writeCacheView.writeCacheFile('requiredfields', 'Notes', requiredFields);
+            } else {
+                // Nếu có cache, sử dụng cache
+                requiredFields = cachedRequiredFields;
+            }
             
             // Lấy mod_strings và app_strings từ cấu trúc language data
             let modStrings = null;
@@ -168,7 +180,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 
                 // Lấy thông tin required từ requiredFields
                 const fieldInfo = requiredFields[fieldKey] || {};
-                const isRequired = fieldInfo.required || false;
+                const isRequired = fieldInfo.required === true || fieldInfo.required === 'true';
                 
                 // Thêm dấu * đỏ cho required fields
                 const finalLabel = isRequired ? `${vietnameseLabel} *` : vietnameseLabel;
@@ -310,16 +322,30 @@ export const useNoteUpdate = (initialNoteData = null) => {
     const validateForm = useCallback(async () => {
         const errors = {};
         
-        // Check required fields
+        // Check required fields - chỉ validate field có required = true
         updateFields.forEach(field => {
-            if (field.required && !formData[field.key]?.trim()) {
-                errors[field.key] = `${field.label} is required`;
+            if (field.required) {
+                const fieldValue = formData[field.key];
+                
+                // Kiểm tra field rỗng hoặc chỉ chứa khoảng trắng
+                if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim())) {
+                    // Tạo error message với label đã loại bỏ dấu *
+                    const labelText = field.label.replace(' *', '');
+                    errors[field.key] = `${labelText} is required`;
+                }
             }
         });
         
-        // If parent_id is provided, parent_type must be selected
-        if (formData.parent_id?.trim() && !formData.parent_type) {
-            errors.parent_type = 'Please select a parent type';
+        // Special validation for parent relationship
+        const parentType = formData.parent_type;
+        const parentId = formData.parent_id?.trim();
+        
+        // If parent_id is provided, parent_type must be selected (and vice versa)
+        if (parentId && !parentType) {
+            errors.parent_type = 'Please select a parent type when ID is provided';
+        }
+        if (parentType && !parentId) {
+            errors.parent_id = 'Please enter an ID when parent type is selected';
         }
         
         setValidationErrors(errors);
@@ -454,10 +480,25 @@ export const useNoteUpdate = (initialNoteData = null) => {
         return validationErrors[fieldKey] || null;
     }, [validationErrors]);
 
+    // Check if field is required
+    const isFieldRequired = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field ? field.required : false;
+    }, [updateFields]);
+
     // Check if form is valid for submission
     const isFormValid = useCallback(() => {
-        return formData.name?.trim() && Object.keys(validationErrors).length === 0 && hasChanges();
-    }, [formData.name, validationErrors, hasChanges]);
+        // Kiểm tra tất cả required fields có được điền không
+        const hasRequiredFieldsError = updateFields.some(field => {
+            if (field.required) {
+                const fieldValue = formData[field.key];
+                return !fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim());
+            }
+            return false;
+        });
+        
+        return !hasRequiredFieldsError && Object.keys(validationErrors).length === 0 && hasChanges();
+    }, [formData, updateFields, validationErrors, hasChanges]);
 
     // Check parent name manually
     const checkParentName = useCallback(async () => {
@@ -538,6 +579,67 @@ export const useNoteUpdate = (initialNoteData = null) => {
         });
     }, []);
 
+    // Handle delete parent relationship
+    const handleDeleteRelationship = useCallback(async () => {
+        try {
+            const currentParentType = formData.parent_type;
+            const currentParentId = formData.parent_id;
+            
+            // Check if there's a relationship to delete
+            if (!currentParentType || !currentParentId) {
+                // Clear the form fields if no relationship exists
+                await updateField('parent_type', '');
+                await updateField('parent_id', '');
+                setFormData(prev => ({
+                    ...prev,
+                    parent_name: '',
+                    parent_check_error: null
+                }));
+                return {
+                    success: true,
+                    message: 'Parent relationship cleared'
+                };
+            }
+            
+            // Validate note ID
+            if (!formData.id) {
+                throw new Error('Note ID is required for deleting parent relationship');
+            }
+            
+            // Delete the relationship via API
+            await deleteNoteParentRelationApi(currentParentType, currentParentId, formData.id);
+            
+            // Clear the form fields after successful deletion
+            await updateField('parent_type', '');
+            await updateField('parent_id', '');
+            setFormData(prev => ({
+                ...prev,
+                parent_name: '',
+                parent_check_error: null
+            }));
+            
+            // Update original data to reflect the change
+            setOriginalData(prev => ({
+                ...prev,
+                parent_type: '',
+                parent_id: ''
+            }));
+            
+            return {
+                success: true,
+                message: 'Parent relationship deleted successfully'
+            };
+        } catch (err) {
+            console.warn('Delete parent relationship error:', err);
+            const errorMessage = err.response?.data?.message || err.message || 'Failed to delete parent relationship';
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }, [formData.parent_type, formData.parent_id, formData.id, updateField]);
+
     // Initialize on component mount
     useEffect(() => {
         initializeUpdateFields();
@@ -565,12 +667,14 @@ export const useNoteUpdate = (initialNoteData = null) => {
         updateNote,
         resetForm,
         validateForm,
+        handleDeleteRelationship,
         
         // Helpers
         getFieldValue,
         getFieldLabel,
         getStyledFieldLabel,
         getFieldError,
+        isFieldRequired,
         isFormValid,
         hasChanges,
         hasParentNameField,

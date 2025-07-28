@@ -195,14 +195,14 @@ export const deleteNoteParentRelationApi = async (parentType, parentId, noteId) 
 
 //Get parent_id by note_id
 //GET /Api/V8/module/Notes/{note_id}?fields[Notes]=parent_id
-export const getParentIdByNoteIdApi = async (noteId) => {
+export const getParentId_typeByNoteIdApi = async (noteId) => {
     try {
         const response = await axiosInstance.get(`/Api/V8/module/Notes/${noteId}`, {
             params: {
-                'fields[Notes]': 'parent_id'
+                'fields[Notes]': 'parent_id,parent_type'
             }
         });
-        return response.data.data.attributes.parent_id;
+        return response.data.data.attributes;
     } catch (error) {
         console.warn("Get Parent ID by Note ID API error:", error);
         throw error;

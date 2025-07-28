@@ -40,7 +40,8 @@ export default function NoteUpdateScreen() {
     hasChanges,
     hasParentNameField,
     checkParentName,
-    getParentTypeOptions
+    getParentTypeOptions,
+    handleDeleteRelationship
   } = useNoteUpdate(noteData);
 
   // Local loading state for save button
@@ -114,6 +115,42 @@ export default function NoteUpdateScreen() {
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
     return selectedOption ? selectedOption.label : '--------';
+  };
+
+  // Handle delete parent relationship
+  const handleDeleteParentRelationship = async () => {
+    const currentParentType = getFieldValue('parent_type');
+    const currentParentId = getFieldValue('parent_id');
+    
+    // Check if there's a relationship to delete
+    if (!currentParentType && !currentParentId) {
+      Alert.alert('Thông báo', 'Không có mối quan hệ nào để xóa');
+      return;
+    }
+    
+    Alert.alert(
+      'Xác nhận xóa',
+      'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await handleDeleteRelationship();
+              if (result.success) {
+                Alert.alert('Thành công', result.message || 'Đã xóa mối quan hệ thành công');
+              } else {
+                Alert.alert('Lỗi', result.error || 'Không thể xóa mối quan hệ');
+              }
+            } catch (err) {
+              Alert.alert('Lỗi', err.message || 'Không thể xóa mối quan hệ');
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Handle check parent ID
@@ -318,6 +355,23 @@ export default function NoteUpdateScreen() {
                 )}
               </TouchableOpacity>
             </View>
+
+            {/* Delete Relationship Button - Only show if parent name field exists */}
+            {hasParentNameField() && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.deleteButton,
+                    saving && styles.disabledButton
+                  ]}
+                  onPress={handleDeleteParentRelationship}
+                  disabled={saving}
+                >
+                  <Ionicons name="unlink-outline" size={24} color="#fff" />
+                  <Text style={styles.deleteButtonText}>Xóa mối quan hệ</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
 
@@ -488,6 +542,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   disabledButton: {
     backgroundColor: '#ccc',
