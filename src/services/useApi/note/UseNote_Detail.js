@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
+import { languageUtils } from '../../../utils/LanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentId_typeByNoteIdApi } from '../../api/note/NoteApi';
@@ -17,6 +18,8 @@ export const useNoteDetail = (noteId) => {
     const [nameFields, setNameFields] = useState('');
     const [parentId, setParentId] = useState('');
     const [parentType, setParentType] = useState('');
+
+    // Initialize LanguageUtils
 
     // Initialize fields and language for detail view
     const initializeDetailFields = useCallback(async () => {
@@ -170,7 +173,7 @@ export const useNoteDetail = (noteId) => {
             
         } catch (err) {
             console.warn('Initialize detail fields error:', err);
-            setError('Không thể tải cấu hình hiển thị chi tiết');
+            setError(languageUtils.translate('ERROR_CANNOT_LOAD_DETAIL_CONFIG'));
         }
     }, []);
 
@@ -208,7 +211,7 @@ export const useNoteDetail = (noteId) => {
             setNote(noteData);
             
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'Không thể tải chi tiết ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('ERROR_CANNOT_LOAD_NOTE_DETAIL');
             setError(errorMessage);
             console.warn('Fetch note detail error:', err);
         } finally {
@@ -229,7 +232,7 @@ export const useNoteDetail = (noteId) => {
             
             return true;
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'Không thể xóa ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('ERROR_CANNOT_DELETE_NOTE');
             setError(errorMessage);
             console.warn('Delete note error:', err);
             return false;

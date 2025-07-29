@@ -17,11 +17,85 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 import { useNoteUpdate } from '../../services/useApi/note/UseNote_Update';
+import { languageUtils } from '../../utils/LanguageUtils';
 
 export default function NoteUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { noteData } = route.params || {};
+
+  // Initialize translations
+  const [translations, setTranslations] = useState({});
+
+  // Initialize translations
+  useEffect(() => {
+    const initializeTranslations = async () => {
+      await languageUtils.loadLanguageData('Notes');
+      
+      // Get all translations at once
+      const translatedLabels = await languageUtils.translateKeys([
+        'LBL_MODULE_NAME',
+        'LBL_UPDATE_MODULE',
+        'LBL_LOADING_TEXT',
+        'LBL_UPDATE_SUCCESS',
+        'MSG_UPDATE_SUCCESS',
+        'LBL_ERROR',
+        'MSG_UPDATE_ERROR',
+        'LBL_OK',
+        'LBL_SAVE_BUTTON',
+        'LBL_CONFIRM',
+        'MSG_UNSAVED_CHANGES',
+        'LBL_CANCEL',
+        'LBL_EXIT',
+        'LBL_NOTIFICATION',
+        'MSG_NO_RELATIONSHIP',
+        'LBL_CONFIRM_DELETE_RELATION',
+        'MSG_CONFIRM_DELETE_RELATION',
+        'LBL_SUCCESS',
+        'MSG_DELETE_RELATION_SUCCESS',
+        'MSG_DELETE_RELATION_ERROR',
+        'LBL_DELETE_RELATION',
+        'LBL_CLEAR_BUTTON',
+        'LBL_CHECK_BUTTON',
+        'LBL_CHECK_PLACEHOLDER',
+        'LBL_SELECT_PLACEHOLDER',
+        'LBL_CHECK_TO_VERIFY',
+        'LBL_PARENT_ID_LABEL'
+      ], 'Notes');
+
+      setTranslations({
+        mdName: translatedLabels.LBL_MODULE_NAME,
+        updateModule: translatedLabels.LBL_UPDATE_MODULE,
+        loadingText: translatedLabels.LBL_LOADING_TEXT,
+        successTitle: translatedLabels.LBL_UPDATE_SUCCESS,
+        successMessage: translatedLabels.MSG_UPDATE_SUCCESS,
+        errorTitle: translatedLabels.LBL_ERROR,
+        errorMessage: translatedLabels.MSG_UPDATE_ERROR,
+        ok: translatedLabels.LBL_OK,
+        saveButton: translatedLabels.LBL_SAVE_BUTTON,
+        confirmTitle: translatedLabels.LBL_CONFIRM,
+        unsavedChanges: translatedLabels.MSG_UNSAVED_CHANGES,
+        cancel: translatedLabels.LBL_CANCEL,
+        exit: translatedLabels.LBL_EXIT,
+        notification: translatedLabels.LBL_NOTIFICATION,
+        noRelationship: translatedLabels.MSG_NO_RELATIONSHIP,
+        confirmDeleteRelation: translatedLabels.LBL_CONFIRM_DELETE_RELATION,
+        confirmDeleteRelationMsg: translatedLabels.MSG_CONFIRM_DELETE_RELATION,
+        success: translatedLabels.LBL_SUCCESS,
+        deleteRelationSuccess: translatedLabels.MSG_DELETE_RELATION_SUCCESS,
+        deleteRelationError: translatedLabels.MSG_DELETE_RELATION_ERROR,
+        deleteRelation: translatedLabels.LBL_DELETE_RELATION,
+        clearButton: translatedLabels.LBL_CLEAR_BUTTON,
+        checkButton: translatedLabels.LBL_CHECK_BUTTON,
+        checkPlaceholder: translatedLabels.LBL_CHECK_PLACEHOLDER,
+        selectPlaceholder: translatedLabels.LBL_SELECT_PLACEHOLDER,
+        checkToVerify: translatedLabels.LBL_CHECK_TO_VERIFY || 'Nhấn Check để kiểm tra',
+        parentIdLabel: translatedLabels.LBL_PARENT_ID || 'ID Cha'
+      });
+    };
+
+    initializeTranslations();
+  }, []);
 
   // Sử dụng custom hook
   const {
@@ -72,18 +146,18 @@ export default function NoteUpdateScreen() {
       const result = await updateNote();
       if (result.success) {
         Alert.alert(
-          'Thành công',
-          'Cập nhật ghi chú thành công!',
+          translations.successTitle || 'Thành công',
+          translations.successMessage || 'Cập nhật ghi chú thành công!',
           [
             {
-              text: 'OK',
+              text: translations.ok || 'OK',
               onPress: () => navigation.goBack()
             }
           ]
         );
       }
     } catch (err) {
-      Alert.alert('Lỗi', err.message || 'Không thể cập nhật ghi chú');
+      Alert.alert(translations.errorTitle || 'Lỗi', err.message || (translations.errorMessage || 'Không thể cập nhật ghi chú'));
     } finally {
       setSaving(false);
     }
@@ -93,11 +167,11 @@ export default function NoteUpdateScreen() {
   const handleBack = () => {
     if (hasChanges()) {
       Alert.alert(
-        'Xác nhận',
-        'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
+        translations.confirmTitle || 'Xác nhận',
+        translations.unsavedChanges || 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Thoát', style: 'destructive', onPress: () => navigation.goBack() }
+          { text: translations.cancel || 'Hủy', style: 'cancel' },
+          { text: translations.exit || 'Thoát', style: 'destructive', onPress: () => navigation.goBack() }
         ]
       );
     } else {
@@ -114,7 +188,7 @@ export default function NoteUpdateScreen() {
   // Get parent type label for display
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
-    return selectedOption ? selectedOption.label : '--------';
+    return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
   };
 
   // Handle delete parent relationship
@@ -124,28 +198,28 @@ export default function NoteUpdateScreen() {
     
     // Check if there's a relationship to delete
     if (!currentParentType && !currentParentId) {
-      Alert.alert('Thông báo', 'Không có mối quan hệ nào để xóa');
+      Alert.alert(translations.notification || 'Thông báo', translations.noRelationship || 'Không có mối quan hệ nào để xóa');
       return;
     }
     
     Alert.alert(
-      'Xác nhận xóa',
-      'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
+      translations.confirmDeleteRelation || 'Xác nhận xóa',
+      translations.confirmDeleteRelationMsg || 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: translations.cancel || 'Hủy', style: 'cancel' },
         {
-          text: 'Xóa',
+          text: translations.clearButton || 'Xóa',
           style: 'destructive',
           onPress: async () => {
             try {
               const result = await handleDeleteRelationship();
               if (result.success) {
-                Alert.alert('Thành công', result.message || 'Đã xóa mối quan hệ thành công');
+                Alert.alert(translations.success || 'Thành công', result.message || (translations.deleteRelationSuccess || 'Đã xóa mối quan hệ thành công'));
               } else {
-                Alert.alert('Lỗi', result.error || 'Không thể xóa mối quan hệ');
+                Alert.alert(translations.errorTitle || 'Lỗi', result.error || (translations.deleteRelationError || 'Không thể xóa mối quan hệ'));
               }
             } catch (err) {
-              Alert.alert('Lỗi', err.message || 'Không thể xóa mối quan hệ');
+              Alert.alert(translations.errorTitle || 'Lỗi', err.message || (translations.deleteRelationError || 'Không thể xóa mối quan hệ'));
             }
           }
         }
@@ -185,14 +259,14 @@ export default function NoteUpdateScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <TopNavigationUpdate
-          moduleName="Cập nhật Ghi chú"
+          moduleName={translations.updateModule || "Cập nhật Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
           onBack={handleBack}
         />
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+          <Text style={{ marginTop: 16, color: '#666' }}>{translations.loadingText || 'Đang tải...'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -203,7 +277,7 @@ export default function NoteUpdateScreen() {
       <SafeAreaView style={styles.container}>
         {/* Thanh điều hướng */}
         <TopNavigationUpdate
-          moduleName="Cập nhật Ghi chú"
+          moduleName={translations.updateModule || "Cập nhật Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
           onBack={handleBack}
@@ -270,7 +344,7 @@ export default function NoteUpdateScreen() {
                     {/* Check button as label and result field below */}
                     <View style={styles.row}>
                       <View style={styles.checkLabelContainer}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={[styles.checkButton, checkingParent && styles.disabledButton]}
                           onPress={handleCheckParentId}
                           disabled={checkingParent}
@@ -278,7 +352,7 @@ export default function NoteUpdateScreen() {
                           {checkingParent ? (
                             <ActivityIndicator size="small" color="#fff" />
                           ) : (
-                            <Text style={styles.checkButtonText}>Check</Text>
+                            <Text style={styles.checkButtonText}>{translations.checkButton || 'Check'}</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -299,7 +373,7 @@ export default function NoteUpdateScreen() {
                       ) : (
                         <View style={[styles.valueBox, styles.placeholderBox]}>
                           <Text style={[styles.value, styles.placeholderText]}>
-                            Nhấn Check để kiểm tra
+                            {translations.checkToVerify || 'Nhấn Check để kiểm tra'}
                           </Text>
                         </View>
                       )}
@@ -309,7 +383,7 @@ export default function NoteUpdateScreen() {
               }
 
               // Change parent_id display
-              const displayLabel = field.key === 'parent_id' ? 'Parent ID' : field.label;
+              const displayLabel = field.key === 'parent_id' ? (translations.parentIdLabel || 'Parent ID') : field.label;
 
               return (
                 <View key={field.key} style={styles.row}>

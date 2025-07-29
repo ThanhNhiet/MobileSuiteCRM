@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
+import { languageUtils } from '../../../utils/LanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import { checkParentNameExistsApi, createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi, updateNoteApi } from '../../api/note/NoteApi';
@@ -251,7 +252,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             
         } catch (err) {
             console.warn('Initialize update fields error:', err);
-            setError('Error loading note update fields');
+            setError(languageUtils.translate('ERROR_LOADING_UPDATE_FIELDS'));
         }
     }, []);
 
@@ -331,7 +332,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim())) {
                     // Tạo error message với label đã loại bỏ dấu *
                     const labelText = field.label.replace(' *', '');
-                    errors[field.key] = `${labelText} is required`;
+                    errors[field.key] = `${labelText} ${languageUtils.translate('MSG_FIELD_REQUIRED_UPDATE')}`;
                 }
             }
         });
@@ -342,10 +343,10 @@ export const useNoteUpdate = (initialNoteData = null) => {
         
         // If parent_id is provided, parent_type must be selected (and vice versa)
         if (parentId && !parentType) {
-            errors.parent_type = 'Please select a parent type when ID is provided';
+            errors.parent_type = languageUtils.translate('MSG_PARENT_TYPE_REQUIRED_UPDATE');
         }
         if (parentType && !parentId) {
-            errors.parent_id = 'Please enter an ID when parent type is selected';
+            errors.parent_id = languageUtils.translate('MSG_PARENT_ID_WHEN_TYPE_SELECTED');
         }
         
         setValidationErrors(errors);
@@ -363,7 +364,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 setLoading(false);
                 return {
                     success: false,
-                    error: 'No changes to save'
+                    error: languageUtils.translate('MSG_NO_CHANGES')
                 };
             }
             
@@ -425,7 +426,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 updatedFields: Object.keys(updateData)
             };
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'An error occurred while updating the note';
+            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('MSG_UPDATE_GENERAL_ERROR');
             setError(errorMessage);
             console.warn('Update note error:', err);
             return {
@@ -509,7 +510,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: 'Please select a parent type and enter an ID'
+                parent_check_error: languageUtils.translate('MSG_PARENT_ID_REQUIRED_UPDATE')
             }));
             return;
         }
@@ -526,7 +527,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 setFormData(prev => ({
                     ...prev,
                     parent_name: '',
-                    parent_check_error: 'No record found with this ID'
+                    parent_check_error: languageUtils.translate('MSG_PARENT_NOT_FOUND_UPDATE')
                 }));
             }
         } catch (err) {
@@ -534,7 +535,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: 'Error checking ID'
+                parent_check_error: languageUtils.translate('MSG_PARENT_CHECK_ERROR_UPDATE')
             }));
         }
     }, [formData.parent_type, formData.parent_id]);
@@ -552,10 +553,10 @@ export const useNoteUpdate = (initialNoteData = null) => {
         }
         
         const baseOptions = [
-            { value: 'Accounts', labelKeys: ['LBL_ACCOUNTS', 'LBL_ACCOUNT'], fallback: 'Khách hàng' },
-            { value: 'Contacts', labelKeys: ['LBL_CONTACTS', 'LBL_CONTACT'], fallback: 'Liên hệ' },
-            { value: 'Tasks', labelKeys: ['LBL_EMAIL_QC_TASKS', 'LBL_TASKS'], fallback: 'Công việc' },
-            { value: 'Meetings', labelKeys: ['LBL_CALLS', 'LBL_MEETINGS'], fallback: 'Cuộc gọi' }
+            { value: 'Accounts', labelKeys: ['LBL_ACCOUNTS', 'LBL_ACCOUNT'], fallback: languageUtils.translate('LBL_ACCOUNTS') },
+            { value: 'Contacts', labelKeys: ['LBL_CONTACTS', 'LBL_CONTACT'], fallback: languageUtils.translate('LBL_CONTACTS') },
+            { value: 'Tasks', labelKeys: ['LBL_EMAIL_QC_TASKS', 'LBL_TASKS'], fallback: languageUtils.translate('LBL_TASKS') },
+            { value: 'Meetings', labelKeys: ['LBL_CALLS', 'LBL_MEETINGS'], fallback: languageUtils.translate('LBL_MEETINGS') }
         ];
         
         return baseOptions.map(option => {

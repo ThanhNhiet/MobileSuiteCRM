@@ -1,5 +1,5 @@
 //import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,59 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 import { useNoteCreate } from '../../services/useApi/note/UseNote_Create';
+import { languageUtils } from '../../utils/LanguageUtils';
 export default function NoteCreateScreen({ navigation }) {
+
+  // Initialize translations
+  const [translations, setTranslations] = useState({});
+
+  // Initialize translations
+  useEffect(() => {
+    const initializeTranslations = async () => {
+      await languageUtils.loadLanguageData('Notes');
+      
+      // Get all translations at once
+      const translatedLabels = await languageUtils.translateKeys([
+        'LBL_MODULE_NAME',
+        'LBL_CREATE_MODULE',
+        'LBL_LOADING_CREATE',
+        'LBL_CREATE_SUCCESS',
+        'MSG_CREATE_SUCCESS',
+        'LBL_ERROR',
+        'MSG_CREATE_ERROR',
+        'LBL_OK',
+        'LBL_CREATE_BUTTON',
+        'LBL_CHECK_BUTTON',
+        'LBL_CHECK_PLACEHOLDER',
+        'LBL_SELECT_PLACEHOLDER',
+        'LBL_ACCOUNTS',
+        'LBL_USERS',
+        'LBL_TASKS',
+        'LBL_MEETINGS'
+      ], 'Notes');
+
+      setTranslations({
+        mdName: translatedLabels.LBL_MODULE_NAME,
+        createModule: translatedLabels.LBL_CREATE_MODULE,
+        loadingText: translatedLabels.LBL_LOADING_CREATE,
+        successTitle: translatedLabels.LBL_CREATE_SUCCESS,
+        successMessage: translatedLabels.MSG_CREATE_SUCCESS,
+        errorTitle: translatedLabels.LBL_ERROR,
+        errorMessage: translatedLabels.MSG_CREATE_ERROR,
+        ok: translatedLabels.LBL_OK,
+        createButton: translatedLabels.LBL_CREATE_BUTTON,
+        checkButton: translatedLabels.LBL_CHECK_BUTTON,
+        checkPlaceholder: translatedLabels.LBL_CHECK_PLACEHOLDER,
+        selectPlaceholder: translatedLabels.LBL_SELECT_PLACEHOLDER,
+        accounts: translatedLabels.LBL_ACCOUNTS,
+        users: translatedLabels.LBL_USERS,
+        tasks: translatedLabels.LBL_TASKS,
+        meetings: translatedLabels.LBL_MEETINGS
+      });
+    };
+
+    initializeTranslations();
+  }, []);
 
   // Sử dụng custom hook
   const {
@@ -47,10 +99,10 @@ export default function NoteCreateScreen({ navigation }) {
 
   // Fixed parent type options
   const parentTypeOptions = [
-    { value: 'Accounts', label: 'Khách hàng' },
-    { value: 'Users', label: 'Người dùng' },
-    { value: 'Tasks', label: 'Công việc' },
-    { value: 'Meetings', label: 'Cuộc họp' }
+    { value: 'Accounts', label: translations.accounts || 'Khách hàng' },
+    { value: 'Users', label: translations.users || 'Người dùng' },
+    { value: 'Tasks', label: translations.tasks || 'Công việc' },
+    { value: 'Meetings', label: translations.meetings || 'Cuộc họp' }
   ];
 
   // Handle save
@@ -60,11 +112,11 @@ export default function NoteCreateScreen({ navigation }) {
       const result = await createNote();
       if (result.success) {
         Alert.alert(
-          'Thành công',
-          'Tạo ghi chú thành công!',
+          translations.successTitle || 'Thành công',
+          translations.successMessage || 'Tạo ghi chú thành công!',
           [
             {
-              text: 'OK',
+              text: translations.ok || 'OK',
               onPress: () => {
                 resetForm();
                 navigation.navigate('NoteListScreen');
@@ -74,7 +126,7 @@ export default function NoteCreateScreen({ navigation }) {
         );
       }
     } catch (err) {
-      Alert.alert('Lỗi', err.message || 'Không thể tạo ghi chú');
+      Alert.alert(translations.errorTitle || 'Lỗi', err.message || (translations.errorMessage || 'Không thể tạo ghi chú'));
     } finally {
       setSaving(false);
     }
@@ -89,7 +141,7 @@ export default function NoteCreateScreen({ navigation }) {
   // Get parent type label for display
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
-    return selectedOption ? selectedOption.label : '--------';
+    return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
   };
 
   // Handle check parent ID
@@ -110,13 +162,13 @@ export default function NoteCreateScreen({ navigation }) {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
         <TopNavigationCreate
-          moduleName="Tạo Ghi chú"
+          moduleName={translations.createModule || "Tạo Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
         />
         <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+          <Text style={{ marginTop: 16, color: '#666' }}>{translations.loadingText || 'Đang tải...'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -127,7 +179,7 @@ export default function NoteCreateScreen({ navigation }) {
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
         {/* Thanh điều hướng */}
         <TopNavigationCreate
-          moduleName="Tạo Ghi chú"
+          moduleName={translations.createModule || "Tạo Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
         />
@@ -207,7 +259,7 @@ export default function NoteCreateScreen({ navigation }) {
                           {checkingParent ? (
                             <ActivityIndicator size="small" color="#fff" />
                           ) : (
-                            <Text style={styles.checkButtonText}>Check</Text>
+                            <Text style={styles.checkButtonText}>{translations.checkButton || 'Check'}</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -228,7 +280,7 @@ export default function NoteCreateScreen({ navigation }) {
                       ) : (
                         <View style={[styles.valueBox, styles.placeholderBox]}>
                           <Text style={[styles.value, styles.placeholderText]}>
-                            Nhấn Check để kiểm tra
+                            {translations.checkPlaceholder || 'Nhấn Check để kiểm tra'}
                           </Text>
                         </View>
                       )}
@@ -278,7 +330,7 @@ export default function NoteCreateScreen({ navigation }) {
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Tạo ghi chú</Text>
+                  <Text style={styles.saveButtonText}>{translations.createButton || 'Tạo ghi chú'}</Text>
                 )}
               </TouchableOpacity>
             </View>

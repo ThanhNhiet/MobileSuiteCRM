@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
+import { languageUtils } from '../../../utils/LanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import { checkParentNameExistsApi, createNoteApi, createNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi } from '../../api/note/NoteApi';
@@ -268,7 +269,7 @@ export const useNoteCreate = () => {
             
         } catch (err) {
             console.warn('Initialize create fields error:', err);
-            setError('Error loading note create fields');
+            setError(languageUtils.translate('ERROR_LOADING_CREATE_FIELDS'));
         }
     }, []);
 
@@ -316,13 +317,13 @@ export const useNoteCreate = () => {
         // Check required fields
         createFields.forEach(field => {
             if (field.required && !formData[field.key]?.trim()) {
-                errors[field.key] = `${field.label} là bắt buộc`;
+                errors[field.key] = `${field.label} ${languageUtils.translate('MSG_FIELD_REQUIRED')}`;
             }
         });
         
         // If parent_id is provided, parent_type must be selected
         if (formData.parent_id?.trim() && !formData.parent_type) {
-            errors.parent_type = 'Phải chọn loại khi có ID liên quan';
+            errors.parent_type = languageUtils.translate('MSG_PARENT_TYPE_REQUIRED');
         }
         
         setValidationErrors(errors);
@@ -383,12 +384,12 @@ export const useNoteCreate = () => {
             
             if (!noteId) {
                 console.error('Full response structure:', JSON.stringify(response, null, 2));
-                throw new Error('Không thể lấy ID của ghi chú vừa tạo');
+                throw new Error(languageUtils.translate('ERROR_EXTRACT_NOTE_ID'));
             }
             
             // Create parent relationship if specified
             if (formData.parent_type && formData.parent_id?.trim()) {
-                console.log('Creating relationship:', formData.parent_type, formData.parent_id.trim(), noteId);
+                // console.log('Creating relationship:', formData.parent_type, formData.parent_id.trim(), noteId);
                 await createNoteParentRelationApi(formData.parent_type, formData.parent_id.trim(), noteId);
             }
             
@@ -397,7 +398,7 @@ export const useNoteCreate = () => {
                 noteId: noteId
             };
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || 'Không thể tạo ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('MSG_CREATE_ERROR');
             setError(errorMessage);
             console.warn('Create note error:', err);
             return {
@@ -453,15 +454,14 @@ export const useNoteCreate = () => {
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: 'Vui lòng chọn loại và nhập ID'
+                parent_check_error: languageUtils.translate('MSG_PARENT_ID_REQUIRED')
             }));
             return;
         }
 
         try {
-            console.log('Checking parent name for type:', formData.parent_type, 'and ID:', formData.parent_id.trim());
+            // console.log('Checking parent name for type:', formData.parent_type, 'and ID:', formData.parent_id.trim());
             const result = await checkParentNameExistsApi(formData.parent_type, formData.parent_id.trim());
-            console.log('Parent name check result:', result);
             
             // If result is a string, it means parent was found and result is the name
             if (typeof result === 'string' && result.trim()) {
@@ -482,7 +482,7 @@ export const useNoteCreate = () => {
                 setFormData(prev => ({
                     ...prev,
                     parent_name: '',
-                    parent_check_error: result?.error || 'Không tìm thấy parent'
+                    parent_check_error: result?.error || languageUtils.translate('MSG_PARENT_NOT_FOUND')
                 }));
             }
         } catch (err) {
@@ -490,7 +490,7 @@ export const useNoteCreate = () => {
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: 'Lỗi kiểm tra parent'
+                parent_check_error: languageUtils.translate('MSG_PARENT_CHECK_ERROR')
             }));
         }
     }, [formData.parent_type, formData.parent_id]);

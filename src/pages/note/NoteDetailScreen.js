@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,12 +17,77 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useNoteDetail } from "../../services/useApi/note/UseNote_Detail";
 import { formatDateTime } from "../../utils/FormatDateTime";
+import { languageUtils } from "../../utils/LanguageUtils";
 
 export default function NoteDetailScreen() {
-    const mdName = 'Ghi chú';
     const navigation = useNavigation();
     const route = useRoute();
     const { noteId } = route.params;
+
+    // Initialize LanguageUtils and translations
+    const [translations, setTranslations] = useState({});
+
+    // Initialize translations
+    useEffect(() => {
+        const initTranslations = async () => {
+            await languageUtils.loadLanguageData('Notes');
+            
+            // Get all translations at once
+            const translatedLabels = await languageUtils.translateKeys([
+                'LBL_MODULE_DETAIL_NAME',
+                'LBL_LOADING_DETAIL',
+                'LBL_ERROR_LOAD_NOTE',
+                'LBL_TRY_AGAIN',
+                'LBL_REFRESH_PULL',
+                'LBL_RELATED_PREFIX',
+                'LBL_UPDATE_BUTTON',
+                'LBL_DELETE_BUTTON',
+                'LBL_DELETING',
+                'LBL_NO_PERMISSION',
+                'MSG_NO_DELETE_PERMISSION',
+                'MSG_NO_EDIT_PERMISSION',
+                'LBL_CONFIRM_DELETE',
+                'MSG_CONFIRM_DELETE',
+                'LBL_CANCEL',
+                'LBL_DELETE',
+                'LBL_SUCCESS',
+                'MSG_DELETE_SUCCESS',
+                'LBL_OK',
+                'LBL_ERROR',
+                'MSG_COPY_SUCCESS',
+                'MSG_COPY_ERROR',
+                'LBL_NO_VALUE'
+            ], 'Notes');
+
+            setTranslations({
+                mdName: translatedLabels.LBL_MODULE_DETAIL_NAME,
+                loadingText: translatedLabels.LBL_LOADING_DETAIL,
+                errorTitle: translatedLabels.LBL_ERROR_LOAD_NOTE,
+                retryText: translatedLabels.LBL_TRY_AGAIN,
+                refreshPull: translatedLabels.LBL_REFRESH_PULL,
+                relatedPrefix: translatedLabels.LBL_RELATED_PREFIX,
+                updateButton: translatedLabels.LBL_UPDATE_BUTTON,
+                deleteButton: translatedLabels.LBL_DELETE_BUTTON,
+                deletingText: translatedLabels.LBL_DELETING,
+                noPermission: translatedLabels.LBL_NO_PERMISSION,
+                noDeletePermission: translatedLabels.MSG_NO_DELETE_PERMISSION,
+                noEditPermission: translatedLabels.MSG_NO_EDIT_PERMISSION,
+                confirmDelete: translatedLabels.LBL_CONFIRM_DELETE,
+                confirmDeleteMsg: translatedLabels.MSG_CONFIRM_DELETE,
+                cancel: translatedLabels.LBL_CANCEL,
+                delete: translatedLabels.LBL_DELETE,
+                success: translatedLabels.LBL_SUCCESS,
+                deleteSuccess: translatedLabels.MSG_DELETE_SUCCESS,
+                ok: translatedLabels.LBL_OK,
+                error: translatedLabels.LBL_ERROR,
+                copySuccess: translatedLabels.MSG_COPY_SUCCESS,
+                copyError: translatedLabels.MSG_COPY_ERROR,
+                noValue: translatedLabels.LBL_NO_VALUE
+            });
+        };
+
+        initTranslations();
+    }, []);
 
     // Sử dụng custom hook
     const {
@@ -62,28 +128,28 @@ export default function NoteDetailScreen() {
     const handleDelete = () => {
         if (!canEditNote()) {
             Alert.alert(
-                'Không có quyền',
-                'Bạn không có quyền xóa ghi chú này vì nó được giao cho người dùng khác.',
-                [{ text: 'OK' }]
+                translations.noPermission || 'Không có quyền',
+                translations.noDeletePermission || 'Bạn không có quyền xóa ghi chú này vì nó được giao cho người dùng khác.',
+                [{ text: translations.ok || 'OK' }]
             );
             return;
         }
         
         Alert.alert(
-            'Xác nhận xóa',
-            'Bạn có chắc chắn muốn xóa ghi chú này không? Hành động này không thể hoàn tác.',
+            translations.confirmDelete || 'Xác nhận xóa',
+            translations.confirmDeleteMsg || 'Bạn có chắc chắn muốn xóa ghi chú này không? Hành động này không thể hoàn tác.',
             [
-                { text: 'Hủy', style: 'cancel' },
+                { text: translations.cancel || 'Hủy', style: 'cancel' },
                 {
-                    text: 'Xóa',
+                    text: translations.delete || 'Xóa',
                     style: 'destructive',
                     onPress: async () => {
                         const success = await deleteNote();
                         if (success) {
                             Alert.alert(
-                                'Thành công',
-                                'Đã xóa ghi chú thành công',
-                                [{ text: 'OK', onPress: () => navigation.navigate('NoteListScreen') }]
+                                translations.success || 'Thành công',
+                                translations.deleteSuccess || 'Đã xóa ghi chú thành công',
+                                [{ text: translations.ok || 'OK', onPress: () => navigation.navigate('NoteListScreen') }]
                             );
                         }
                     }
@@ -109,9 +175,9 @@ export default function NoteDetailScreen() {
     const handleUpdate = () => {
         if (!canEditNote()) {
             Alert.alert(
-                'Không có quyền',
-                'Bạn không có quyền chỉnh sửa ghi chú này vì nó được giao cho người dùng khác.',
-                [{ text: 'OK' }]
+                translations.noPermission || 'Không có quyền',
+                translations.noEditPermission || 'Bạn không có quyền chỉnh sửa ghi chú này vì nó được giao cho người dùng khác.',
+                [{ text: translations.ok || 'OK' }]
             );
             return;
         }
@@ -120,7 +186,7 @@ export default function NoteDetailScreen() {
 
     // Format field value for display
     const formatFieldValue = (fieldKey, value) => {
-        if (!value) return 'Không có';
+        if (!value) return translations.noValue || 'Không có';
 
         switch (fieldKey) {
             case 'date_entered':
@@ -128,10 +194,10 @@ export default function NoteDetailScreen() {
                 return formatDateTime(value);
             case 'parent_type':
                 const typeLabels = {
-                    'Accounts': 'Khách hàng',
-                    'Users': 'Người dùng',
-                    'Tasks': 'Công việc',
-                    'Meetings': 'Cuộc họp'
+                    'Accounts': languageUtils.translate('LBL_ACCOUNTS'),
+                    'Users': languageUtils.translate('LBL_USERS'),
+                    'Tasks': languageUtils.translate('LBL_TASKS'),
+                    'Meetings': languageUtils.translate('LBL_MEETINGS')
                 };
                 return typeLabels[value] || value;
             default:
@@ -144,9 +210,9 @@ export default function NoteDetailScreen() {
         if (note?.id) {
             try {
                 await Clipboard.setStringAsync(note.id);
-                Alert.alert('Thành công', 'ID đã được sao chép vào clipboard');
+                Alert.alert(translations.success || 'Thành công', translations.copySuccess || 'ID đã được sao chép vào clipboard');
             } catch (err) {
-                Alert.alert('Lỗi', 'Không thể sao chép ID');
+                Alert.alert(translations.error || 'Lỗi', translations.copyError || 'Không thể sao chép ID');
                 console.warn('Copy ID error:', err);
             }
         }
@@ -197,14 +263,14 @@ export default function NoteDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={translations.mdName || 'Ghi chú'}
                     navigation={navigation}
                     name="NoteUpdateScreen"
                 />
 
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#4B84FF" />
-                    <Text style={styles.loadingText}>Đang tải chi tiết ghi chú...</Text>
+                    <Text style={styles.loadingText}>{translations.loadingText || 'Đang tải chi tiết ghi chú...'}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -216,17 +282,17 @@ export default function NoteDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={translations.mdName || 'Ghi chú'}
                     navigation={navigation}
                     name="NoteUpdateScreen"
                 />
 
                 <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
-                    <Text style={styles.errorTitle}>Không thể tải ghi chú</Text>
+                    <Text style={styles.errorTitle}>{translations.errorTitle || 'Không thể tải ghi chú'}</Text>
                     <Text style={styles.errorText}>{error}</Text>
                     <TouchableOpacity style={styles.retryButton} onPress={refreshNote}>
-                        <Text style={styles.retryButtonText}>Thử lại</Text>
+                        <Text style={styles.retryButtonText}>{translations.retryText || 'Thử lại'}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -238,7 +304,7 @@ export default function NoteDetailScreen() {
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" />
                 <TopNavigationDetail
-                    moduleName={mdName}
+                    moduleName={translations.mdName || 'Ghi chú'}
                     navigation={navigation}
                     name="NoteUpdateScreen"
                 />
@@ -250,7 +316,7 @@ export default function NoteDetailScreen() {
                             refreshing={refreshing}
                             onRefresh={refreshNote}
                             colors={['#4B84FF']}
-                            title="Kéo để tải lại..."
+                            title={translations.refreshPull || 'Kéo để tải lại...'}
                         />
                     }
                 >
@@ -273,7 +339,7 @@ export default function NoteDetailScreen() {
                                 >
                                     <Ionicons name="link-outline" size={16} color="#666" />
                                     <Text style={styles.parentText}>
-                                        Liên quan: {note.parent_name}
+                                        {translations.relatedPrefix || 'Liên quan:'} {note.parent_name}
                                         ({formatFieldValue('parent_type', note.parent_type)})
                                     </Text>
                                 </TouchableOpacity>
@@ -306,7 +372,7 @@ export default function NoteDetailScreen() {
                                 styles.updateButtonText,
                                 (!canEditNote() || deleting) && styles.disabledButtonText
                             ]}>
-                                Cập nhật
+                                {translations.updateButton || 'Cập nhật'}
                             </Text>
                         </TouchableOpacity>
 
@@ -332,7 +398,7 @@ export default function NoteDetailScreen() {
                                 styles.deleteButtonText,
                                 !canEditNote() && styles.disabledButtonText
                             ]}>
-                                {deleting ? 'Đang xóa...' : 'Xóa'}
+                                {deleting ? (translations.deletingText || 'Đang xóa...') : (translations.deleteButton || 'Xóa')}
                             </Text>
                         </TouchableOpacity>
                     </View>
