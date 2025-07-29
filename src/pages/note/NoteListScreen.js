@@ -18,10 +18,13 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useNoteList } from '../../services/useApi/note/UseNote_List';
-import { languageUtils } from '../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
+    
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
     // Translation states
     const [translations, setTranslations] = useState({
@@ -32,7 +35,8 @@ export default function NoteListScreen() {
         addButton: 'Thêm',
         loading: 'Đang tải...',
         tryAgain: 'Thử lại',
-        pullToRefresh: 'Kéo để tải lại...'
+        pullToRefresh: 'Kéo để tải lại...',
+        noData: 'Không có dữ liệu'
     });
     
     const [translationsLoaded, setTranslationsLoaded] = useState(false);
@@ -50,6 +54,7 @@ export default function NoteListScreen() {
         columns,
         parentTypeOptions,
         timeFilterOptions,
+        filtersInitialized,
         currentPage,
         totalPages,
         loading,
@@ -65,40 +70,51 @@ export default function NoteListScreen() {
     // Initialize translations
     useEffect(() => {
         const initializeTranslations = async () => {
-            await languageUtils.loadLanguageData('Notes');
-            
-            // Get all translations at once
-            const translatedLabels = await languageUtils.translateKeys([
-                'LBL_MODULE_NAME',
-                'LBL_INPUT_KEY_SEARCH_PLACEHOLDER', 
-                'LBL_ALL',
-                'LBL_SEARCH',
-                'LBL_ADD_NEW',
-                'LBL_LOADING',
-                'LBL_TRY_AGAIN',
-                'LBL_PULL_TO_REFRESH'
-            ], 'Notes');
-            
-            setTranslations({
-                mdName: translatedLabels.LBL_MODULE_NAME,
-                searchPlaceholder: translatedLabels.LBL_INPUT_KEY_SEARCH_PLACEHOLDER,
-                selectedTypeDefault: translatedLabels.LBL_ALL,
-                searchButton: translatedLabels.LBL_SEARCH,
-                addButton: translatedLabels.LBL_ADD_NEW,
-                loading: translatedLabels.LBL_LOADING,
-                tryAgain: translatedLabels.LBL_TRY_AGAIN,
-                pullToRefresh: translatedLabels.LBL_PULL_TO_REFRESH
-            });
-            
-            // Set default filter values with translations
-            setSelectedType1(translatedLabels.LBL_ALL);
-            setSelectedType2(translatedLabels.LBL_ALL);
-            
-            setTranslationsLoaded(true);
+            try {
+                // Get all translations at once using SystemLanguageUtils
+                const translated = await systemLanguageUtils.translateKeys([
+                    'LBL_NOTES',  // Ghi chú
+                    'LBL_SEARCH_BUTTON_LABEL',  // Tìm
+                    'LBL_CREATE_BUTTON_LABEL',  // Tạo 
+                    'LBL_EMAIL_LOADING',    // "Đang tải...
+                    'UPLOAD_REQUEST_ERROR',   // Thử lại
+                    'LBL_NO_DATA',  // "Không có dữ liệu"
+                    'LBL_DROPDOWN_LIST_ALL',   // "Tất cả"
+                    'LBL_IMPORT',   // "Nhập"
+                    'LBL_SUBJECT',  // "Chủ đề"
+                    'Prospects' // "Đối tượng"
+                ]);
+                
+                setTranslations({
+                    mdName: translated.LBL_NOTES || 'Ghi chú',
+                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Nhập từ khóa tìm kiếm',
+                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
+                    loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
+                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
+                    pullToRefresh: 'Kéo để tải lại...',
+                    noData: translated.LBL_NO_DATA || 'Không có dữ liệu'
+                });
+                
+                setTranslationsLoaded(true);
+            } catch (error) {
+                console.error('NoteListScreen: Error loading translations:', error);
+                setTranslationsLoaded(true);
+            }
         };
         
         initializeTranslations();
     }, []);
+
+    // Update filter dropdown defaults when options are loaded
+    useEffect(() => {
+        if (filtersInitialized && parentTypeOptions.length > 0 && timeFilterOptions.length > 0) {
+            // Set default values for dropdowns using the first option (which should be "Tất cả")
+            setSelectedType1(parentTypeOptions[0]?.label || 'Tất cả');
+            setSelectedType2(timeFilterOptions[0]?.label || 'Tất cả');
+        }
+    }, [filtersInitialized, parentTypeOptions, timeFilterOptions]);
 
     // Utility functions for data display
     const getFieldValue = (item, fieldKey) => {
@@ -188,16 +204,18 @@ export default function NoteListScreen() {
     const handleSearch = () => {
         const filters = {};
         
-        // Parent type filter
-        if (selectedType1 !== 'All') {
+        // Parent type filter - compare with the "Tất cả" option
+        const allParentOption = parentTypeOptions[0]?.label || 'Tất cả';
+        if (selectedType1 !== allParentOption) {
             const parentType = parentTypeOptions.find(opt => opt.label === selectedType1);
             if (parentType) {
                 filters.parent_type = parentType.value;
             }
         }
         
-        // Time filter
-        if (selectedType2 !== 'All') {
+        // Time filter - compare with the "Tất cả" option
+        const allTimeOption = timeFilterOptions[0]?.label || 'Tất cả';
+        if (selectedType2 !== allTimeOption) {
             const timeFilter = timeFilterOptions.find(opt => opt.label === selectedType2);
             if (timeFilter) {
                 filters.time_filter = timeFilter.value;
@@ -279,19 +297,29 @@ export default function NoteListScreen() {
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
                                     style={styles.select} 
-                                    onPress={() => setShowDropdown1(true)}
+                                    onPress={() => filtersInitialized && setShowDropdown1(true)}
+                                    disabled={!filtersInitialized}
                                 >
-                                    <Text>{selectedType1}</Text>
+                                    <Text style={!filtersInitialized ? { color: '#ccc' } : {}}>
+                                        {filtersInitialized ? selectedType1 : 'Đang tải...'}
+                                    </Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
                                     style={styles.select} 
-                                    onPress={() => setShowDropdown2(true)}
+                                    onPress={() => filtersInitialized && setShowDropdown2(true)}
+                                    disabled={!filtersInitialized}
                                 >
-                                    <Text>{selectedType2}</Text>
+                                    <Text style={!filtersInitialized ? { color: '#ccc' } : {}}>
+                                        {filtersInitialized ? selectedType2 : 'Đang tải...'}
+                                    </Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                                <TouchableOpacity 
+                                    style={[styles.searchButton, !filtersInitialized && { backgroundColor: '#ccc' }]} 
+                                    onPress={handleSearch}
+                                    disabled={!filtersInitialized}
+                                >
                                     <Text style={{ color: '#fff' }}>{translations.searchButton}</Text>
                                 </TouchableOpacity>
                             </View>
@@ -351,6 +379,11 @@ export default function NoteListScreen() {
                             style={styles.list}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={() => (
+                                <View style={{ padding: 20, alignItems: 'center' }}>
+                                    <Text style={{ color: '#666', fontSize: 16 }}>{translations.noData}</Text>
+                                </View>
+                            )}
                             refreshControl={
                                 <RefreshControl
                                     refreshing={refreshing}
@@ -401,21 +434,25 @@ export default function NoteListScreen() {
                 
                 <BottomNavigation navigation={navigation}/>
 
-                {/* Dropdown Modals */}
-                <DropdownSelect
-                    options={typeOptions1}
-                    selectedValue={selectedType1}
-                    onSelect={setSelectedType1}
-                    visible={showDropdown1}
-                    onClose={() => setShowDropdown1(false)}
-                />
-                <DropdownSelect
-                    options={typeOptions2}
-                    selectedValue={selectedType2}
-                    onSelect={setSelectedType2}
-                    visible={showDropdown2}
-                    onClose={() => setShowDropdown2(false)}
-                />
+                {/* Dropdown Modals - only show when filters are initialized */}
+                {filtersInitialized && (
+                    <>
+                        <DropdownSelect
+                            options={typeOptions1}
+                            selectedValue={selectedType1}
+                            onSelect={setSelectedType1}
+                            visible={showDropdown1}
+                            onClose={() => setShowDropdown1(false)}
+                        />
+                        <DropdownSelect
+                            options={typeOptions2}
+                            selectedValue={selectedType2}
+                            onSelect={setSelectedType2}
+                            visible={showDropdown2}
+                            onClose={() => setShowDropdown2(false)}
+                        />
+                    </>
+                )}
             </SafeAreaProvider>
         </SafeAreaView>
     );

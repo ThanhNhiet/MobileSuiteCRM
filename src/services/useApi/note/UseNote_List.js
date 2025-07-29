@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
-import { languageUtils } from '../../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import {
@@ -15,6 +15,9 @@ export const useNoteList = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
+    
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -38,6 +41,7 @@ export const useNoteList = () => {
     // Available filter options
     const [parentTypeOptions, setParentTypeOptions] = useState([]);
     const [timeFilterOptions, setTimeFilterOptions] = useState([]);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
 
     // Initialize fields and language
     const initializeFieldsAndLanguage = useCallback(async () => {
@@ -177,7 +181,7 @@ export const useNoteList = () => {
             
         } catch (err) {
             console.warn('Initialize fields and language error:', err);
-            const errorMsg = await languageUtils.translate('ERROR_CANNOT_LOAD_DISPLAY_CONFIG');
+            const errorMsg = await systemLanguageUtils.translate('ERROR_CANNOT_LOAD_DISPLAY_CONFIG') || 'Không thể tải cấu hình hiển thị';
             setError(errorMsg);
         }
     }, []);
@@ -282,7 +286,7 @@ export const useNoteList = () => {
             setAllNotes(processedNotes);
         
         } catch (err) {
-            const fallbackError = await languageUtils.translate('ERROR_CANNOT_LOAD_NOTES_LIST');
+            const fallbackError = await systemLanguageUtils.translate('ERROR_CANNOT_LOAD_NOTES_LIST') || 'Không thể tải danh sách ghi chú';
             const errorMessage = err.response?.data?.message || err.message || fallbackError;
             setError(errorMessage);
             console.warn('Load all notes error:', err);
@@ -382,41 +386,65 @@ export const useNoteList = () => {
     // Initialize on component mount - including language data and filter options
     useEffect(() => {
         const initializeData = async () => {
-            // Initialize field definitions and language data
-            await initializeFieldsAndLanguage();
-            
-            // Get all filter translations at once
-            const filterTranslations = await languageUtils.translateKeys([
-                'LBL_ALL',
-                'LBL_ACCOUNTS', 
-                'LBL_USERS',
-                'LBL_TASKS',
-                'LBL_MEETINGS',
-                'LBL_TODAY',
-                'LBL_THIS_WEEK',
-                'LBL_THIS_MONTH'
-            ], 'Notes');
-            
-            // Set parent type options with translations
-            setParentTypeOptions([
-                { value: '', label: filterTranslations.LBL_ALL },
-                { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS },
-                { value: 'Users', label: filterTranslations.LBL_USERS },
-                { value: 'Tasks', label: filterTranslations.LBL_TASKS },
-                { value: 'Meetings', label: filterTranslations.LBL_MEETINGS }
-            ]);
-            
-            // Set time filter options with translations
-            setTimeFilterOptions([
-                { value: 'all', label: filterTranslations.LBL_ALL },
-                { value: 'today', label: filterTranslations.LBL_TODAY },
-                { value: 'this_week', label: filterTranslations.LBL_THIS_WEEK },
-                { value: 'this_month', label: filterTranslations.LBL_THIS_MONTH }
-            ]);
+            try {
+                // Initialize field definitions and language data
+                await initializeFieldsAndLanguage();
+                
+                // Get all filter translations at once
+                const filterTranslations = await systemLanguageUtils.translateKeys([
+                    'all',  // "Tất cả"
+                    'LBL_ACCOUNTS', // "Khách hàng"
+                    'LBL_CONTACTS', // "Liên hệ"
+                    'LBL_TASKS', // "Công việc"
+                    'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
+                    'LBL_DROPDOWN_LIST_ALL', // "Tất cả"
+                    'today',    // "Hôm nay"
+                    'this_week', // "Tuần này"
+                    'this_month' // "Tháng này"
+                ]);
+                
+                // Set parent type options with translations
+                setParentTypeOptions([
+                    { value: 'all', label: filterTranslations.all || 'Tất cả' },
+                    { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS || 'Khách hàng' },
+                    { value: 'Contacts', label: filterTranslations.LBL_CONTACTS || 'Liên hệ' },
+                    { value: 'Tasks', label: filterTranslations.LBL_TASKS || 'Công việc' },
+                    { value: 'Meetings', label: filterTranslations.LBL_MEETINGS || 'Hội họp' }
+                ]);
+                
+                // Set time filter options with translations
+                setTimeFilterOptions([
+                    { value: 'all', label: filterTranslations.LBL_DROPDOWN_LIST_ALL || 'Tất cả' },
+                    { value: 'today', label: filterTranslations.today || 'Hôm nay' },
+                    { value: 'this_week', label: filterTranslations.this_week || 'Tuần này' },
+                    { value: 'this_month', label: filterTranslations.this_month || 'Tháng này' }
+                ]);
+                
+                setFiltersInitialized(true);
+            } catch (error) {
+                console.error('UseNote_List: Error initializing filters:', error);
+                // Set fallback options
+                setParentTypeOptions([
+                    { value: '', label: 'Tất cả' },
+                    { value: 'Accounts', label: 'Khách hàng' },
+                    { value: 'Contacts', label: 'Liên hệ' },
+                    { value: 'Tasks', label: 'Công việc' },
+                    { value: 'Meetings', label: 'Cuộc họp' }
+                ]);
+                
+                setTimeFilterOptions([
+                    { value: 'all', label: 'Tất cả' },
+                    { value: 'today', label: 'Hôm nay' },
+                    { value: 'this_week', label: 'Tuần này' },
+                    { value: 'this_month', label: 'Tháng này' }
+                ]);
+                
+                setFiltersInitialized(true);
+            }
         };
         
         initializeData();
-    }, [initializeFieldsAndLanguage]);
+    }, []); // Remove dependency to avoid infinite loop
 
     // Load all notes when fields are ready
     useEffect(() => {
@@ -451,6 +479,7 @@ export const useNoteList = () => {
         timeFilter,
         parentTypeOptions,
         timeFilterOptions,
+        filtersInitialized,
         
         // Actions
         fetchNotes,
