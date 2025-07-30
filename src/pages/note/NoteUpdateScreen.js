@@ -67,7 +67,8 @@ export default function NoteUpdateScreen() {
           'LBL_ALT_INFO',
           'LBL_EMAIL_LOADING',
           'LBL_LOADING_PAGE',
-          'WARN_UNSAVED_CHANGES'
+          'WARN_UNSAVED_CHANGES',
+          'LBL_DELETE'
         ]);
 
         const translatedLabels_notes = await noteLanguageUtils.translateKeys([
@@ -95,7 +96,7 @@ export default function NoteUpdateScreen() {
           success: translatedLabels.LBL_EMAIL_SUCCESS || 'Thành công',
           deleteRelationSuccess: translatedLabels.LBL_EMAIL_IE_DELETE_SUCCESSFUL || 'Đã xóa mối quan hệ thành công',
           deleteRelationError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể xóa mối quan hệ',
-          deleteRelation: translatedLabels.LBL_DELETE || 'Xóa mối quan hệ',
+          deleteRelation: translatedLabels.LBL_DELETE + ' Relationship (Mối quan hệ)' || 'Xóa mối quan hệ',
           clearButton: translatedLabels.LBL_CLEAR_BUTTON_LABEL || 'Xóa',
           checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
           checkPlaceholder: '',
@@ -498,7 +499,7 @@ export default function NoteUpdateScreen() {
                   disabled={saving}
                 >
                   <Ionicons name="unlink-outline" size={24} color="#fff" />
-                  <Text style={styles.deleteButtonText}>Xóa mối quan hệ</Text>
+                  <Text style={styles.deleteButtonText}>{translations.deleteRelation}</Text>
                 </TouchableOpacity>
               </View>
             )}
