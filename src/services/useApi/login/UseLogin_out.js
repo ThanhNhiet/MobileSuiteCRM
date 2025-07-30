@@ -36,7 +36,6 @@ export const useLogin_out = () => {
       } catch (error) {
         console.warn('Error fetching system language:', error);
       }
-
       // Fetch và cache language cho từng module
       for (const module of modules) {
         try {
@@ -52,8 +51,6 @@ export const useLogin_out = () => {
           console.warn(`Error fetching language for module ${module}:`, error);
         }
       }
-      
-      console.log(`Completed caching language data for: ${lang}`);
     } catch (error) {
       console.warn('Error in fetchAndCacheLanguageData:', error);
     }

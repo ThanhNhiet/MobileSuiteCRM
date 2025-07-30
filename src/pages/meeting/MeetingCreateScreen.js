@@ -18,15 +18,15 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 
-const useMeetingCreate = (detailFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
+const useMeetingCreate = (editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
     
-    // Tạo newMeeting từ detailFields
+    // Tạo newMeeting từ editViews
     const initializeNewMeeting = () => {
         const initialData = {};
-        if (detailFields && Array.isArray(detailFields)) {
-            detailFields.forEach(field => {
+        if (editViews && Array.isArray(editViews)) {
+            editViews.forEach(field => {
                 // Khởi tạo các field với giá trị rỗng
                 initialData[field.key] = '';
             });
@@ -64,7 +64,7 @@ const useMeetingCreate = (detailFields, getFieldValue, getFieldLabel, navigation
     };
    
     return {
-        detailFields,
+        editViews,
         formData: newMeeting,
         loading,
         error: null,
@@ -76,9 +76,9 @@ const useMeetingCreate = (detailFields, getFieldValue, getFieldLabel, navigation
         getFieldError: getFieldErrorLocal,
         isFormValid: () => {
             // Find the main field for validation
-            const nameField = detailFields?.find(f => 
-                f.key === 'name' || 
-                f.key === 'title' || 
+            const nameField = editViews?.find(f =>
+                f.key === 'name' ||
+                f.key === 'title' ||
                 f.key === 'subject' ||
                 f.key.toLowerCase().includes('name') ||
                 f.key.toLowerCase().includes('title')
@@ -89,7 +89,7 @@ const useMeetingCreate = (detailFields, getFieldValue, getFieldLabel, navigation
             }
             
             // Fallback - check first field
-            const firstField = detailFields?.find(f => f.key !== 'id');
+            const firstField = editViews?.find(f => f.key !== 'id');
             if (firstField) {
                 return newMeeting[firstField.key] && newMeeting[firstField.key].trim() !== '';
             }
@@ -122,7 +122,7 @@ const useMeetingCreate = (detailFields, getFieldValue, getFieldLabel, navigation
 export default function MeetingCreateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { detailFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshMeeting: routeRefreshMeeting } = route.params || {};
+  const { editViews, requiredFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshMeeting: routeRefreshMeeting } = route.params || {};
 
   // Sử dụng custom hook
   const {
@@ -137,7 +137,7 @@ export default function MeetingCreateScreen() {
     getFieldLabel,
     getFieldError,
     isFormValid
-  } = useMeetingCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshMeeting);
+  } = useMeetingCreate(editViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshMeeting);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
@@ -175,7 +175,7 @@ export default function MeetingCreateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0) {
+  if (!editViews || editViews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -216,35 +216,64 @@ export default function MeetingCreateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
-              .filter(field => field.key !== 'id')
-              .map((field) => {
-                const fieldError = getFieldError(field.key);
-                const fieldValue = getFieldValue(field.key);
+            {editViews
+            .filter(field => field.key !== 'id')
+            .map((field) => {
+              const fieldError = getFieldError(field.key);
+              const fieldValue = getFieldValue(field.key);
+              let checkRequired = false;
+              requiredFields.map((requiredField) => {
+                if (requiredField.field === field.key ) {
+                  return checkRequired = true;
+                }
+              });
+              if (field.key === 'date_start' || field.key === 'date_end') {
+                return null;
+              }
 
+              // Handle account_type as dropdown (simplified for now)
+              if (field.key === 'account_type') {
                 return (
                   <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
+                    <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
                     <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                       <TextInput
-                        style={[
-                          styles.value,
-                          field.key === 'description' && styles.multilineInput
-                        ]}
+                        style={styles.value}
                         value={fieldValue}
-                        onChangeText={(value) => updateField(field.key, value)}
-                        placeholder={`Nhập ${field.label.toLowerCase()}`}
+                        onChangeText={(value) => updateField(field.key,value)}
+                        placeholder={`Chọn ${field.label.toLowerCase()}`}
                         autoCapitalize="none"
-                        returnKeyType={field.key === 'description' ? 'default' : 'done'}
-                        multiline={field.key === 'description'}
-                        numberOfLines={field.key === 'description' ? 4 : 1}
-                        textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                        returnKeyType="done"
                       />
                     </View>
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
-              })}
+              }
+
+              return (
+                <View key={field.key} style={styles.row}>
+                  <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
+                  <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                    <TextInput
+                      style={[
+                        styles.value,
+                        field.key === 'description' && styles.multilineInput
+                      ]}
+                      value={fieldValue}
+                      onChangeText={(value) => updateField(field.key, value)}
+                      placeholder={`Nhập ${field.label.toLowerCase()}`}
+                      autoCapitalize="none"
+                      returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                      multiline={field.key === 'description'}
+                      numberOfLines={field.key === 'description' ? 4 : 1}
+                      textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                    />
+                  </View>
+                  {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                </View>
+              );
+            })}
 
             {/* Save Button */}
             <View style={styles.buttonContainer}>

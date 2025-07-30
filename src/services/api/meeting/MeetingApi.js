@@ -26,7 +26,7 @@ MeetingApi.getFields = async (token) => {
 // lấy danh sách listfieldView
 MeetingApi.getListFieldsView = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/list-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -43,9 +43,9 @@ MeetingApi.getListFieldsView = async (token) => {
 };
 
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
-MeetingApi.getLanguage = async (token) => {
+MeetingApi.getLanguage = async (token, language) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/language/lang=${language}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -67,6 +67,24 @@ MeetingApi.getLanguage = async (token) => {
   }
 };
 
+
+// lay danh sach editView
+MeetingApi.getEditView = async (token) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/edit-fields`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getEditView:', error);
+    throw error;
+  }
+}
 // lấy data meeting theo trang
 MeetingApi.getDataByPage = async (token, page, pageSize) => {
   try{

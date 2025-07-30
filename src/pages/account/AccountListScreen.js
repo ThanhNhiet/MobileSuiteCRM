@@ -45,7 +45,7 @@ export default function AccountListScreen() {
    // const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
     const [typeOptions1, setTypeOptions1] = useState([]);
     const typeOptions2 = ['All', 'Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month'];
-
+     
     // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
     const visiblePages = [page];
 
@@ -82,21 +82,31 @@ export default function AccountListScreen() {
         try {
             setLoading(true);
             const token = await AsyncStorage.getItem('token');
-            if (!token) {   
+            const language = await AsyncStorage.getItem('selectedLanguage');
+            if (!token && !language) {
                 navigation.navigate('LoginScreen');
                 return;
             }
             // Lấy dữ liệu với 20 dòng mỗi trang
-            const result = await AccountData.getDataWithFields(token, pageNumber, 20);
-            setTypeOptions1(['All', ...result.detailFields.map(field => field.label)]);
+            //token, page, pageSize, language
+            const result = await AccountData.useListData(token, pageNumber, 20, language);
             setApiData(result);
-            setFilteredData(result.accounts || []); // Khởi tạo filtered data
+           // console.log('Dữ liệu trang', pageNumber, ':', result.listViews);
         } catch (error) {
             console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
         } finally {
             setLoading(false);
         }
     };
+    useEffect(() => {
+        fetchDataByPage(1);
+    }, []);
+    useEffect(() => {
+        if (!apiData) return;
+        const editViews = apiData?.editViews || {};
+        setTypeOptions1(['All', ...Object.entries(editViews).map(([_, view]) => view.label)]);
+        setFilteredData(apiData?.accounts || []); // Khởi tạo filtered data
+    }, [apiData]);
 
     // Function để tìm kiếm và lọc dữ liệu
     const filterData = (searchQuery, fieldFilter, dateFilter) => {
@@ -207,22 +217,17 @@ export default function AccountListScreen() {
         }
     }, [searchText, selectedType1, selectedType2, apiData]);
 
-    // Load dữ liệu khi component mount
-    useEffect(() => {
-        fetchDataByPage(1);
-    }, []);
-
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
-        const displayFields = apiData?.detailFields
-            ?.filter(field => field.key !== 'id')
-            ?.slice(0, 3) || [];
+        const displayFields = apiData?.listViews
+             ?.filter(field =>
+            ['name', 'phone_office', 'billing_address_city'].includes(field.key)
+            )
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, detailFields: apiData?.detailFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel,refreshAccount:() => fetchDataByPage(page)})}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('AccountDetailScreen', { account: item, editViews: apiData?.editViews, requiredFields: apiData?.requiredFields,listViews: apiData?.listViews,getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshAccount:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
-                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
-                    
+                    const rawValue = apiData?.getFieldValue(item, field.key.toLowerCase()) || '';
                     // Kiểm tra và format nếu là dữ liệu ngày
                     let displayValue = rawValue;
                     if (rawValue && (
@@ -340,7 +345,8 @@ export default function AccountListScreen() {
                                     navigation.navigate('AccountCreateScreen', {
                                         getFieldLabel: apiData.getFieldLabel,
                                         getFieldValue: apiData.getFieldValue,
-                                        detailFields: apiData.detailFields,
+                                        editViews: apiData.editViews,
+                                        requiredFields: apiData.requiredFields,
                                         refreshAccount: () => fetchDataByPage(page)
                                     });
                                 }}
@@ -355,11 +361,14 @@ export default function AccountListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {apiData?.detailFields
-                            ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
-                            ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
+                        {apiData?.listViews
+                            ?.filter(field =>
+                            ['name', 'phone_office', 'billing_address_city'].includes(field.key)
+                            )
                             ?.map((field, index) => (
-                            <Text key={index} style={styles.headerCell}>{field.label || field.key}</Text>
+                            <Text key={index} style={styles.headerCell}>
+                                {field.label || field.key}
+                            </Text>
                             )) || []}
                     </View>
 

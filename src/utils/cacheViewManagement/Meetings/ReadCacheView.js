@@ -13,7 +13,6 @@ ReadCacheView.checkModuleLanguageExists = async (module, language) => {
     }
 }
 
-
 ReadCacheView.checkSystemLanguageExists = async (language) => {
     try {
         const result = await cacheManager.checkSystemLanguageExists(language);
