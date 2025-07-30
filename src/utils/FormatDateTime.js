@@ -12,6 +12,18 @@ export const formatDateTime = (isoString) => {
     return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
 };
 
+/*
+    dd/MM/yyyy format
+*/
+
+export const formatDate = (isoString) => {
+    const date = new Date(isoString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+};
+
 /* 
      MM/dd/yyyy hh:mm:ss format
 */

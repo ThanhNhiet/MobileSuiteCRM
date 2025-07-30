@@ -9,7 +9,7 @@ class UserLanguageUtils {
 
     async loadLanguageData(forceReload = false) {
         const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
-        const cacheKey = `Notes-${selectedLanguage}`;
+        const cacheKey = `Users-${selectedLanguage}`;
         
         // If language changed, clear all cache
         if (this.currentLanguage !== selectedLanguage || forceReload) {
@@ -26,12 +26,12 @@ class UserLanguageUtils {
 
         try {
             // Construct path to cache file
-            const cacheFilePath = `${FileSystem.documentDirectory}cache/Notes/language/${selectedLanguage}.json`;
+            const cacheFilePath = `${FileSystem.documentDirectory}cache/Users/language/${selectedLanguage}.json`;
             
             // Check if cache file exists
             const cacheFileInfo = await FileSystem.getInfoAsync(cacheFilePath);
             if (!cacheFileInfo.exists) {
-                console.warn(`Notes language cache file not found: ${cacheFilePath}`);
+                console.warn(`Users language cache file not found: ${cacheFilePath}`);
                 return this.getEmptyLanguageData(cacheKey);
             }
 
@@ -50,7 +50,7 @@ class UserLanguageUtils {
                 
                 // Cache the result
                 this.cachedLanguageData[cacheKey] = result;
-                console.log(`Successfully loaded notes language data from cache for ${selectedLanguage}`);
+                console.log(`Successfully loaded users language data from cache for ${selectedLanguage}`);
                 return result;
             } else {
                 console.warn(`Invalid language data structure in cache file: ${cacheFilePath}`);
@@ -128,7 +128,7 @@ class UserLanguageUtils {
             const result = translation || defaultValue || key;
             return String(result);
         } catch (error) {
-            console.warn('Notes translation error for key:', key, error);
+            console.warn('Users translation error for key:', key, error);
             return String(defaultValue || key);
         }
     }
@@ -172,7 +172,7 @@ class UserLanguageUtils {
 
             return translations;
         } catch (error) {
-            console.warn('Notes translation error for keys:', keys, error);
+            console.warn('Users translation error for keys:', keys, error);
             // Return fallback object with keys as values
             const fallbackTranslations = {};
             keys.forEach(key => {
@@ -190,7 +190,7 @@ class UserLanguageUtils {
     // Clear cached language data (useful when language changes)
     clearCache(specificLanguage = null) {
         if (specificLanguage) {
-            const cacheKey = `Notes-${specificLanguage}`;
+            const cacheKey = `Users-${specificLanguage}`;
             delete this.cachedLanguageData[cacheKey];
         } else {
             this.cachedLanguageData = {};

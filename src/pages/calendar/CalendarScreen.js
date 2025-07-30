@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -12,8 +12,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCalendar } from '../../services/useApi/calendar/UseCalendar';
+import { formatDate } from '../../utils/FormatDateTime';
+import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
 
 export default function CalendarScreen({ navigation }) {
+    // Language translations
+    const [monthNames, setMonthNames] = useState([]);
+    const [dayNames, setDayNames] = useState([]);
+    const [todayText, setTodayText] = useState('Hôm nay');
+    const [noScheduleText, setNoScheduleText] = useState('Không có lịch trình nào trong ngày');
+    const [notificationText, setNotificationText] = useState('Thông báo');
+    const [headerTitle, setHeaderTitle] = useState('Lịch công việc');
+    const [loadingText, setLoadingText] = useState('Đang tải dữ liệu lịch...');
+    const [retryText, setRetryText] = useState('Thử lại');
+    const [refreshText, setRefreshText] = useState('Kéo để tải lại...');
+    const [legendText, setLegendText] = useState('Chú thích');
+    const [hasScheduleText, setHasScheduleText] = useState('Ngày có lịch trình');
+    const [taskText, setTaskText] = useState('Task');
+    const [meetingText, setMeetingText] = useState('Meeting');
+    const calendarLanguageUtils = CalendarLanguageUtils.getInstance();
+
     // Use the custom calendar hook
     const {
         currentDate,
@@ -35,12 +53,50 @@ export default function CalendarScreen({ navigation }) {
         formatDateKey
     } = useCalendar();
 
-    const monthNames = [
-        'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-        'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
-    ];
+    // Load translations
+    useEffect(() => {
+        const loadTranslations = async () => {
+            try {
+                // Get month names using the new CalendarLanguageUtils method
+                const monthLabels = await calendarLanguageUtils.getMonthNames(true); // false = use long format
+                
+                // Get day names using the new CalendarLanguageUtils method  
+                const dayLabels = await calendarLanguageUtils.getDayNames(true); // true = use short format
 
-    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                // Get other UI text translations
+                const todayLabel = await calendarLanguageUtils.translate('LBL_TODAY') || 'Hôm nay';
+                const noScheduleMessage = await calendarLanguageUtils.translate('noData') || 'Không có lịch trình nào trong ngày';
+                const notificationLabel = await calendarLanguageUtils.translate('LBL_ALT_INFO') || 'Thông báo';
+                const headerTitleLabel = await calendarLanguageUtils.translate('Calendar') || 'Lịch công việc';
+                const loadingLabel = await calendarLanguageUtils.translate('LBL_LOADING') || 'Đang tải dữ liệu lịch...';
+                const retryLabel = await calendarLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Thử lại';
+                const refreshLabel = 'Pull to refresh...';
+                const legendLabel = await calendarLanguageUtils.translate('LBL_DESCRIPTION') || 'Chú thích';
+                const hasScheduleLabel = await calendarLanguageUtils.translate('Planned') || 'Ngày có lịch trình';
+                const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS') || 'Task';
+                const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS') || 'Meeting';
+
+                setMonthNames(monthLabels);
+                setDayNames(dayLabels);
+                setTodayText(todayLabel);
+                setNoScheduleText(noScheduleMessage);
+                setNotificationText(notificationLabel);
+                setHeaderTitle(headerTitleLabel);
+                setLoadingText(loadingLabel);
+                setRetryText(retryLabel);
+                setRefreshText(refreshLabel);
+                setLegendText(legendLabel);
+                setHasScheduleText(hasScheduleLabel);
+                setTaskText(taskLabel);
+                setMeetingText(meetingLabel);
+            } catch (error) {
+                console.error('Error loading calendar translations:', error);
+                // Keep default values if translation fails
+            }
+        };
+
+        loadTranslations();
+    }, []);
 
     const handleDatePress = (date) => {
         if (!date) return;
@@ -54,17 +110,12 @@ export default function CalendarScreen({ navigation }) {
             navigation.navigate('TimetableScreen', {
                 selectedDate: dateKey,
                 events: events,
-                dateString: date.toLocaleDateString('vi-VN', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                })
+                dateString: formatDate(date)
             });
         } else {
             Alert.alert(
-                'Thông báo',
-                `Không có lịch trình nào trong ngày ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
+                notificationText,
+                `${noScheduleText} ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
             );
         }
     };
@@ -116,11 +167,11 @@ export default function CalendarScreen({ navigation }) {
                     >
                         <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Lịch công việc</Text>
+                    <Text style={styles.headerTitle}>{headerTitle}</Text>
                 </View>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#4B84FF" />
-                    <Text style={styles.loadingText}>Đang tải dữ liệu lịch...</Text>
+                    <Text style={styles.loadingText}>{loadingText}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -136,12 +187,12 @@ export default function CalendarScreen({ navigation }) {
                 >
                     <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Lịch công việc</Text>
+                <Text style={styles.headerTitle}>{headerTitle}</Text>
                 <TouchableOpacity
                     style={styles.todayButton}
                     onPress={goToToday}
                 >
-                    <Text style={styles.todayButtonText}>Hôm nay</Text>
+                    <Text style={styles.todayButtonText}>{todayText}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -153,7 +204,7 @@ export default function CalendarScreen({ navigation }) {
                         refreshing={refreshing}
                         onRefresh={onRefresh}
                         colors={['#4B84FF']}
-                        title="Kéo để tải lại..."
+                        title={refreshText}
                         titleColor="#666"
                     />
                 }
@@ -179,7 +230,7 @@ export default function CalendarScreen({ navigation }) {
                         <Ionicons name="warning-outline" size={20} color="#FF6B6B" />
                         <Text style={styles.errorText}>{error}</Text>
                         <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-                            <Text style={styles.retryButtonText}>Thử lại</Text>
+                            <Text style={styles.retryButtonText}>{retryText}</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -202,19 +253,19 @@ export default function CalendarScreen({ navigation }) {
 
                 {/* Legend */}
                 <View style={styles.legendSection}>
-                    <Text style={styles.sectionTitle}>Chú thích</Text>
+                    <Text style={styles.sectionTitle}>{legendText}</Text>
                     <View style={styles.legendContainer}>
                         <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#E3F2FD' }]} />
-                            <Text style={styles.legendText}>Ngày có lịch trình</Text>
+                            <Text style={styles.legendText}>{hasScheduleText}</Text>
                         </View>
                         <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#FF6B6B' }]} />
-                            <Text style={styles.legendText}>Task</Text>
+                            <Text style={styles.legendText}>{taskText}</Text>
                         </View>
                         <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#4ECDC4' }]} />
-                            <Text style={styles.legendText}>Meeting</Text>
+                            <Text style={styles.legendText}>{meetingText}</Text>
                         </View>
                     </View>
                 </View>

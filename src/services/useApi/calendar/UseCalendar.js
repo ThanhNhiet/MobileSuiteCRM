@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
 import {
     getMeetingsByMonthApi,
     getMeetingsLanguageApi,
@@ -7,6 +8,9 @@ import {
 } from '../../api/calendar/TaskMeetingApi';
 
 export const useCalendar = () => {
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    
     // State management
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -75,7 +79,8 @@ export const useCalendar = () => {
             setLabelsLoaded(true);
         } catch (error) {
             console.error('Error loading language labels:', error);
-            setError('Không thể tải nhãn ngôn ngữ');
+            const errorMessage = await systemLanguageUtils.translate('LBL_EMAIL_LOADING') || 'Không thể tải nhãn ngôn ngữ';
+            setError(errorMessage);
         }
     }, [labelsLoaded]);
 
@@ -169,7 +174,8 @@ export const useCalendar = () => {
 
         } catch (error) {
             console.error('Error loading calendar data:', error);
-            setError('Không thể tải dữ liệu lịch');
+            const errorMessage = await systemLanguageUtils.translate('LBL_LOADING_PAGE') || 'Không thể tải dữ liệu lịch';
+            setError(errorMessage);
         } finally {
             setLoading(false);
             setRefreshing(false);

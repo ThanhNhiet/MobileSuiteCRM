@@ -1,4 +1,6 @@
+import { formatDateTime } from '@/src/utils/FormatDateTime';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     ScrollView,
@@ -8,36 +10,101 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
 
 export default function TimetableScreen({ navigation, route }) {
     const { selectedDate, events, dateString } = route.params;
 
+    // Language translations
+    const [durationText, setDurationText] = useState('Thời lượng');
+    const [dateText, setDateText] = useState('Ngày');
+    const [startDateText, setStartDateText] = useState('Ngày bắt đầu');
+    const [dueDateText, setDueDateText] = useState('Ngày đến hạn');
+    const [endDateText, setEndDateText] = useState('Ngày kết thúc');
+    const [closeText, setCloseText] = useState('Đóng');
+    const [timetableText, setTimetableText] = useState('Thời gian biểu');
+    const [overviewText, setOverviewText] = useState('Tổng quan');
+    const [detailScheduleText, setDetailScheduleText] = useState('Lịch trình chi tiết');
+    const [taskText, setTaskText] = useState('Công việc');
+    const [meetingText, setMeetingText] = useState('Cuộc họp');
+    const [tasksText, setTasksText] = useState('Tasks');
+    const [meetingsText, setMeetingsText] = useState('Meetings');
+    const calendarLanguageUtils = CalendarLanguageUtils.getInstance();
+
+    // Load translations
+    useEffect(() => {
+        const loadTranslations = async () => {
+            try {
+                // Now that we have mod_strings support, we can use the correct Calendar module keys
+                const durationLabel = await calendarLanguageUtils.translate('LBL_DURATION');
+                const dateLabel = await calendarLanguageUtils.translate('LBL_RESCHEDULE_DATE');
+                const startDateLabel = await calendarLanguageUtils.translate('LBL_DATE');
+                const dueDateLabel = await calendarLanguageUtils.translate('Expired');
+                const endDateLabel = await calendarLanguageUtils.translate('LBL_SETTINGS_TIME_ENDS');
+                const closeLabel = await calendarLanguageUtils.translate('LBL_CLOSE_BUTTON');
+                
+                // Use correct Calendar module keys
+                const timetableLabel = await calendarLanguageUtils.translate('LBL_GENERAL_TAB');
+                const overviewLabel = await calendarLanguageUtils.translate('LBL_EMAIL_SETTINGS_GENERAL');
+                const detailScheduleLabel = await calendarLanguageUtils.translate('LBL_MODULE_NAME');
+                const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS');
+                const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
+                const tasksLabel = await calendarLanguageUtils.translate('LBL_TASKS');
+                const meetingsLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
+
+                setDurationText(durationLabel);
+                setDateText(dateLabel);
+                setStartDateText(startDateLabel);
+                setDueDateText(dueDateLabel);
+                setEndDateText(endDateLabel);
+                setCloseText(closeLabel);
+                setTimetableText(timetableLabel);
+                setOverviewText(overviewLabel);
+                setDetailScheduleText(detailScheduleLabel);
+                setTaskText(taskLabel);
+                setMeetingText(meetingLabel);
+                setTasksText(tasksLabel);
+                setMeetingsText(meetingsLabel);
+            } catch (error) {
+                console.error('Error loading timetable translations:', error);
+                // Keep default values if translation fails
+            }
+        };
+
+        loadTranslations();
+    }, []);
+
     const handleEventPress = (event) => {
-        let details = `Thời gian bắt đầu: ${event.time}`;
-        if (event.endTime) {
-            details += `\nThời gian kết thúc: ${event.endTime}`;
-        }
-        if (event.duration) {
-            details += `\nThời lượng: ${event.duration}`;
-        }
-        details += `\nNgày: ${dateString}`;
+        // let details = `${startTimeText}: ${event.time}`;
+        // if (event.endTime) {
+        //     details += `\n${endTimeText}: ${event.endTime}`;
+        // }
+        // if (event.duration) {
+        //     details += `\n${durationText}: ${event.duration}`;
+        // }
+        let details = `\n${dateText} ${dateString}`;
 
         // Hiển thị thông tin chi tiết từ rawData
         if (event.rawData && event.type === 'task') {
-            details += `\nNgày bắt đầu: ${event.rawData.attributes.date_start}`;
-            details += `\nNgày đến hạn: ${event.rawData.attributes.date_due}`;
+            const startDate_fm = formatDateTime(event.rawData.attributes.date_start);
+            const dueDate_fm = formatDateTime(event.rawData.attributes.date_due);
+            details += `\n${startDateText}: ${startDate_fm}`;
+            details += `\n${dueDateText}: ${dueDate_fm}`;
         } else if (event.rawData && event.type === 'meeting') {
-            details += `\nNgày bắt đầu: ${event.rawData.attributes.date_start}`;
-            details += `\nNgày kết thúc: ${event.rawData.attributes.date_end}`;
-            details += `\nThời lượng: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;
+            const startDate_fm = formatDateTime(event.rawData.attributes.date_start);
+            const endDate_fm = formatDateTime(event.rawData.attributes.date_end);
+            details += `\n${startDateText}: ${startDate_fm}`;
+            details += `\n${endDateText} ${endDate_fm}`;
+            details += `\n${durationText}: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;
         }
 
+        const eventTypeText = event.type === 'task' ? taskText : meetingText;
         Alert.alert(
-            `${event.type === 'task' ? 'Task' : 'Meeting'}: ${event.title}`,
+            `${eventTypeText}: ${event.title}`,
             details,
             [
                 {
-                    text: 'Đóng',
+                    text: closeText,
                     style: 'cancel'
                 },
                 // {
@@ -114,7 +181,7 @@ export default function TimetableScreen({ navigation, route }) {
                     styles.eventTypeText,
                     { color: event.type === 'task' ? '#FF6B6B' : '#4ECDC4' }
                 ]}>
-                    {event.type === 'task' ? 'Task' : 'Meeting'}
+                    {event.type === 'task' ? taskText : meetingText}
                 </Text>
             </View>
             <Text style={styles.eventTitle}>{event.title}</Text>
@@ -140,7 +207,7 @@ export default function TimetableScreen({ navigation, route }) {
                     <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
                 </TouchableOpacity>
                 <View style={styles.headerContent}>
-                    <Text style={styles.headerTitle}>Thời gian biểu</Text>
+                    <Text style={styles.headerTitle}>{timetableText}</Text>
                     <Text style={styles.headerSubtitle}>{dateString}</Text>
                 </View>
             </View>
@@ -148,14 +215,14 @@ export default function TimetableScreen({ navigation, route }) {
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Summary Card */}
                 <View style={styles.summaryCard}>
-                    <Text style={styles.summaryTitle}>Tổng quan</Text>
+                    <Text style={styles.summaryTitle}>{overviewText}</Text>
                     <View style={styles.summaryContent}>
                         <View style={styles.summaryItem}>
                             <View style={[styles.summaryIcon, { backgroundColor: '#FF6B6B' }]}>
                                 <Ionicons name="checkmark-circle" size={16} color="white" />
                             </View>
                             <Text style={styles.summaryText}>
-                                {events.filter(e => e.type === 'task').length} Tasks
+                                {events.filter(e => e.type === 'task').length} {tasksText}
                             </Text>
                         </View>
                         <View style={styles.summaryItem}>
@@ -163,7 +230,7 @@ export default function TimetableScreen({ navigation, route }) {
                                 <Ionicons name="people" size={16} color="white" />
                             </View>
                             <Text style={styles.summaryText}>
-                                {events.filter(e => e.type === 'meeting').length} Meetings
+                                {events.filter(e => e.type === 'meeting').length} {meetingsText}
                             </Text>
                         </View>
                     </View>
@@ -171,7 +238,7 @@ export default function TimetableScreen({ navigation, route }) {
 
                 {/* Timeline */}
                 <View style={styles.timelineContainer}>
-                    <Text style={styles.sectionTitle}>Lịch trình chi tiết</Text>
+                    <Text style={styles.sectionTitle}>{detailScheduleText}</Text>
                     
                     {generateTimeSlots().map((slot, index) => (
                         <View key={index} style={styles.timeSlot}>
