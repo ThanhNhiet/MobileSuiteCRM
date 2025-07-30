@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
-import { languageUtils } from '../../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentId_typeByNoteIdApi } from '../../api/note/NoteApi';
@@ -12,6 +12,9 @@ export const useNoteDetail = (noteId) => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
     // Fields and labels
     const [detailFields, setDetailFields] = useState([]);
@@ -173,7 +176,8 @@ export const useNoteDetail = (noteId) => {
             
         } catch (err) {
             console.warn('Initialize detail fields error:', err);
-            setError(languageUtils.translate('ERROR_CANNOT_LOAD_DETAIL_CONFIG'));
+            const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình chi tiết';
+            setError(errorMsg);
         }
     }, []);
 
@@ -211,7 +215,8 @@ export const useNoteDetail = (noteId) => {
             setNote(noteData);
             
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('ERROR_CANNOT_LOAD_NOTE_DETAIL');
+            const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải chi tiết ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || fallbackError;
             setError(errorMessage);
             console.warn('Fetch note detail error:', err);
         } finally {
@@ -232,7 +237,8 @@ export const useNoteDetail = (noteId) => {
             
             return true;
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('ERROR_CANNOT_DELETE_NOTE');
+            const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể xóa ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || fallbackError;
             setError(errorMessage);
             console.warn('Delete note error:', err);
             return false;

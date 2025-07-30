@@ -181,7 +181,7 @@ export const useNoteList = () => {
             
         } catch (err) {
             console.warn('Initialize fields and language error:', err);
-            const errorMsg = await systemLanguageUtils.translate('ERROR_CANNOT_LOAD_DISPLAY_CONFIG') || 'Không thể tải cấu hình hiển thị';
+            const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình hiển thị';
             setError(errorMsg);
         }
     }, []);
@@ -286,7 +286,7 @@ export const useNoteList = () => {
             setAllNotes(processedNotes);
         
         } catch (err) {
-            const fallbackError = await systemLanguageUtils.translate('ERROR_CANNOT_LOAD_NOTES_LIST') || 'Không thể tải danh sách ghi chú';
+            const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải danh sách ghi chú';
             const errorMessage = err.response?.data?.message || err.message || fallbackError;
             setError(errorMessage);
             console.warn('Load all notes error:', err);

@@ -74,7 +74,7 @@ const AlertModal = ({ visible, onClose }) => {
                     deleteAllError: translated.LBL_EMAIL_NOT_SENT ||'Không thể xóa tất cả thông báo',
                     markAllRead: translated.LBL_EMAIL_MENU_HELP_MARK_READ || 'Đánh dấu đã đọc tất cả',
                     noNotifications: translated.noData || 'Không có thông báo nào',
-                    refreshPull: translated.LBL_LOADING_PAGE || 'Kéo để tải lại...'
+                    refreshPull: 'Pull to refresh...'
                 });
             } catch (error) {
                 console.error('Error loading Alert translations:', error);

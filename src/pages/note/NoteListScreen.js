@@ -93,7 +93,7 @@ export default function NoteListScreen() {
                     addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
                     loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
                     tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
-                    pullToRefresh: 'Kéo để tải lại...',
+                    pullToRefresh: 'Pull to refresh...',
                     noData: translated.LBL_NO_DATA || 'Không có dữ liệu'
                 });
                 
