@@ -334,9 +334,9 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 // Kiểm tra field rỗng hoặc chỉ chứa khoảng trắng
                 if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim())) {
                     // Tạo error message với label đã loại bỏ dấu *
-                    const labelText = field.label.replace(' *', '');
-                    const requiredMessage = await systemLanguageUtils.translate('MSG_FIELD_REQUIRED') || 'là bắt buộc';
-                    errors[field.key] = `${labelText} ${requiredMessage}`;
+                    // const labelText = field.label.replace(' *', '');
+                    const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
+                    errors[field.key] = `${requiredMessage}`;
                 }
             }
         }
@@ -371,7 +371,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
             if (!hasChanges()) {
                 setLoading(false);
                 const noDataLabel = await systemLanguageUtils.translate('LBL_NO_DATA') || 'Không có dữ liệu';
-                const openNewLabel = await systemLanguageUtils.translate('MSG_NO_CHANGES') || 'để cập nhật';
+                const openNewLabel = await systemLanguageUtils.translate('Open_New') || 'mới';
                 return {
                     success: false,
                     error: `${noDataLabel} ${openNewLabel}`

@@ -1,12 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
-import { languageUtils } from '../../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
 import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
 import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
 import { checkParentNameExistsApi, createNoteApi, createNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi } from '../../api/note/NoteApi';
 
 export const useNoteCreate = () => {
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
@@ -269,7 +272,7 @@ export const useNoteCreate = () => {
             
         } catch (err) {
             console.warn('Initialize create fields error:', err);
-            setError(languageUtils.translate('ERROR_LOADING_CREATE_FIELDS'));
+            setError(systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE'));
         }
     }, []);
 
@@ -315,15 +318,18 @@ export const useNoteCreate = () => {
         const errors = {};
         
         // Check required fields
-        createFields.forEach(field => {
+        for (const field of createFields) {
             if (field.required && !formData[field.key]?.trim()) {
-                errors[field.key] = `${field.label} ${languageUtils.translate('MSG_FIELD_REQUIRED')}`;
+                const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
+                errors[field.key] = `${requiredMessage}`;
             }
-        });
+        }
         
         // If parent_id is provided, parent_type must be selected
         if (formData.parent_id?.trim() && !formData.parent_type) {
-            errors.parent_type = languageUtils.translate('MSG_PARENT_TYPE_REQUIRED');
+            const selectLabel = await systemLanguageUtils.translate('LBL_SELECT_BUTTON_LABEL') || 'Vui lòng chọn';
+            const parentTypeLabel = await systemLanguageUtils.translate('LBL_PARENT_TYPE') || 'loại parent';
+            errors.parent_type = `${selectLabel} ${parentTypeLabel}`;
         }
         
         setValidationErrors(errors);
@@ -384,7 +390,8 @@ export const useNoteCreate = () => {
             
             if (!noteId) {
                 console.error('Full response structure:', JSON.stringify(response, null, 2));
-                throw new Error(languageUtils.translate('ERROR_EXTRACT_NOTE_ID'));
+                const extractError = await systemLanguageUtils.translate('ERROR_EXTRACT_NOTE_ID') || 'Cannot extract note ID from response';
+                throw new Error(extractError);
             }
             
             // Create parent relationship if specified
@@ -398,7 +405,8 @@ export const useNoteCreate = () => {
                 noteId: noteId
             };
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || languageUtils.translate('MSG_CREATE_ERROR');
+            const createErrorMessage = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tạo ghi chú';
+            const errorMessage = err.response?.data?.message || err.message || createErrorMessage;
             setError(errorMessage);
             console.warn('Create note error:', err);
             return {
@@ -451,10 +459,12 @@ export const useNoteCreate = () => {
     // Check parent name exists
     const checkParentName = useCallback(async () => {
         if (!formData.parent_type || !formData.parent_id?.trim()) {
+            const importLabel = await systemLanguageUtils.translate('LBL_IMPORT') || 'nhập';
+            const idLabel = await systemLanguageUtils.translate('LBL_ID') || 'ID';
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: languageUtils.translate('MSG_PARENT_ID_REQUIRED')
+                parent_check_error: `${importLabel} ${idLabel}`
             }));
             return;
         }
@@ -479,18 +489,20 @@ export const useNoteCreate = () => {
                 }));
             } else {
                 // Parent not found
+                const parentNotFoundMessage = await systemLanguageUtils.translate('MSG_LIST_VIEW_NO_RESULTS_BASIC') || 'Không tìm thấy parent';
                 setFormData(prev => ({
                     ...prev,
                     parent_name: '',
-                    parent_check_error: result?.error || languageUtils.translate('MSG_PARENT_NOT_FOUND')
+                    parent_check_error: result?.error || parentNotFoundMessage
                 }));
             }
         } catch (err) {
             console.warn('Check parent error:', err);
+            const parentCheckErrorMessage = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi kiểm tra parent';
             setFormData(prev => ({
                 ...prev,
                 parent_name: '',
-                parent_check_error: languageUtils.translate('MSG_PARENT_CHECK_ERROR')
+                parent_check_error: parentCheckErrorMessage
             }));
         }
     }, [formData.parent_type, formData.parent_id]);

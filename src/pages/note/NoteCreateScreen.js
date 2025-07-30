@@ -1,4 +1,5 @@
 //import { useNavigation } from '@react-navigation/native';
+import { NoteLanguageUtils } from '@/src/utils/cacheViewManagement/Notes/NoteLanguageUtils';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,8 +18,12 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 import { useNoteCreate } from '../../services/useApi/note/UseNote_Create';
-import { languageUtils } from '../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+
 export default function NoteCreateScreen({ navigation }) {
+  // LanguageUtils instance
+  const systemLanguageUtils = SystemLanguageUtils.getInstance();
+  const noteLanguageUtils = NoteLanguageUtils.getInstance();
 
   // Initialize translations
   const [translations, setTranslations] = useState({});
@@ -26,46 +31,75 @@ export default function NoteCreateScreen({ navigation }) {
   // Initialize translations
   useEffect(() => {
     const initializeTranslations = async () => {
-      await languageUtils.loadLanguageData('Notes');
-      
-      // Get all translations at once
-      const translatedLabels = await languageUtils.translateKeys([
-        'LBL_MODULE_NAME',
-        'LBL_CREATE_MODULE',
-        'LBL_LOADING_CREATE',
-        'LBL_CREATE_SUCCESS',
-        'MSG_CREATE_SUCCESS',
-        'LBL_ERROR',
-        'MSG_CREATE_ERROR',
-        'LBL_OK',
-        'LBL_CREATE_BUTTON',
-        'LBL_CHECK_BUTTON',
-        'LBL_CHECK_PLACEHOLDER',
-        'LBL_SELECT_PLACEHOLDER',
-        'LBL_ACCOUNTS',
-        'LBL_USERS',
-        'LBL_TASKS',
-        'LBL_MEETINGS'
-      ], 'Notes');
+      try {
+        // Get all translations at once using SystemLanguageUtils
+        const translatedLabels = await systemLanguageUtils.translateKeys([
+          'Notes',
+          'LBL_CREATE_BUTTON_LABEL',
+          'LBL_EMAIL_LOADING', 
+          'LBL_EMAIL_SUCCESS',
+          'LBL_ALT_INFO',
+          'UPLOAD_REQUEST_ERROR',
+          'Alerts',
+          'LBL_OK',
+          'LBL_SEARCH',
+          'LBL_ID_FF_SELECT',
+          'LBL_ACCOUNTS',
+          'LBL_USERS',
+          'LBL_TASKS',
+          'LBL_MEETINGS',
+          'LBL_CHECK_TO_VERIFY',
+          'LBL_PARENT_ID_LABEL'
+        ]);
+        
+        const translatedLabels_notes = await noteLanguageUtils.translateKeys([
+          'LBL_PARENT_ID'
+        ]);
 
-      setTranslations({
-        mdName: translatedLabels.LBL_MODULE_NAME,
-        createModule: translatedLabels.LBL_CREATE_MODULE,
-        loadingText: translatedLabels.LBL_LOADING_CREATE,
-        successTitle: translatedLabels.LBL_CREATE_SUCCESS,
-        successMessage: translatedLabels.MSG_CREATE_SUCCESS,
-        errorTitle: translatedLabels.LBL_ERROR,
-        errorMessage: translatedLabels.MSG_CREATE_ERROR,
-        ok: translatedLabels.LBL_OK,
-        createButton: translatedLabels.LBL_CREATE_BUTTON,
-        checkButton: translatedLabels.LBL_CHECK_BUTTON,
-        checkPlaceholder: translatedLabels.LBL_CHECK_PLACEHOLDER,
-        selectPlaceholder: translatedLabels.LBL_SELECT_PLACEHOLDER,
-        accounts: translatedLabels.LBL_ACCOUNTS,
-        users: translatedLabels.LBL_USERS,
-        tasks: translatedLabels.LBL_TASKS,
-        meetings: translatedLabels.LBL_MEETINGS
-      });
+        setTranslations({
+          mdName: translatedLabels.Notes || 'Ghi chú',
+          createModule: translatedLabels.LBL_CREATE_BUTTON_LABEL + ' ' + translatedLabels.Notes || 'Tạo Ghi chú',
+          loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
+          successTitle: translatedLabels.LBL_ALT_INFO || 'Thông tin',
+          successMessage: translatedLabels.LBL_EMAIL_SUCCESS || 'Tạo ghi chú thành công!',
+          errorTitle: translatedLabels.Alerts || 'Lỗi',
+          errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể tạo ghi chú',
+          ok: translatedLabels.LBL_OK,
+          createButton: translatedLabels.LBL_CREATE_BUTTON_LABEL,
+          checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
+          checkPlaceholder: '',
+          selectPlaceholder: translatedLabels.LBL_ID_FF_SELECT || 'Chọn',
+          accounts: translatedLabels.LBL_ACCOUNTS,
+          users: translatedLabels.LBL_USERS,
+          tasks: translatedLabels.LBL_TASKS,
+          meetings: translatedLabels.LBL_MEETINGS,
+          checkToVerify: '',
+          parentIdLabel: translatedLabels_notes.LBL_PARENT_ID || 'ID Cha',
+        });
+      } catch (error) {
+        console.warn('Translation initialization error:', error);
+        // Set fallback translations
+        setTranslations({
+          mdName: 'Ghi chú',
+          createModule: 'Tạo Ghi chú',
+          loadingText: 'Đang tải...',
+          successTitle: 'Thành công',
+          successMessage: 'Tạo ghi chú thành công!',
+          errorTitle: 'Lỗi',
+          errorMessage: 'Không thể tạo ghi chú',
+          ok: 'OK',
+          createButton: 'Tạo',
+          checkButton: 'Check',
+          checkPlaceholder: 'Nhập để kiểm tra',
+          selectPlaceholder: '--------',
+          accounts: 'Khách hàng',
+          users: 'Người dùng',
+          tasks: 'Nhiệm vụ',
+          meetings: 'Cuộc họp',
+          checkToVerify: '',
+          parentIdLabel: 'ID Cha'
+        });
+      }
     };
 
     initializeTranslations();
@@ -280,7 +314,7 @@ export default function NoteCreateScreen({ navigation }) {
                       ) : (
                         <View style={[styles.valueBox, styles.placeholderBox]}>
                           <Text style={[styles.value, styles.placeholderText]}>
-                            {translations.checkPlaceholder || 'Nhấn Check để kiểm tra'}
+                            {translations.checkPlaceholder}
                           </Text>
                         </View>
                       )}
