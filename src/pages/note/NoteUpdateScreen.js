@@ -17,12 +17,17 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 import { useNoteUpdate } from '../../services/useApi/note/UseNote_Update';
-import { languageUtils } from '../../utils/LanguageUtils';
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { NoteLanguageUtils } from '../../utils/cacheViewManagement/Notes/NoteLanguageUtils';
 
 export default function NoteUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { noteData } = route.params || {};
+
+  // LanguageUtils instance
+  const systemLanguageUtils = SystemLanguageUtils.getInstance();
+  const noteLanguageUtils = NoteLanguageUtils.getInstance();
 
   // Initialize translations
   const [translations, setTranslations] = useState({});
@@ -30,68 +35,117 @@ export default function NoteUpdateScreen() {
   // Initialize translations
   useEffect(() => {
     const initializeTranslations = async () => {
-      await languageUtils.loadLanguageData('Notes');
-      
-      // Get all translations at once
-      const translatedLabels = await languageUtils.translateKeys([
-        'LBL_MODULE_NAME',
-        'LBL_UPDATE_MODULE',
-        'LBL_LOADING_TEXT',
-        'LBL_UPDATE_SUCCESS',
-        'MSG_UPDATE_SUCCESS',
-        'LBL_ERROR',
-        'MSG_UPDATE_ERROR',
-        'LBL_OK',
-        'LBL_SAVE_BUTTON',
-        'LBL_CONFIRM',
-        'MSG_UNSAVED_CHANGES',
-        'LBL_CANCEL',
-        'LBL_EXIT',
-        'LBL_NOTIFICATION',
-        'MSG_NO_RELATIONSHIP',
-        'LBL_CONFIRM_DELETE_RELATION',
-        'MSG_CONFIRM_DELETE_RELATION',
-        'LBL_SUCCESS',
-        'MSG_DELETE_RELATION_SUCCESS',
-        'MSG_DELETE_RELATION_ERROR',
-        'LBL_DELETE_RELATION',
-        'LBL_CLEAR_BUTTON',
-        'LBL_CHECK_BUTTON',
-        'LBL_CHECK_PLACEHOLDER',
-        'LBL_SELECT_PLACEHOLDER',
-        'LBL_CHECK_TO_VERIFY',
-        'LBL_PARENT_ID_LABEL'
-      ], 'Notes');
+      try {
+        // Get all translations at once using SystemLanguageUtils
+        const translatedLabels = await systemLanguageUtils.translateKeys([
+          'LBL_EDIT_BUTTON_LABEL',
+          'Notes',
+          'LBL_EMAIL_LOADING',
+          'LBL_EMAIL_SUCCESS',
+          'LBL_UPDATE',
+          'LBL_EMAIL_ERROR_DESC',
+          'MSG_UPDATE_ERROR',
+          'LBL_OK',
+          'LBL_SAVE_CHANGES_BUTTON_TITLE',
+          'LBL_CLOSE_ACTIVITY_HEADER',
+          'NTC_REMOVE_CONFIRMATION',
+          'LBL_CANCEL',
+          'LBL_CONFIRM_DISREGARD_EMAIL_TITLE',
+          'Alerts',
+          'MSG_NO_RELATIONSHIP',
+          'LBL_CONFIRM_DELETE_RELATION',
+          'MSG_CONFIRM_DELETE_RELATION',
+          'LBL_EMAIL_IE_DELETE_SUCCESSFUL',
+          'UPLOAD_REQUEST_ERROR',
+          'LBL_DELETE_RELATION',
+          'LBL_CLEAR_BUTTON_LABEL',
+          'LBL_SEARCH',
+          'LBL_CHECK_PLACEHOLDER',
+          'LBL_SELECT_PLACEHOLDER',
+          'LBL_CHECK_TO_VERIFY',
+          'LBL_PARENT_ID_LABEL',
+          'LBL_ALT_INFO',
+          'LBL_EMAIL_LOADING',
+          'LBL_LOADING_PAGE',
+          'WARN_UNSAVED_CHANGES'
+        ]);
 
-      setTranslations({
-        mdName: translatedLabels.LBL_MODULE_NAME,
-        updateModule: translatedLabels.LBL_UPDATE_MODULE,
-        loadingText: translatedLabels.LBL_LOADING_TEXT,
-        successTitle: translatedLabels.LBL_UPDATE_SUCCESS,
-        successMessage: translatedLabels.MSG_UPDATE_SUCCESS,
-        errorTitle: translatedLabels.LBL_ERROR,
-        errorMessage: translatedLabels.MSG_UPDATE_ERROR,
-        ok: translatedLabels.LBL_OK,
-        saveButton: translatedLabels.LBL_SAVE_BUTTON,
-        confirmTitle: translatedLabels.LBL_CONFIRM,
-        unsavedChanges: translatedLabels.MSG_UNSAVED_CHANGES,
-        cancel: translatedLabels.LBL_CANCEL,
-        exit: translatedLabels.LBL_EXIT,
-        notification: translatedLabels.LBL_NOTIFICATION,
-        noRelationship: translatedLabels.MSG_NO_RELATIONSHIP,
-        confirmDeleteRelation: translatedLabels.LBL_CONFIRM_DELETE_RELATION,
-        confirmDeleteRelationMsg: translatedLabels.MSG_CONFIRM_DELETE_RELATION,
-        success: translatedLabels.LBL_SUCCESS,
-        deleteRelationSuccess: translatedLabels.MSG_DELETE_RELATION_SUCCESS,
-        deleteRelationError: translatedLabels.MSG_DELETE_RELATION_ERROR,
-        deleteRelation: translatedLabels.LBL_DELETE_RELATION,
-        clearButton: translatedLabels.LBL_CLEAR_BUTTON,
-        checkButton: translatedLabels.LBL_CHECK_BUTTON,
-        checkPlaceholder: translatedLabels.LBL_CHECK_PLACEHOLDER,
-        selectPlaceholder: translatedLabels.LBL_SELECT_PLACEHOLDER,
-        checkToVerify: translatedLabels.LBL_CHECK_TO_VERIFY || 'Nhấn Check để kiểm tra',
-        parentIdLabel: translatedLabels.LBL_PARENT_ID || 'ID Cha'
-      });
+        const translatedLabels_notes = await noteLanguageUtils.translateKeys([
+          'LBL_PARENT_ID'
+        ]);
+
+        setTranslations({
+          mdName: translatedLabels.Notes || 'Sửa Ghi chú',
+          updateModule: translatedLabels.LBL_EDIT_BUTTON_LABEL + ' ' + translatedLabels.Notes || 'Cập nhật Ghi chú',
+          loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
+          successTitle: translatedLabels.LBL_EMAIL_SUCCESS || 'Thành công',
+          successMessage: translatedLabels.LBL_UPDATE + ' ' + translatedLabels.LBL_EMAIL_SUCCESS || 'Cập nhật ghi chú thành công!',
+          errorTitle: translatedLabels.LBL_EMAIL_ERROR_DESC || 'Lỗi',
+          errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể cập nhật ghi chú',
+          ok: translatedLabels.LBL_OK,
+          saveButton: translatedLabels.LBL_SAVE_CHANGES_BUTTON_TITLE || 'Lưu',
+          confirmTitle: translatedLabels.LBL_CLOSE_ACTIVITY_HEADER || 'Xác nhận',
+          unsavedChanges: translatedLabels.WARN_UNSAVED_CHANGES || 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
+          cancel: translatedLabels.LBL_CANCEL || 'Hủy',
+          exit: translatedLabels.LBL_CONFIRM_DISREGARD_EMAIL_TITLE || 'Thoát',
+          notification: translatedLabels.Alerts || 'Thông báo',
+          noRelationship: translatedLabels.MSG_NO_RELATIONSHIP,
+          confirmDeleteRelation: translatedLabels.LBL_DELETE || 'Xóa mối quan hệ',
+          confirmDeleteRelationMsg: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
+          success: translatedLabels.LBL_EMAIL_SUCCESS || 'Thành công',
+          deleteRelationSuccess: translatedLabels.LBL_EMAIL_IE_DELETE_SUCCESSFUL || 'Đã xóa mối quan hệ thành công',
+          deleteRelationError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể xóa mối quan hệ',
+          deleteRelation: translatedLabels.LBL_DELETE || 'Xóa mối quan hệ',
+          clearButton: translatedLabels.LBL_CLEAR_BUTTON_LABEL || 'Xóa',
+          checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
+          checkPlaceholder: '',
+          selectPlaceholder: translatedLabels.LBL_ID_FF_SELECT || 'Chọn',
+          checkToVerify: '',
+          parentIdLabel: translatedLabels_notes.LBL_PARENT_ID || 'ID Cha',
+          removeConfirmation: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Bạn có chắc bạn muốn loại bỏ mối quan hệ này? Chỉ có các mối quan hệ sẽ được gỡ bỏ. Hồ sơ sẽ không bị xóa.',
+          altInfo: translatedLabels.LBL_ALT_INFO || 'Thông tin',
+          emailLoading: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
+          uploadRequestError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
+          loadingPage: translatedLabels.LBL_LOADING_PAGE || 'Đang tải trang, xin chờ...'
+        });
+      } catch (error) {
+        console.warn('Translation initialization error:', error);
+        // Set fallback translations
+        setTranslations({
+          mdName: 'Ghi chú',
+          updateModule: 'Cập nhật Ghi chú',
+          loadingText: 'Đang tải...',
+          successTitle: 'Thành công',
+          successMessage: 'Cập nhật ghi chú thành công!',
+          errorTitle: 'Lỗi',
+          errorMessage: 'Không thể cập nhật ghi chú',
+          ok: 'OK',
+          saveButton: 'Lưu',
+          confirmTitle: 'Xác nhận',
+          unsavedChanges: 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
+          cancel: 'Hủy',
+          exit: 'Thoát',
+          notification: 'Thông báo',
+          noRelationship: 'Không có mối quan hệ nào để xóa',
+          confirmDeleteRelation: 'Xác nhận xóa',
+          confirmDeleteRelationMsg: 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
+          success: 'Thành công',
+          deleteRelationSuccess: 'Đã xóa mối quan hệ thành công',
+          deleteRelationError: 'Không thể xóa mối quan hệ',
+          deleteRelation: 'Xóa mối quan hệ',
+          clearButton: 'Xóa',
+          checkButton: 'Check',
+          checkPlaceholder: 'Nhập để kiểm tra',
+          selectPlaceholder: '--------',
+          checkToVerify: '',
+          parentIdLabel: 'ID Cha',
+          removeConfirmation: 'Bạn có chắc bạn muốn loại bỏ mối quan hệ này? Chỉ có các mối quan hệ sẽ được gỡ bỏ. Hồ sơ sẽ không bị xóa.',
+          altInfo: 'Thông tin',
+          emailLoading: 'Đang tải...',
+          uploadRequestError: 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
+          loadingPage: 'Đang tải trang, xin chờ...'
+        });
+      }
     };
 
     initializeTranslations();
@@ -120,16 +174,16 @@ export default function NoteUpdateScreen() {
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
-  
+
   // Loading state for parent check
   const [checkingParent, setCheckingParent] = useState(false);
-  
+
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
-  
+
   // Parent type options with translations
   const [parentTypeOptions, setParentTypeOptions] = useState([]);
-  
+
   // Load parent type options
   useEffect(() => {
     const loadParentTypeOptions = async () => {
@@ -195,13 +249,13 @@ export default function NoteUpdateScreen() {
   const handleDeleteParentRelationship = async () => {
     const currentParentType = getFieldValue('parent_type');
     const currentParentId = getFieldValue('parent_id');
-    
+
     // Check if there's a relationship to delete
     if (!currentParentType && !currentParentId) {
       Alert.alert(translations.notification || 'Thông báo', translations.noRelationship || 'Không có mối quan hệ nào để xóa');
       return;
     }
-    
+
     Alert.alert(
       translations.confirmDeleteRelation || 'Xác nhận xóa',
       translations.confirmDeleteRelationMsg || 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
@@ -237,11 +291,11 @@ export default function NoteUpdateScreen() {
   // Render field label with red asterisk for required fields
   const renderFieldLabel = (fieldKey) => {
     const labelData = getStyledFieldLabel(fieldKey);
-    
+
     if (typeof labelData === 'string') {
       return <Text style={styles.label}>{labelData}</Text>;
     }
-    
+
     if (labelData.required) {
       return (
         <Text style={styles.label}>
@@ -250,7 +304,7 @@ export default function NoteUpdateScreen() {
         </Text>
       );
     }
-    
+
     return <Text style={styles.label}>{labelData.text}</Text>;
   };
 
@@ -310,7 +364,7 @@ export default function NoteUpdateScreen() {
                 return (
                   <View key={field.key} style={styles.row}>
                     {renderFieldLabel(field.key)}
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[styles.valueBox, fieldError && styles.errorInput]}
                       onPress={() => setShowParentTypeModal(true)}
                     >
@@ -340,7 +394,7 @@ export default function NoteUpdateScreen() {
                       </View>
                       {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                     </View>
-                    
+
                     {/* Check button as label and result field below */}
                     <View style={styles.row}>
                       <View style={styles.checkLabelContainer}>
@@ -373,7 +427,7 @@ export default function NoteUpdateScreen() {
                       ) : (
                         <View style={[styles.valueBox, styles.placeholderBox]}>
                           <Text style={[styles.value, styles.placeholderText]}>
-                            {translations.checkToVerify || 'Nhấn Check để kiểm tra'}
+                            {translations.checkToVerify}
                           </Text>
                         </View>
                       )}
@@ -425,7 +479,9 @@ export default function NoteUpdateScreen() {
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Ionicons name="save-outline" size={24} color="#fff" />
+                  <Text style={styles.deleteButtonText}>
+                    {translations.saveButton || 'Lưu'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -456,12 +512,12 @@ export default function NoteUpdateScreen() {
           animationType="slide"
           onRequestClose={() => setShowParentTypeModal(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalOverlay}
             activeOpacity={1}
             onPress={() => setShowParentTypeModal(false)}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalContainer}
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
