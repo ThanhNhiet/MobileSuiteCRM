@@ -11,9 +11,11 @@ import {
     View,
 } from 'react-native';
 import { useChangePassword } from '../../services/useApi/user/UseUser_ChangePswd';
+import { UserLanguageUtils } from '../../utils/cacheViewManagement/Users/UserLanguageUtils';
 
 const ChangePasswordScreen = () => {
     const navigation = useNavigation();
+    const userLanguageUtils = UserLanguageUtils.getInstance();
     
     // Custom hook để handle change password
     const { changing, error, success, changePassword, clearError } = useChangePassword();
@@ -26,6 +28,72 @@ const ChangePasswordScreen = () => {
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
+    // Translated labels
+    const [labels, setLabels] = useState({
+        success: 'Thành công',
+        passwordSent: 'Mật khẩu đã được đổi',
+        passwordSuccess: 'Đổi mật khẩu thành công!',
+        processing: 'Đang xử lý...',
+        updating: 'Đang cập nhật...',
+        changePassword: 'Đổi mật khẩu',
+        updatePassword: 'Cập nhật mật khẩu',
+        import: 'Nhập',
+        oldPassword: 'Mật khẩu hiện tại',
+        newPassword: 'Mật khẩu mới',
+        confirmPassword: 'Xác nhận mật khẩu',
+        retypePassword: 'Xác nhận mật khẩu'
+    });
+
+    // Load translations
+    useEffect(() => {
+        const loadTranslations = async () => {
+            try {
+                const [
+                    successLabel,
+                    passwordSentLabel,
+                    processingLabel,
+                    updatingLabel,
+                    changePasswordLabel,
+                    updatePasswordLabel,
+                    importLabel,
+                    oldPasswordLabel,
+                    newPasswordLabel,
+                    confirmPasswordLabel
+                ] = await Promise.all([
+                    userLanguageUtils.translate('LBL_EMAIL_SUCCESS', 'Thành công'),
+                    userLanguageUtils.translate('LBL_PASSWORD_SENT', 'Mật khẩu đã được đổi'),
+                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST', 'Đang xử lý...'),
+                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST', 'Đang cập nhật...'),
+                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD', 'Đổi mật khẩu'),
+                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD', 'Cập nhật mật khẩu'),
+                    userLanguageUtils.translate('LBL_IMPORT', 'Nhập'),
+                    userLanguageUtils.translate('LBL_OLD_PASSWORD', 'Mật khẩu hiện tại'),
+                    userLanguageUtils.translate('LBL_NEW_PASSWORD', 'Mật khẩu mới'),
+                    userLanguageUtils.translate('LBL_NEW_PASSWORD2', 'Xác nhận mật khẩu')
+                ]);
+
+                setLabels({
+                    success: successLabel,
+                    passwordSent: passwordSentLabel,
+                    passwordSuccess: passwordSentLabel,
+                    processing: processingLabel,
+                    updating: updatingLabel,
+                    changePassword: changePasswordLabel,
+                    updatePassword: updatePasswordLabel,
+                    import: importLabel,
+                    oldPassword: oldPasswordLabel,
+                    newPassword: newPasswordLabel,
+                    confirmPassword: confirmPasswordLabel,
+                    retypePassword: confirmPasswordLabel
+                });
+            } catch (error) {
+                console.warn('Error loading change password translations:', error);
+            }
+        };
+
+        loadTranslations();
+    }, []);
+
     // Clear error khi người dùng thay đổi input
     useEffect(() => {
         if (error) {
@@ -37,7 +105,7 @@ const ChangePasswordScreen = () => {
         const success = await changePassword(currentPassword, newPassword, confirmPassword);
         
         if (success) {
-            Alert.alert('Thành công', 'Mật khẩu đã được đổi.', [
+            Alert.alert(labels.success, labels.passwordSent, [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
         }
@@ -53,7 +121,7 @@ const ChangePasswordScreen = () => {
                     value={value}
                     onChangeText={text => setValue(text)}
                     secureTextEntry={!show}
-                    placeholder={`Nhập ${label.toLowerCase()}`}
+                    placeholder={`${labels.import} ${label.toLowerCase()}`}
                 />
                 <TouchableOpacity onPress={() => setShow(!show)}>
                     <Ionicons name={show ? 'eye-off' : 'eye'} size={24} color="gray" />
@@ -79,13 +147,13 @@ const ChangePasswordScreen = () => {
             {success && (
                 <View style={styles.successContainer}>
                     <Ionicons name="checkmark-circle-outline" size={20} color="#34C759" />
-                    <Text style={styles.successText}>Đổi mật khẩu thành công!</Text>
+                    <Text style={styles.successText}>{labels.passwordSent}</Text>
                 </View>
             )}
 
-            {renderPasswordInput('Mật khẩu hiện tại', currentPassword, setCurrentPassword, showCurrent, setShowCurrent)}
-            {renderPasswordInput('Mật khẩu mới', newPassword, setNewPassword, showNew, setShowNew)}
-            {renderPasswordInput('Xác nhận mật khẩu', confirmPassword, setConfirmPassword, showConfirm, setShowConfirm)}
+            {renderPasswordInput(labels.oldPassword, currentPassword, setCurrentPassword, showCurrent, setShowCurrent)}
+            {renderPasswordInput(labels.newPassword, newPassword, setNewPassword, showNew, setShowNew)}
+            {renderPasswordInput(labels.retypePassword, confirmPassword, setConfirmPassword, showConfirm, setShowConfirm)}
 
             <TouchableOpacity
                 style={[styles.button, changing && styles.buttonDisabled]}
@@ -93,7 +161,7 @@ const ChangePasswordScreen = () => {
                 disabled={changing}
             >
                 <Text style={styles.buttonText}>
-                    {changing ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                    {changing ? labels.updating : labels.updatePassword}
                 </Text>
             </TouchableOpacity>
         </SafeAreaView>

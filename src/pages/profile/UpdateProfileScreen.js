@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Image,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -18,85 +21,287 @@ export default function UpdateProfileScreen() {
     const navigation = useNavigation();
     const { profileData } = route.params;
 
-    // Custom hook để handle update profile
-    const { updating, error, success, updateProfile, clearError } = useUpdateProfile();
+    const {
+        updating,
+        error,
+        success,
+        loading,
+        fieldLabels,
+        nameFields,
+        formData,
+        profileDetailData,
+        requiredFields,
+        messengerOptions,
+        updateProfile,
+        clearError,
+        initializeFormData,
+        updateField
+    } = useUpdateProfile();
 
-    // Ref để giữ giá trị gốc không thay đổi giữa các render
-    const initialProfile = useRef(profileData);
+    const [messengerModalVisible, setMessengerModalVisible] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
 
-    // State cho các trường dữ liệu
-    const [fullName, setFullName] = useState(profileData.full_name || '');
-    const [description, setDescription] = useState(profileData.description || '');
-    const [email1, setEmail1] = useState(profileData.email1 || '');
-    const [phoneMobile, setPhoneMobile] = useState(profileData.phone_mobile || '');
-    const [phoneWork, setPhoneWork] = useState(profileData.phone_work || '');
-    const [addressStreet, setAddressStreet] = useState(profileData.address_street || '');
-    const [addressCity, setAddressCity] = useState(profileData.address_city || '');
-    const [addressCountry, setAddressCountry] = useState(profileData.address_country || '');
+    // Initialize form data when hook is ready
+    useEffect(() => {
+        if (!loading && nameFields) {
+            // Use profileDetailData if available (fetched from API), otherwise use profileData from navigation params
+            const dataToUse = Object.keys(profileDetailData).length > 0 ? profileDetailData : profileData;
+            initializeFormData(dataToUse);
+        }
+    }, [loading, nameFields, profileData, profileDetailData]);
+
+    // Get field sections for dynamic rendering
+    const getFieldSections = () => {
+        if (!nameFields) return { general: [], phone: [], address: [], messenger: [] };
+        
+        const fieldNames = nameFields.split(',');
+        const sections = {
+            general: [],
+            phone: [],
+            address: [],
+            messenger: []
+        };
+
+        for (const fieldName of fieldNames) {
+            if (fieldName === 'photo') continue; // Photo handled separately
+            
+            if (fieldName.startsWith('phone_')) {
+                sections.phone.push(fieldName);
+            } else if (fieldName.startsWith('address_')) {
+                sections.address.push(fieldName);
+            } else if (fieldName.startsWith('messenger_')) {
+                sections.messenger.push(fieldName);
+            } else {
+                sections.general.push(fieldName);
+            }
+        }
+
+        return sections;
+    };
 
     const handleSave = async () => {
-        // Clear error trước khi validate
         clearError();
-
-        if (!fullName || !email1) {
-            Alert.alert('Thông báo', 'Họ tên và email là bắt buộc.');
-            return;
-        }
-
-        const isUnchanged =
-            fullName === initialProfile.current.full_name &&
-            description === initialProfile.current.description &&
-            email1 === initialProfile.current.email1 &&
-            phoneMobile === initialProfile.current.phone_mobile &&
-            phoneWork === initialProfile.current.phone_work &&
-            addressStreet === initialProfile.current.address_street &&
-            addressCity === initialProfile.current.address_city &&
-            addressCountry === initialProfile.current.address_country;
-
-        if (isUnchanged) {
-            Alert.alert('Thông báo', 'Bạn chưa thay đổi thông tin nào.');
-            return;
-        }
-
+        
         try {
-            // Chuẩn bị dữ liệu cập nhật
-            const updateData = {
-                full_name: fullName.trim(),
-                description: description.trim(),
-                email1: email1.trim(),
-                phone_mobile: phoneMobile.trim(),
-                phone_work: phoneWork.trim(),
-                address_street: addressStreet.trim(),
-                address_city: addressCity.trim(),
-                address_country: addressCountry.trim()
-            };
-
-            await updateProfile(updateData);
-
-            Alert.alert('Thành công', 'Thông tin đã được cập nhật.', [
-                { text: 'OK', onPress: () => navigation.goBack() }
-            ]);
+            const result = await updateProfile();
+            if (result) {
+                Alert.alert('Thành công', 'Thông tin đã được cập nhật.', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            }
         } catch (err) {
-            // Error đã được handle trong hook
-            console.log('Update profile error handled by hook');
+            // Error handled by hook
         }
     };
 
-    const renderInput = (label, value, setValue, icon, multiline = false) => (
-        <View style={styles.inputContainer}>
-            <Text style={styles.label}>{label}</Text>
-            <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
-                <Ionicons name={icon} size={20} color="gray" style={styles.icon} />
-                <TextInput
-                    style={[styles.input, multiline && { height: '100%', textAlignVertical: 'top' }]}
-                    value={value}
-                    onChangeText={setValue}
-                    placeholder={`Nhập ${label.toLowerCase()}`}
-                    multiline={multiline}
-                />
-            </View>
+    const handleImagePicker = () => {
+        Alert.alert(
+            'Chọn ảnh',
+            'Bạn muốn chọn ảnh từ đâu?',
+            [
+                { text: 'Hủy', style: 'cancel' },
+                { text: 'Thư viện', onPress: () => pickImage('library') },
+                { text: 'Chụp ảnh', onPress: () => pickImage('camera') }
+            ]
+        );
+    };
+
+    const pickImage = async (source) => {
+        try {
+            let result;
+            if (source === 'camera') {
+                result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [1, 1],
+                    quality: 0.8,
+                });
+            } else {
+                result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [1, 1],
+                    quality: 0.8,
+                });
+            }
+
+            if (!result.canceled && result.assets[0]) {
+                setSelectedImage(result.assets[0].uri);
+                updateField('photo', result.assets[0].uri);
+            }
+        } catch (error) {
+            Alert.alert('Lỗi', 'Không thể chọn ảnh');
+        }
+    };
+
+    const renderPhotoSection = () => (
+        <View style={styles.photoSection}>
+            <Text style={styles.sectionTitle}>Ảnh đại diện</Text>
+            <TouchableOpacity style={styles.photoContainer} onPress={handleImagePicker}>
+                {selectedImage || profileData.photo ? (
+                    <Image
+                        source={{ uri: selectedImage || profileData.photo }}
+                        style={styles.photo}
+                    />
+                ) : (
+                    <View style={styles.photoPlaceholder}>
+                        <Ionicons name="camera-outline" size={40} color="#999" />
+                        <Text style={styles.photoPlaceholderText}>Chọn ảnh</Text>
+                    </View>
+                )}
+                <View style={styles.photoOverlay}>
+                    <Ionicons name="camera-outline" size={20} color="white" />
+                </View>
+            </TouchableOpacity>
         </View>
     );
+
+    const renderInput = (fieldName) => {
+        const label = fieldLabels[fieldName] || fieldName;
+        const value = formData[fieldName] || '';
+        const isRequired = requiredFields.includes(fieldName);
+        
+        let icon = 'document-text-outline';
+        let multiline = false;
+        let keyboardType = 'default';
+
+        // Set appropriate icons and input types
+        if (fieldName.includes('phone')) {
+            icon = 'call-outline';
+            keyboardType = 'phone-pad';
+        } else if (fieldName.includes('email')) {
+            icon = 'mail-outline';
+            keyboardType = 'email-address';
+        } else if (fieldName.includes('address')) {
+            icon = 'location-outline';
+        } else if (fieldName === 'description') {
+            icon = 'document-text-outline';
+            multiline = true;
+        } else if (fieldName === 'user_name') {
+            icon = 'person-outline';
+        } else if (fieldName.includes('name')) {
+            icon = 'person-outline';
+        } else if (fieldName === 'title') {
+            icon = 'briefcase-outline';
+        } else if (fieldName === 'department') {
+            icon = 'business-outline';
+        }
+
+        return (
+            <View key={fieldName} style={styles.inputContainer}>
+                <Text style={[styles.label, isRequired && styles.requiredLabel]}>
+                    {label} {isRequired && <Text style={styles.asterisk}>*</Text>}
+                </Text>
+                <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
+                    <Ionicons name={icon} size={20} color="gray" style={styles.icon} />
+                    <TextInput
+                        style={[styles.input, multiline && { height: '100%', textAlignVertical: 'top' }]}
+                        value={value}
+                        onChangeText={(text) => updateField(fieldName, text)}
+                        placeholder={`Nhập ${label.toLowerCase()}`}
+                        multiline={multiline}
+                        keyboardType={keyboardType}
+                    />
+                </View>
+            </View>
+        );
+    };
+
+    const renderMessengerInput = (fieldName) => {
+        if (fieldName !== 'messenger_type') return renderInput(fieldName);
+
+        const label = fieldLabels[fieldName] || fieldName;
+        const value = formData[fieldName] || '';
+        const selectedOption = messengerOptions.find(opt => opt.value === value);
+
+        return (
+            <View key={fieldName} style={styles.inputContainer}>
+                <Text style={styles.label}>{label}</Text>
+                <TouchableOpacity
+                    style={styles.inputWrapper}
+                    onPress={() => setMessengerModalVisible(true)}
+                >
+                    <Ionicons name="chatbox-outline" size={20} color="gray" style={styles.icon} />
+                    <Text style={[styles.input, { color: value ? '#333' : '#999' }]}>
+                        {selectedOption?.label || 'Chọn loại messenger'}
+                    </Text>
+                    <Ionicons name="chevron-down-outline" size={20} color="gray" />
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const renderSection = (title, fields, isMessenger = false) => {
+        if (fields.length === 0) return null;
+
+        return (
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{title}</Text>
+                {fields.map(fieldName => 
+                    isMessenger ? renderMessengerInput(fieldName) : renderInput(fieldName)
+                )}
+            </View>
+        );
+    };
+
+    const MessengerModal = () => (
+        <Modal
+            animationType="slide"
+            transparent={true}     
+            visible={messengerModalVisible}
+            onRequestClose={() => setMessengerModalVisible(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Chọn loại Messenger</Text>
+                        <TouchableOpacity onPress={() => setMessengerModalVisible(false)}>
+                            <Ionicons name="close-outline" size={24} color="#333" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView>
+                        {messengerOptions.map((option, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[
+                                    styles.modalOption,
+                                    formData.messenger_type === option.value && styles.selectedOption
+                                ]}
+                                onPress={() => {
+                                    updateField('messenger_type', option.value);
+                                    setMessengerModalVisible(false);
+                                }}
+                            >
+                                <Text style={[
+                                    styles.modalOptionText,
+                                    formData.messenger_type === option.value && styles.selectedOptionText
+                                ]}>
+                                    {option.label}
+                                </Text>
+                                {formData.messenger_type === option.value && (
+                                    <Ionicons name="checkmark-outline" size={20} color="#007BFF" />
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+
+    if (loading) {
+        return (
+            <SafeAreaProvider>
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.loadingContainer}>
+                        <Text>Đang tải...</Text>
+                    </View>
+                </SafeAreaView>
+            </SafeAreaProvider>
+        );
+    }
+
+    const sections = getFieldSections();
 
     return (
         <SafeAreaProvider>
@@ -121,14 +326,14 @@ export default function UpdateProfileScreen() {
                         </View>
                     )}
 
-                    {renderInput('Họ và tên', fullName, setFullName, 'person-outline')}
-                    {renderInput('Mô tả', description, setDescription, 'document-text-outline', true)}
-                    {renderInput('Email', email1, setEmail1, 'mail-outline')}
-                    {renderInput('Điện thoại di động', phoneMobile, setPhoneMobile, 'call-outline')}
-                    {renderInput('Điện thoại cơ quan', phoneWork, setPhoneWork, 'business-outline')}
-                    {renderInput('Địa chỉ', addressStreet, setAddressStreet, 'location-outline')}
-                    {renderInput('Thành phố', addressCity, setAddressCity, 'business-outline')}
-                    {renderInput('Quốc gia', addressCountry, setAddressCountry, 'flag-outline')}
+                    {/* Photo Section */}
+                    {renderPhotoSection()}
+
+                    {/* Dynamic Sections */}
+                    {renderSection('Thông tin cơ bản', sections.general)}
+                    {renderSection('Thông tin liên lạc', sections.phone)}
+                    {renderSection('Địa chỉ', sections.address)}
+                    {renderSection('Messenger', sections.messenger, true)}
 
                     <TouchableOpacity
                         style={[styles.button, updating && styles.buttonDisabled]}
@@ -142,6 +347,8 @@ export default function UpdateProfileScreen() {
 
                     <View style={styles.footer}></View>
                 </ScrollView>
+
+                <MessengerModal />
             </SafeAreaView>
         </SafeAreaProvider>
     );
@@ -151,6 +358,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f8f9fa',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -189,6 +401,62 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
+    photoSection: {
+        marginBottom: 30,
+        alignItems: 'center',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    photoContainer: {
+        position: 'relative',
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        overflow: 'hidden',
+        backgroundColor: '#f0f0f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    photo: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    photoPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    photoPlaceholderText: {
+        marginTop: 8,
+        fontSize: 12,
+        color: '#999',
+    },
+    photoOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#007BFF',
+        width: 35,
+        height: 35,
+        borderRadius: 17.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'white',
+    },
+    section: {
+        marginBottom: 25,
+    },
     inputContainer: {
         marginBottom: 15,
     },
@@ -197,6 +465,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         marginBottom: 6,
+    },
+    requiredLabel: {
+        color: '#333',
+    },
+    asterisk: {
+        color: '#FF3B30',
+        fontSize: 16,
     },
     inputWrapper: {
         flexDirection: 'row',
@@ -243,5 +518,54 @@ const styles = StyleSheet.create({
     },
     footer: {
         marginTop: 50
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 20,
+        width: '85%',
+        maxHeight: '70%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+    },
+    modalOption: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    selectedOption: {
+        backgroundColor: '#E3F2FD',
+        borderRadius: 8,
+    },
+    modalOptionText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    selectedOptionText: {
+        color: '#007BFF',
+        fontWeight: '600',
     },
 });

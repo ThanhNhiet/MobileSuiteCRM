@@ -180,7 +180,6 @@ export const useUserProfile = () => {
             // Then fetch profile data with the fields
             const response = await getUserProfileApi(fieldsString);
             setProfileData(response.data);
-            console.log('Profile data fetched successfully:', profileData);
         } catch (err) {
             setError(err.message || 'Không thể tải thông tin người dùng');
             console.warn('Fetch profile error:', err);

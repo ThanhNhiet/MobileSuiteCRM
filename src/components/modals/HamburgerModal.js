@@ -1,4 +1,3 @@
-import { cacheManager } from '@/src/utils/CacheManager';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -54,20 +53,6 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         navigation.navigate(moduleName);
     };
 
-    const handleReadJsonFile = async () => {
-        try {
-            const data = await cacheManager.getModuleLanguage_Pretty("Notes", "vi_VN");
-            // const data = await cacheManager.getSystemLanguage_Pretty('vi_VN');
-          if (data) {
-            console.log(data);
-          } else {
-            console.warn('No data found');
-          }
-        } catch (error) {
-          console.warn('Error reading:', error);
-        }
-      }
-
     return (
         <Modal
             animationType="none"
@@ -95,8 +80,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                     {/* Header with Profile and Close */}
                     <View style={styles.header}>
                         <TouchableOpacity style={styles.profileSection}
-                            // onPress={() => navigateTo('ProfileScreen')}
-                            onPress={handleReadJsonFile} // For testing reading JSON file
+                            onPress={() => navigateTo('ProfileScreen')}
                         >
                             <View style={styles.profileIcon}>
                                 <Ionicons name="person" size={24} color="white" />
