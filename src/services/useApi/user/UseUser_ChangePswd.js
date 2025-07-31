@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
 import { changePasswordApi } from '../../api/user/UserApi';
 
 export const useChangePassword = () => {
@@ -6,26 +7,33 @@ export const useChangePassword = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
+    const userLanguageUtils = UserLanguageUtils.getInstance();
+
     // Hàm validate password
-    const validatePasswords = (oldPassword, newPassword, confirmPassword) => {
+    const validatePasswords = async (oldPassword, newPassword, confirmPassword) => {
         if (!oldPassword.trim()) {
-            return 'Vui lòng nhập mật khẩu hiện tại';
+            return await userLanguageUtils.translate('ERR_ENTER_OLD_PASSWORD', 'Vui lòng nhập mật khẩu hiện tại');
         }
 
         if (!newPassword.trim()) {
-            return 'Vui lòng nhập mật khẩu mới';
+            return await userLanguageUtils.translate('ERR_ENTER_NEW_PASSWORD', 'Vui lòng nhập mật khẩu mới');
         }
 
         if (newPassword.length < 6) {
-            return 'Mật khẩu mới phải có ít nhất 6 ký tự';
+            const minLengthMessage = await userLanguageUtils.translate('ERR_PASSWORD_MINPWDLENGTH', 'Mật khẩu phải chứa tối thiểu 6 ký tự.');
+            // Replace %d with the actual number (6)
+            return minLengthMessage.replace('%d', '6');
         }
 
         if (newPassword !== confirmPassword) {
-            return 'Mật khẩu xác nhận không khớp';
+            return await userLanguageUtils.translate('ERR_REENTER_PASSWORDS', 'Mật khẩu xác nhận không khớp');
         }
 
         if (oldPassword === newPassword) {
-            return 'Mật khẩu mới phải khác mật khẩu hiện tại';
+            const newPasswordLabel = await userLanguageUtils.translate('LBL_NEW_PASSWORD', 'Mật khẩu mới');
+            const otherLabel = await userLanguageUtils.translate('Other', 'phải khác');
+            const oldPasswordLabel = await userLanguageUtils.translate('LBL_OLD_PASSWORD', 'mật khẩu hiện tại');
+            return `${newPasswordLabel} ${otherLabel} ${oldPasswordLabel}`;
         }
 
         return null;
@@ -35,7 +43,7 @@ export const useChangePassword = () => {
     const changePassword = async (oldPassword, newPassword, confirmPassword) => {
         try {
             // Validate trước khi gọi API
-            const validationError = validatePasswords(oldPassword, newPassword, confirmPassword);
+            const validationError = await validatePasswords(oldPassword, newPassword, confirmPassword);
             if (validationError) {
                 setError(validationError);
                 return false;
@@ -55,19 +63,20 @@ export const useChangePassword = () => {
 
             return true;
         } catch (err) {
-            let errorMessage = 'Không thể đổi mật khẩu';
+            let errorMessage = await userLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE', 'Không thể đổi mật khẩu');
             
             // Xử lý các lỗi cụ thể
             if (err.response?.status === 401) {
-                errorMessage = 'Mật khẩu hiện tại không đúng';
+                errorMessage = await userLanguageUtils.translate('ERR_PASSWORD_INCORRECT_OLD_1', 'Mật khẩu hiện tại không đúng');
             } else if (err.response?.status === 400) {
-                errorMessage = 'Dữ liệu không hợp lệ';
+                const passwordLabel = await userLanguageUtils.translate('LBL_PASSWORD', 'Mật khẩu');
+                const invalidLabel = await userLanguageUtils.translate('LBL_OPT_IN_INVALID', 'không hợp lệ');
+                errorMessage = `${passwordLabel} ${invalidLabel}`;
             } else if (err.message) {
                 errorMessage = err.message;
             }
 
             setError(errorMessage);
-            console.warn('Change password error:', err);
             return false;
         } finally {
             setChanging(false);

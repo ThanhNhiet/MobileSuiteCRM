@@ -107,3 +107,16 @@ export const updateUserProfileApi = async (updateData) => {
         throw error;
     }
 }
+
+//GET /Api/V8/custom/username/{id}
+export const getUsernameApi = async () => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const userId = getUserIdFromToken(token);
+        const response = await axiosInstance.get(`/Api/V8/custom/username/${userId}`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Username API error:", error);
+        throw error;
+    }
+};

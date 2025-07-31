@@ -33,7 +33,7 @@ export default function ProfileScreen({ navigation }) {
                     'LBL_USER_INFORMATION', 
                     'LBL_ADDRESS_INFORMATION',
                     'LBL_EDIT',
-                    'LBL_CHANGE_PASSWORD',
+                    'LBL_GENERATE_PASSWORD_BUTTON_LABEL',
                     'LBL_SETTINGS'
                 ];
                 
@@ -168,12 +168,10 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleEditProfile = () => {
-        console.log('Navigate to Edit Profile');
         navigation.navigate('UpdateProfileScreen', { profileData: displayData });
     };
 
     const handleChangePassword = () => {
-        console.log('Navigate to Change Password');
         navigation.navigate('ChangePasswordScreen');
     };
 
@@ -267,7 +265,7 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
                             <Text style={styles.secondaryButtonText}>
-                                {translations.LBL_CHANGE_PASSWORD || 'Đổi mật khẩu'}
+                                {translations.LBL_GENERATE_PASSWORD_BUTTON_LABEL || 'Đổi mật khẩu'}
                             </Text>
                         </TouchableOpacity>
                     </View>
