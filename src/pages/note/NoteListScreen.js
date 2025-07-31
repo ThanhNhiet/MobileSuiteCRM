@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -18,15 +18,33 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useNoteList } from '../../services/useApi/note/UseNote_List';
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
-    const mdName = 'Ghi chú';
+    
+    // SystemLanguageUtils instance
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    
+    // Translation states
+    const [translations, setTranslations] = useState({
+        mdName: 'Ghi chú',
+        searchPlaceholder: 'Nhập từ khóa tìm kiếm',
+        selectedTypeDefault: 'Tất cả',
+        searchButton: 'Tìm',
+        addButton: 'Thêm',
+        loading: 'Đang tải...',
+        tryAgain: 'Thử lại',
+        pullToRefresh: 'Kéo để tải lại...',
+        noData: 'Không có dữ liệu'
+    });
+    
+    const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
     // State cho search và filter
     const [searchText, setSearchText] = useState('');
-    const [selectedType1, setSelectedType1] = useState('Tất cả');
-    const [selectedType2, setSelectedType2] = useState('Tất cả');
+    const [selectedType1, setSelectedType1] = useState('');
+    const [selectedType2, setSelectedType2] = useState('');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
@@ -36,6 +54,7 @@ export default function NoteListScreen() {
         columns,
         parentTypeOptions,
         timeFilterOptions,
+        filtersInitialized,
         currentPage,
         totalPages,
         loading,
@@ -47,6 +66,55 @@ export default function NoteListScreen() {
         handleParentTypeFilter,
         handleTimeFilter
     } = useNoteList();
+
+    // Initialize translations
+    useEffect(() => {
+        const initializeTranslations = async () => {
+            try {
+                // Get all translations at once using SystemLanguageUtils
+                const translated = await systemLanguageUtils.translateKeys([
+                    'LBL_NOTES',  // Ghi chú
+                    'LBL_SEARCH_BUTTON_LABEL',  // Tìm
+                    'LBL_CREATE_BUTTON_LABEL',  // Tạo 
+                    'LBL_EMAIL_LOADING',    // "Đang tải...
+                    'UPLOAD_REQUEST_ERROR',   // Thử lại
+                    'LBL_NO_DATA',  // "Không có dữ liệu"
+                    'LBL_DROPDOWN_LIST_ALL',   // "Tất cả"
+                    'LBL_IMPORT',   // "Nhập"
+                    'LBL_SUBJECT',  // "Chủ đề"
+                    'Prospects' // "Đối tượng"
+                ]);
+                
+                setTranslations({
+                    mdName: translated.LBL_NOTES || 'Ghi chú',
+                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Nhập từ khóa tìm kiếm',
+                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
+                    loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
+                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
+                    pullToRefresh: 'Pull to refresh...',
+                    noData: translated.LBL_NO_DATA || 'Không có dữ liệu'
+                });
+                
+                setTranslationsLoaded(true);
+            } catch (error) {
+                console.error('NoteListScreen: Error loading translations:', error);
+                setTranslationsLoaded(true);
+            }
+        };
+        
+        initializeTranslations();
+    }, []);
+
+    // Update filter dropdown defaults when options are loaded
+    useEffect(() => {
+        if (filtersInitialized && parentTypeOptions.length > 0 && timeFilterOptions.length > 0) {
+            // Set default values for dropdowns using the first option (which should be "Tất cả")
+            setSelectedType1(parentTypeOptions[0]?.label || 'Tất cả');
+            setSelectedType2(timeFilterOptions[0]?.label || 'Tất cả');
+        }
+    }, [filtersInitialized, parentTypeOptions, timeFilterOptions]);
 
     // Utility functions for data display
     const getFieldValue = (item, fieldKey) => {
@@ -136,16 +204,18 @@ export default function NoteListScreen() {
     const handleSearch = () => {
         const filters = {};
         
-        // Parent type filter
-        if (selectedType1 !== 'All') {
+        // Parent type filter - compare with the "Tất cả" option
+        const allParentOption = parentTypeOptions[0]?.label || 'Tất cả';
+        if (selectedType1 !== allParentOption) {
             const parentType = parentTypeOptions.find(opt => opt.label === selectedType1);
             if (parentType) {
                 filters.parent_type = parentType.value;
             }
         }
         
-        // Time filter
-        if (selectedType2 !== 'All') {
+        // Time filter - compare with the "Tất cả" option
+        const allTimeOption = timeFilterOptions[0]?.label || 'Tất cả';
+        if (selectedType2 !== allTimeOption) {
             const timeFilter = timeFilterOptions.find(opt => opt.label === selectedType2);
             if (timeFilter) {
                 filters.time_filter = timeFilter.value;
@@ -210,7 +280,7 @@ export default function NoteListScreen() {
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
                 
-                <TopNavigation moduleName={mdName} navigation={navigation}/>
+                <TopNavigation moduleName={translations.mdName} navigation={navigation}/>
 
                 <View style={styles.content}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
@@ -219,7 +289,7 @@ export default function NoteListScreen() {
                             <View style={styles.searchBar}>
                                 <TextInput 
                                     style={styles.input} 
-                                    placeholder="Key search" 
+                                    placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
                                 />
@@ -227,20 +297,30 @@ export default function NoteListScreen() {
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
                                     style={styles.select} 
-                                    onPress={() => setShowDropdown1(true)}
+                                    onPress={() => filtersInitialized && setShowDropdown1(true)}
+                                    disabled={!filtersInitialized}
                                 >
-                                    <Text>{selectedType1}</Text>
+                                    <Text style={!filtersInitialized ? { color: '#ccc' } : {}}>
+                                        {filtersInitialized ? selectedType1 : 'Đang tải...'}
+                                    </Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
                                     style={styles.select} 
-                                    onPress={() => setShowDropdown2(true)}
+                                    onPress={() => filtersInitialized && setShowDropdown2(true)}
+                                    disabled={!filtersInitialized}
                                 >
-                                    <Text>{selectedType2}</Text>
+                                    <Text style={!filtersInitialized ? { color: '#ccc' } : {}}>
+                                        {filtersInitialized ? selectedType2 : 'Đang tải...'}
+                                    </Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                                    <Text style={{ color: '#fff' }}>Tìm</Text>
+                                <TouchableOpacity 
+                                    style={[styles.searchButton, !filtersInitialized && { backgroundColor: '#ccc' }]} 
+                                    onPress={handleSearch}
+                                    disabled={!filtersInitialized}
+                                >
+                                    <Text style={{ color: '#fff' }}>{translations.searchButton}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -255,7 +335,7 @@ export default function NoteListScreen() {
                             >
                                 <Text style={styles.plusText}>+</Text>
                             </TouchableOpacity>
-                            <Text>Thêm</Text>
+                            <Text>{translations.addButton}</Text>
                         </View>
                     </View>
 
@@ -273,7 +353,7 @@ export default function NoteListScreen() {
                     {loading && (
                         <View style={{ padding: 20, alignItems: 'center' }}>
                             <ActivityIndicator size="large" color="#4B84FF" />
-                            <Text style={{ marginTop: 10, color: '#666' }}>Đang tải...</Text>
+                            <Text style={{ marginTop: 10, color: '#666' }}>{translations.loading}</Text>
                         </View>
                     )}
 
@@ -285,7 +365,7 @@ export default function NoteListScreen() {
                                 style={styles.searchButton} 
                                 onPress={refreshNotes}
                             >
-                                <Text style={{ color: '#fff' }}>Thử lại</Text>
+                                <Text style={{ color: '#fff' }}>{translations.tryAgain}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -299,12 +379,17 @@ export default function NoteListScreen() {
                             style={styles.list}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={() => (
+                                <View style={{ padding: 20, alignItems: 'center' }}>
+                                    <Text style={{ color: '#666', fontSize: 16 }}>{translations.noData}</Text>
+                                </View>
+                            )}
                             refreshControl={
                                 <RefreshControl
                                     refreshing={refreshing}
                                     onRefresh={refreshNotes}
                                     colors={['#4B84FF']}
-                                    title="Kéo để tải lại..."
+                                    title={translations.pullToRefresh}
                                 />
                             }
                         />
@@ -349,21 +434,25 @@ export default function NoteListScreen() {
                 
                 <BottomNavigation navigation={navigation}/>
 
-                {/* Dropdown Modals */}
-                <DropdownSelect
-                    options={typeOptions1}
-                    selectedValue={selectedType1}
-                    onSelect={setSelectedType1}
-                    visible={showDropdown1}
-                    onClose={() => setShowDropdown1(false)}
-                />
-                <DropdownSelect
-                    options={typeOptions2}
-                    selectedValue={selectedType2}
-                    onSelect={setSelectedType2}
-                    visible={showDropdown2}
-                    onClose={() => setShowDropdown2(false)}
-                />
+                {/* Dropdown Modals - only show when filters are initialized */}
+                {filtersInitialized && (
+                    <>
+                        <DropdownSelect
+                            options={typeOptions1}
+                            selectedValue={selectedType1}
+                            onSelect={setSelectedType1}
+                            visible={showDropdown1}
+                            onClose={() => setShowDropdown1(false)}
+                        />
+                        <DropdownSelect
+                            options={typeOptions2}
+                            selectedValue={selectedType2}
+                            onSelect={setSelectedType2}
+                            visible={showDropdown2}
+                            onClose={() => setShowDropdown2(false)}
+                        />
+                    </>
+                )}
             </SafeAreaProvider>
         </SafeAreaView>
     );

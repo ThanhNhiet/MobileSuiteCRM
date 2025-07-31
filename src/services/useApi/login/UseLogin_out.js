@@ -16,7 +16,7 @@ export const useLogin_out = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('vi_VN'); // Default language
 
   // Định nghĩa các module cần cache language
-  const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users'];
+  const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
 
   // Function để fetch và cache language data cho tất cả modules
   const fetchAndCacheLanguageData = async (lang) => {

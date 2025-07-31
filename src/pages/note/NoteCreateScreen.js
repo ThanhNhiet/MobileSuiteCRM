@@ -1,5 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+//import { useNavigation } from '@react-navigation/native';
+import { NoteLanguageUtils } from '@/src/utils/cacheViewManagement/Notes/NoteLanguageUtils';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,8 +18,92 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 import { useNoteCreate } from '../../services/useApi/note/UseNote_Create';
-export default function NoteCreateScreen() {
-  const navigation = useNavigation();
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+
+export default function NoteCreateScreen({ navigation }) {
+  // LanguageUtils instance
+  const systemLanguageUtils = SystemLanguageUtils.getInstance();
+  const noteLanguageUtils = NoteLanguageUtils.getInstance();
+
+  // Initialize translations
+  const [translations, setTranslations] = useState({});
+
+  // Initialize translations
+  useEffect(() => {
+    const initializeTranslations = async () => {
+      try {
+        // Get all translations at once using SystemLanguageUtils
+        const translatedLabels = await systemLanguageUtils.translateKeys([
+          'Notes',
+          'LBL_CREATE_BUTTON_LABEL',
+          'LBL_EMAIL_LOADING', 
+          'LBL_EMAIL_SUCCESS',
+          'LBL_ALT_INFO',
+          'UPLOAD_REQUEST_ERROR',
+          'Alerts',
+          'LBL_OK',
+          'LBL_SEARCH',
+          'LBL_ID_FF_SELECT',
+          'LBL_ACCOUNTS',
+          'LBL_USERS',
+          'LBL_TASKS',
+          'LBL_MEETINGS',
+          'LBL_CHECK_TO_VERIFY',
+          'LBL_PARENT_ID_LABEL'
+        ]);
+        
+        const translatedLabels_notes = await noteLanguageUtils.translateKeys([
+          'LBL_PARENT_ID'
+        ]);
+
+        setTranslations({
+          mdName: translatedLabels.Notes || 'Ghi chú',
+          createModule: translatedLabels.LBL_CREATE_BUTTON_LABEL + ' ' + translatedLabels.Notes || 'Tạo Ghi chú',
+          loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
+          successTitle: translatedLabels.LBL_ALT_INFO || 'Thông tin',
+          successMessage: translatedLabels.LBL_EMAIL_SUCCESS || 'Tạo ghi chú thành công!',
+          errorTitle: translatedLabels.Alerts || 'Lỗi',
+          errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể tạo ghi chú',
+          ok: translatedLabels.LBL_OK,
+          createButton: translatedLabels.LBL_CREATE_BUTTON_LABEL,
+          checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
+          checkPlaceholder: '',
+          selectPlaceholder: translatedLabels.LBL_ID_FF_SELECT || 'Chọn',
+          accounts: translatedLabels.LBL_ACCOUNTS,
+          users: translatedLabels.LBL_USERS,
+          tasks: translatedLabels.LBL_TASKS,
+          meetings: translatedLabels.LBL_MEETINGS,
+          checkToVerify: '',
+          parentIdLabel: translatedLabels_notes.LBL_PARENT_ID || 'ID Cha',
+        });
+      } catch (error) {
+        console.warn('Translation initialization error:', error);
+        // Set fallback translations
+        setTranslations({
+          mdName: 'Ghi chú',
+          createModule: 'Tạo Ghi chú',
+          loadingText: 'Đang tải...',
+          successTitle: 'Thành công',
+          successMessage: 'Tạo ghi chú thành công!',
+          errorTitle: 'Lỗi',
+          errorMessage: 'Không thể tạo ghi chú',
+          ok: 'OK',
+          createButton: 'Tạo',
+          checkButton: 'Check',
+          checkPlaceholder: 'Nhập để kiểm tra',
+          selectPlaceholder: '--------',
+          accounts: 'Khách hàng',
+          users: 'Người dùng',
+          tasks: 'Nhiệm vụ',
+          meetings: 'Cuộc họp',
+          checkToVerify: '',
+          parentIdLabel: 'ID Cha'
+        });
+      }
+    };
+
+    initializeTranslations();
+  }, []);
 
   // Sử dụng custom hook
   const {
@@ -33,21 +118,25 @@ export default function NoteCreateScreen() {
     getFieldValue,
     getFieldLabel,
     getFieldError,
-    isFormValid
+    isFormValid,
+    hasParentNameField,
+    checkParentName,
+    clearParentRelationship
   } = useNoteCreate();
 
-  // Local loading state for save button
+  // Local loading states
   const [saving, setSaving] = useState(false);
-  
+  const [checkingParent, setCheckingParent] = useState(false);
+
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
-  
+
   // Fixed parent type options
   const parentTypeOptions = [
-    { value: 'Accounts', label: 'Khách hàng' },
-    { value: 'Users', label: 'Người dùng' },
-    { value: 'Tasks', label: 'Công việc' },
-    { value: 'Meetings', label: 'Cuộc họp' }
+    { value: 'Accounts', label: translations.accounts || 'Khách hàng' },
+    { value: 'Users', label: translations.users || 'Người dùng' },
+    { value: 'Tasks', label: translations.tasks || 'Công việc' },
+    { value: 'Meetings', label: translations.meetings || 'Cuộc họp' }
   ];
 
   // Handle save
@@ -57,11 +146,11 @@ export default function NoteCreateScreen() {
       const result = await createNote();
       if (result.success) {
         Alert.alert(
-          'Thành công',
-          'Tạo ghi chú thành công!',
+          translations.successTitle || 'Thành công',
+          translations.successMessage || 'Tạo ghi chú thành công!',
           [
             {
-              text: 'OK',
+              text: translations.ok || 'OK',
               onPress: () => {
                 resetForm();
                 navigation.navigate('NoteListScreen');
@@ -71,22 +160,34 @@ export default function NoteCreateScreen() {
         );
       }
     } catch (err) {
-      Alert.alert('Lỗi', err.message || 'Không thể tạo ghi chú');
+      Alert.alert(translations.errorTitle || 'Lỗi', err.message || (translations.errorMessage || 'Không thể tạo ghi chú'));
     } finally {
       setSaving(false);
     }
   };
 
   // Handle parent type selection
-  const handleParentTypeSelect = (value) => {
-    updateField('parent_type', value);
+  const handleParentTypeSelect = async (value) => {
+    await updateField('parent_type', value);
     setShowParentTypeModal(false);
   };
 
   // Get parent type label for display
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
-    return selectedOption ? selectedOption.label : 'Chọn loại';
+    return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
+  };
+
+  // Handle check parent ID
+  const handleCheckParentId = async () => {
+    try {
+      setCheckingParent(true);
+      await checkParentName();
+    } catch (err) {
+      console.warn('Check parent error:', err);
+    } finally {
+      setCheckingParent(false);
+    }
   };
 
   // Show loading state for initialization
@@ -95,13 +196,13 @@ export default function NoteCreateScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
         <TopNavigationCreate
-          moduleName="Tạo Ghi chú"
+          moduleName={translations.createModule || "Tạo Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
         />
         <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={{ marginTop: 16, color: '#666' }}>Đang tải...</Text>
+          <Text style={{ marginTop: 16, color: '#666' }}>{translations.loadingText || 'Đang tải...'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -112,7 +213,7 @@ export default function NoteCreateScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
         {/* Thanh điều hướng */}
         <TopNavigationCreate
-          moduleName="Tạo Ghi chú"
+          moduleName={translations.createModule || "Tạo Ghi chú"}
           navigation={navigation}
           name="NoteListScreen"
         />
@@ -134,12 +235,20 @@ export default function NoteCreateScreen() {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
 
+              // Skip parent_name field - use logic cũ với parent_type modal và parent_id input
+              if (field.key === 'parent_name') {
+                return null;
+              }
+
               // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {
                 return (
                   <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
-                    <TouchableOpacity 
+                    <Text style={styles.label}>
+                      {field.label.replace(' *', '')}
+                      {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                    </Text>
+                    <TouchableOpacity
                       style={[styles.valueBox, fieldError && styles.errorInput]}
                       onPress={() => setShowParentTypeModal(true)}
                     >
@@ -152,13 +261,76 @@ export default function NoteCreateScreen() {
                 );
               }
 
-              // Change parentid display
-              const displayLabel = field.key === 'parentid' ? 'Parent ID' : field.label;
-              const placeholder = field.key === 'parentid' ? 'Nhập Parent ID' : `Nhập ${field.label.toLowerCase()}`;
+              // Special handling for parent_id field with check button
+              if (field.key === 'parent_id') {
+                return (
+                  <View key={field.key}>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>
+                        {field.label.replace(' *', '')}
+                        {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                      </Text>
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <TextInput
+                          style={[styles.value]}
+                          value={fieldValue}
+                          onChangeText={async (value) => await updateField(field.key, value)}
+                          autoCapitalize="none"
+                          returnKeyType="done"
+                        />
+                      </View>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+
+                    {/* Check button as label and result field below */}
+                    <View style={styles.row}>
+                      <View style={styles.checkLabelContainer}>
+                        <TouchableOpacity
+                          style={[styles.checkButton, checkingParent && styles.disabledButton]}
+                          onPress={handleCheckParentId}
+                          disabled={checkingParent}
+                        >
+                          {checkingParent ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.checkButtonText}>{translations.checkButton || 'Check'}</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                      {(getFieldValue('parent_name') || getFieldValue('parent_check_error')) ? (
+                        getFieldValue('parent_name') ? (
+                          <View style={[styles.valueBox, styles.successBox]}>
+                            <Text style={[styles.value, styles.successFieldText]}>
+                              ✓ {getFieldValue('parent_name')}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.valueBox, styles.errorBox]}>
+                            <Text style={[styles.value, styles.errorFieldText]}>
+                              ✗ {getFieldValue('parent_check_error')}
+                            </Text>
+                          </View>
+                        )
+                      ) : (
+                        <View style={[styles.valueBox, styles.placeholderBox]}>
+                          <Text style={[styles.value, styles.placeholderText]}>
+                            {translations.checkPlaceholder}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              }
+
+              // Regular field rendering
 
               return (
                 <View key={field.key} style={styles.row}>
-                  <Text style={styles.label}>{displayLabel}</Text>
+                  <Text style={styles.label}>
+                    {field.label.replace(' *', '')}
+                    {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                  </Text>
                   <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                     <TextInput
                       style={[
@@ -166,8 +338,7 @@ export default function NoteCreateScreen() {
                         field.key === 'description' && styles.multilineInput
                       ]}
                       value={fieldValue}
-                      onChangeText={(value) => updateField(field.key, value)}
-                      placeholder={placeholder}
+                      onChangeText={async (value) => await updateField(field.key, value)}
                       autoCapitalize="none"
                       returnKeyType={field.key === 'description' ? 'default' : 'done'}
                       multiline={field.key === 'description'}
@@ -193,7 +364,7 @@ export default function NoteCreateScreen() {
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Tạo ghi chú</Text>
+                  <Text style={styles.saveButtonText}>{translations.createButton || 'Tạo ghi chú'}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -207,9 +378,16 @@ export default function NoteCreateScreen() {
           animationType="slide"
           onRequestClose={() => setShowParentTypeModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Chọn Parent Type</Text>
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowParentTypeModal(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               {parentTypeOptions.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -219,14 +397,8 @@ export default function NoteCreateScreen() {
                   <Text style={styles.modalOptionText}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowParentTypeModal(false)}
-              >
-                <Text style={styles.modalCancelText}>Hủy</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -254,6 +426,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: 'bold',
     paddingHorizontal: 20,
+  },
+  requiredAsterisk: {
+    color: '#f44336',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
   /* Ô HỒNG */
@@ -392,5 +569,43 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#999',
+  },
+  // Parent check styles
+  checkLabelContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  checkButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  checkButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  successBox: {
+    backgroundColor: '#d4edda',
+    borderColor: '#c3e6cb',
+  },
+  errorBox: {
+    backgroundColor: '#f8d7da',
+    borderColor: '#f5c6cb',
+  },
+  placeholderBox: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#e9ecef',
+  },
+  successFieldText: {
+    color: '#155724',
+  },
+  errorFieldText: {
+    color: '#721c24',
   },
 });

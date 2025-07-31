@@ -2,17 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 
-//GET /Api/V8/custom/Notes/language/lang=vi_VN
-export const getNotesLanguageApi = async (lang = "vi_VN") => {
-    try {
-        const response = await axiosInstance.get(`/Api/V8/custom/Notes/language/lang=${lang}`);
-        return response.data;
-    } catch (error) {
-        console.warn("Get Notes Language API error:", error);
-        throw error;
-    }
-};
-
 //What fields are available for Note list view
 //GET /Api/V8/custom/Notes/list-fields
 export const getNoteListFieldsApi = async () => {
@@ -49,9 +38,9 @@ export const getNoteEditFieldsApi = async () => {
     }
 }
 
-//What fields are available for Note detail
+//Get field required for Note in create and update
 //GET /Api/V8/meta/fields/Notes
-export const getNoteFieldsApi = async () => {
+export const getNoteFieldsRequiredApi = async () => {
     try {
         const response = await axiosInstance.get(`/Api/V8/meta/fields/Notes`);
         return response.data;
@@ -137,7 +126,6 @@ export const updateNoteApi = async (noteId, noteData) => {
                 attributes: noteData
             }
         });
-        console.log("Update Note API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Update Note API error:", error);
@@ -162,7 +150,7 @@ export const checkParentNameExistsApi = async (parentType, parentId) => {
     try {
         const response = await axiosInstance.get(`/Api/V8/module/${parentType}/${parentId}`, {
             params: {
-                'fields[Accounts]': 'name'
+                [`fields[${parentType}]`]: 'name'
             }
         });
         if (response.data.data !== null) {
@@ -207,14 +195,14 @@ export const deleteNoteParentRelationApi = async (parentType, parentId, noteId) 
 
 //Get parent_id by note_id
 //GET /Api/V8/module/Notes/{note_id}?fields[Notes]=parent_id
-export const getParentIdByNoteIdApi = async (noteId) => {
+export const getParentId_typeByNoteIdApi = async (noteId) => {
     try {
         const response = await axiosInstance.get(`/Api/V8/module/Notes/${noteId}`, {
             params: {
-                'fields[Notes]': 'parent_id'
+                'fields[Notes]': 'parent_id,parent_type'
             }
         });
-        return response.data.data.attributes.parent_id;
+        return response.data.data.attributes;
     } catch (error) {
         console.warn("Get Parent ID by Note ID API error:", error);
         throw error;

@@ -75,11 +75,11 @@ export default function AppRouter() {
                 <Stack.Screen name="NoteCreateScreen" component={NoteCreateScreen} options={{ headerShown: false }} />
 
                 {/*Profile Screen*/}
-                <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Thông tin hồ sơ" }} />
+                <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Profile" }} />
                 {/*Update Profile Screen*/}
-                <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Chỉnh sửa thông tin" }} />
+                <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Update Profile" }} />
                 {/*Change Password Screen*/}
-                <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Đổi mật khẩu" }} />
+                <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Change Password" }} />
 
                 {/*Calendar Screen*/}
                 <Stack.Screen name="CalendarScreen" component={CalendarScreen} options={{ headerShown: false }} />
