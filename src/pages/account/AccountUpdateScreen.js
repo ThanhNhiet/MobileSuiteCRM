@@ -1,4 +1,3 @@
-import AccountData from '@/src/services/useApi/account/AccountData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,7 +6,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,11 +14,11 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
+import AccountData from '../../services/useApi/account/AccountData';
 
-const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshAccount) => {
+const useAccountUpdate = (account, editViews, listViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshAccount) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
 
@@ -34,8 +32,8 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                 initialData[key] = account[key] || '';
             });
         }
-        if (detailFields && Array.isArray(detailFields) && detailFields.length > 0) {
-            detailFields.forEach(field => {
+        if (editViews && Array.isArray(editViews) && editViews.length > 0) {
+            editViews.forEach(field => {
                 // Đảm bảo tất cả fields có giá trị và field có key
                 if (field && field.key && !(field.key in initialData)) {
                     initialData[field.key] = '';
@@ -43,8 +41,8 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
             });
         }
         return initialData;
-    }, [account, detailFields]);
-    
+    }, [account, editViews]);
+
     const [updateAccountData, setUpdateAccountData] = useState(() => {
         const initialData = initializeUpdateAccount();
         return initialData;
@@ -88,7 +86,9 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
     };
    
     return {
-        detailFields: detailFields || [],
+        editViews: editViews || [],
+        listViews: listViews || [],
+        requiredFields: requiredFields || [],
         formData: account || updateAccountData,
         updateAccountData, // Expose để component có thể access
         loading,
@@ -99,13 +99,6 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
         getFieldValue: getFieldValueLocal,
         getFieldLabel: routeGetFieldLabel,
         getFieldError: getFieldErrorLocal,
-        isFormValid: () => {
-            // Validate required fields
-            if (!updateAccountData.name || updateAccountData.name.trim() === '') {
-                return false;
-            }
-            return true;
-        },
         validateForm: () => {
             const errors = {};
             if (!updateAccountData.name || updateAccountData.name.trim() === '') {
@@ -132,9 +125,9 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                 
                 // Danh sách các field system không nên update
                 const systemFields = ['id', 'created_by', 'modified_user_id', 'deleted'];
-                
-                if (detailFields && Array.isArray(detailFields) && detailFields.length > 0) {
-                    detailFields.forEach(field => {
+
+                if (editViews && Array.isArray(editViews) && editViews.length > 0) {
+                    editViews.forEach(field => {
                         // Kiểm tra field có tồn tại và có key không
                         if (!field || !field.key) return;
                         
@@ -158,14 +151,24 @@ const useAccountUpdate = (account, detailFields, routeGetFieldValue, routeGetFie
                     setLoading(false);
                     return { success: true, message: 'Không có thay đổi nào để cập nhật' };
                 }
+
+                // for (const requiredField of Array.from(requiredFields.filter(f => f.field!=='id'))) {
+                //     const value = requiredField.field.toLowerCase();
+                //     if (fieldsToUpdate[value].trim() !== '') {
+                //       const label = editViews.find(view => view.key === value)?.label || value;
+                //       setLoading(false);
+                //       return { success: false, error: `${label} không được để trống` };
+                //     }
+                //   }
+                // Gọi API để cập nhật
                 const result = await AccountData.UpdateAccount(account.id, fieldsToUpdate, token);
-                //setLoading(false);
+                setLoading(false);
                 if (result) {
                     // Success if we have any meaningful response
                     return { success: true, data: result };
                 } else {
-                   
-                    return { success: false, error: 'No response from server' };
+
+                    return { success: false, err: 'No response from server' };
                 }
             } catch (error) {
                 console.log('💥 Update error:', error);
@@ -185,16 +188,19 @@ export default function AccountUpdateScreen() {
   // Safely extract route parameters with fallbacks
   const routeParams = route.params || {};
   const { 
-    routeAccount, 
-    routeDetailFields, 
+    routeAccount,
+    routeEditViews,
+    routeListViews,
+    routeRequiredFields,
     routeGetFieldValue, 
     routeGetFieldLabel, 
     refreshAccount,
     refreshAccountList // Thêm callback để refresh AccountListScreen
   } = routeParams;
 
+
   // Early return if essential data is missing
-  if (!routeAccount || !routeDetailFields) {
+  if (!routeAccount || !routeEditViews || !routeListViews || !routeRequiredFields) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -222,11 +228,16 @@ export default function AccountUpdateScreen() {
 
   // Alias để dễ sử dụng
   const account = routeAccount;
-  const detailFields = routeDetailFields || [];
   const routeGetFieldValueFunc = routeGetFieldValue;
   const routeGetFieldLabelFunc = routeGetFieldLabel;
+
+
+  console.log('🔍 AccountUpdateScreen params:', routeRequiredFields);
   const {
     formData,
+    editViews,
+    listViews,
+    requiredFields,
     updateAccountData,
     loading,
     error,
@@ -236,50 +247,19 @@ export default function AccountUpdateScreen() {
     getFieldValue,
     getFieldLabel,
     getFieldError,
-    isFormValid,
     validateForm
-  } = useAccountUpdate(account, detailFields, routeGetFieldValueFunc, routeGetFieldLabelFunc, navigation, refreshAccount);
+  } = useAccountUpdate( account,routeEditViews, routeListViews, routeRequiredFields,routeGetFieldValueFunc, routeGetFieldLabelFunc, navigation, refreshAccount);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [currentDateField, setCurrentDateField] = useState(null);
 
 
 
-  const showDatePicker = (fieldKey) => {
-    setCurrentDateField(fieldKey);
-    setDatePickerVisibility(true);
-  };
   
-  const hideDatePicker = () => {
-    setDatePickerVisibility(false);
-    setCurrentDateField(null);
-  };
+  
+  
 
-  const handleConfirm = (selectedDate) => {
-    if (currentDateField && selectedDate) {
-      // Format date to ISO 8601 format with local timezone
-      const year = selectedDate.getFullYear();
-      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const day = String(selectedDate.getDate()).padStart(2, '0');
-      const hours = String(selectedDate.getHours()).padStart(2, '0');
-      const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
-      const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
-      
-      // Get timezone offset
-      const timezoneOffset = selectedDate.getTimezoneOffset();
-      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-      const offsetMinutes = Math.abs(timezoneOffset) % 60;
-      const offsetSign = timezoneOffset <= 0 ? '+' : '-';
-      const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-      
-      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
-      updateField(currentDateField, formattedDate);
-    }
-    hideDatePicker();
-  };
-
+  
   // Handle save
   const handleSave = async () => {
     try {
@@ -345,7 +325,7 @@ export default function AccountUpdateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0 || !account) {
+  if (!editViews || editViews.length === 0 || !account) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -361,7 +341,7 @@ export default function AccountUpdateScreen() {
               Không tìm thấy thông tin khách hàng
             </Text>
           )}
-          {(!detailFields || detailFields.length === 0) && (
+          {(!editViews || editViews.length === 0) && (
             <Text style={{ marginTop: 8, color: '#ff6b6b', fontSize: 12 }}>
               Không tìm thấy cấu trúc form
             </Text>
@@ -394,8 +374,8 @@ export default function AccountUpdateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields && Array.isArray(detailFields) && detailFields.length > 0 ? (
-              detailFields
+            {editViews && Array.isArray(editViews) && editViews.length > 0 ? (
+              editViews
                 .filter(field => field && field.key && field.key !== 'id')
                 .map((field) => {
                   const fieldError = getFieldError(field.key);
@@ -421,45 +401,7 @@ export default function AccountUpdateScreen() {
                   );
                 }
                 if (field.key === 'date_entered' || field.key === 'date_modified') {
-                  // Format display value for date fields
-                  const rawValue = getFieldValue(field.key);
-                  let displayValue = '';
-                  
-                  if (rawValue) {
-                    try {
-                      // Parse ISO date format (2025-07-24T07:35:00+02:00)
-                      const date = new Date(rawValue);
-                      if (!isNaN(date.getTime())) {
-                        // Display as YYYY-MM-DD format
-                        displayValue = date.toISOString().split('T')[0];
-                      } else {
-                        // Fallback for simple date format
-                        displayValue = rawValue.includes('T') ? rawValue.split('T')[0] : rawValue;
-                      }
-                    } catch (e) {
-                      console.log('Error parsing date:', rawValue, e);
-                      displayValue = rawValue;
-                    }
-                  }
-                  
-                  return (
-                    <View key={field.key} style={styles.row}>
-                      <Text style={styles.label}>{field.label}</Text>
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <Pressable onPress={() => showDatePicker(field.key)}>
-                          <TextInput
-                            style={styles.value}
-                            value={displayValue}
-                            placeholder={`Chọn ${field.label.toLowerCase()}`}
-                            editable={false}
-                            pointerEvents='none'
-                            key={`${field.key}-${displayValue}`} // Force re-render when value changes
-                          />
-                        </Pressable>
-                      </View>
-                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                    </View>
-                  );
+                  return null;
                 }
 
                 return (
@@ -499,10 +441,10 @@ export default function AccountUpdateScreen() {
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  (!isFormValid() || saving) && styles.disabledButton
+                  (saving) && styles.disabledButton
                 ]}
                 onPress={handleSave}
-                disabled={!isFormValid() || saving}
+                disabled={ saving}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -512,37 +454,6 @@ export default function AccountUpdateScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-          
-          {/* Date Picker Modal - Shared for all date fields */}
-          <DateTimePickerModal
-            isVisible={isDatePickerVisible}
-            mode="date"
-            onConfirm={handleConfirm}
-            onCancel={hideDatePicker}
-            date={currentDateField ? (() => {
-              const fieldValue = getFieldValue(currentDateField);
-              if (fieldValue) {
-                try {
-                  // Parse ISO format date (2025-07-24T07:35:00+02:00)
-                  const date = new Date(fieldValue);
-                  if (!isNaN(date.getTime())) {
-                    return date;
-                  }
-                  // Fallback parsing
-                  return fieldValue.includes('T') ? 
-                    new Date(fieldValue) : 
-                    new Date(fieldValue + 'T00:00:00');
-                } catch (e) {
-                  console.log('Error parsing date for picker:', fieldValue, e);
-                  return new Date();
-                }
-              }
-              return new Date();
-            })() : new Date()}
-            locale="vi_VN"
-            confirmTextIOS="Chọn"
-            cancelTextIOS="Hủy"
-          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>

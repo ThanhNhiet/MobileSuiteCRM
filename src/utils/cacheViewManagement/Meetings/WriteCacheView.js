@@ -12,7 +12,6 @@ WriteCacheView.checkPath = async (module, path) => {
         throw error;
     }
 }
-
 WriteCacheView.writeModuleLanguage = async (module, language, data) => {
     try {
        const result = await cacheManager.saveModuleLanguage(module, language, data);

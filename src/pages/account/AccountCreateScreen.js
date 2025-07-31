@@ -17,15 +17,15 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
+const useAccountCreate = (editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
     
-    // Tạo newAccount từ detailFields
+    // Tạo newAccount từ editViews
     const initializeNewAccount = () => {
         const initialData = {};
-        if (detailFields && Array.isArray(detailFields)) {
-            detailFields.forEach(field => {
+        if (editViews && Array.isArray(editViews)) {
+            editViews.forEach(field => {
                 // Khởi tạo các field với giá trị rỗng
                 initialData[field.key] = '';
             });
@@ -37,6 +37,7 @@ const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation
     
     // Function để cập nhật field
     const updateField = (fieldKey, value) => {
+      
         setNewAccount(prev => ({
             ...prev,
             [fieldKey]: value
@@ -63,7 +64,7 @@ const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation
     };
    
     return {
-        detailFields,
+        editViews,
         formData: newAccount,
         loading,
         error: null,
@@ -73,13 +74,7 @@ const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation
         getFieldValue: getFieldValueLocal,
         getFieldLabel,
         getFieldError: getFieldErrorLocal,
-        isFormValid: () => {
-            // Kiểm tra field name không được để trống
-            if (!newAccount.name || newAccount.name.trim() === '') {
-                return false;
-            }
-            return true;
-        },
+        //isFormValid: () => {},
         validateForm: () => {
             const errors = {};
             if (!newAccount.name || newAccount.name.trim() === '') {
@@ -114,9 +109,7 @@ const useAccountCreate = (detailFields, getFieldValue, getFieldLabel, navigation
 export default function AccountCreateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { detailFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshAccount: routeRefreshAccount } = route.params || {};
-
-
+  const { editViews, requiredFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshAccount: routeRefreshAccount } = route.params || {};
   // Sử dụng custom hook
   const {
     formData,
@@ -129,9 +122,9 @@ export default function AccountCreateScreen() {
     getFieldValue,
     getFieldLabel,
     getFieldError,
-    isFormValid,
+   // isFormValid,
     validateForm
-  } = useAccountCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
+  } = useAccountCreate(editViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
@@ -175,7 +168,7 @@ export default function AccountCreateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0) {
+  if (!editViews || editViews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -216,7 +209,7 @@ export default function AccountCreateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
+            {editViews
               .filter(field => field.key !== 'id')
               .map((field) => {
                 const fieldError = getFieldError(field.key);
@@ -225,17 +218,23 @@ export default function AccountCreateScreen() {
                   // Skip date_entered and date_modified fields
                   return ;
                 }
+                let checkRequired = false;
+                requiredFields.map((requiredField) => {
+                  if (requiredField.field === field.key ) {
+                    return checkRequired = true;
+                  }
+                });
 
                 // Handle account_type as dropdown (simplified for now)
                 if (field.key === 'account_type') {
                   return (
                     <View key={field.key} style={styles.row}>
-                      <Text style={styles.label}>{field.label}</Text>
+                      <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
                       <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                         <TextInput
                           style={styles.value}
                           value={fieldValue}
-                          onChangeText={(value) => updateField(field.key, value)}
+                          onChangeText={(value) => updateField(field.key,value)}
                           placeholder={`Chọn ${field.label.toLowerCase()}`}
                           autoCapitalize="none"
                           returnKeyType="done"
@@ -248,7 +247,7 @@ export default function AccountCreateScreen() {
 
                 return (
                   <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
+                    <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
                     <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                       <TextInput
                         style={[
@@ -275,10 +274,10 @@ export default function AccountCreateScreen() {
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  (!isFormValid() || saving) && styles.disabledButton
+                  ( saving) && styles.disabledButton
                 ]}
                 onPress={handleSave}
-                disabled={!isFormValid() || saving}
+                disabled={ saving}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#fff" />

@@ -7,7 +7,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,11 +15,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 
-const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshMeeting) => {
+const useMeetingUpdate = (meeting,editViews,listViews,requiredFields,routeGetFieldValue, routeGetFieldLabel, navigation, refreshMeeting) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
     const [isDataChanged, setIsDataChanged] = useState(false);
@@ -38,8 +36,8 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                 initialData[key] = meeting[key] || '';
             });
         }
-        if (detailFields && Array.isArray(detailFields)) {
-            detailFields.forEach(field => {
+        if (editViews && Array.isArray(editViews)) {
+            editViews.forEach(field => {
                 // Đảm bảo tất cả fields có giá trị
                 if (!(field.key in initialData)) {
                     initialData[field.key] = '';
@@ -47,16 +45,16 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
             });
           }
         return initialData;
-    }, [meeting, detailFields]);
+    }, [meeting, editViews]);
     
     // Effect để khởi tạo dữ liệu khi component mount
     useEffect(() => {
-        if (meeting && detailFields) {
+        if (meeting && editViews) {
             const initialData = initializeUpdateMeeting();
             setOriginalMeetingData(initialData);
             setUpdateMeetingData(initialData);
         }
-    }, [meeting, detailFields, initializeUpdateMeeting]);
+    }, [meeting, editViews, initializeUpdateMeeting]);
     
     // Function để cập nhật field
     const updateField = useCallback((fieldKey, value) => {
@@ -93,7 +91,9 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
     }, [validationErrors]);
    
     return {
-        detailFields,
+        editViews,
+        listViews,
+        requiredFields,
         formData: updateMeetingData,
         originalData: originalMeetingData,
         updateMeetingData, // Expose để component có thể access
@@ -108,7 +108,7 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
         getFieldError: getFieldErrorLocal,
         isFormValid: () => {
             // Find the main field for validation
-            const nameField = detailFields?.find(f => 
+            const nameField = editViews?.find(f => 
                 f.key === 'name' || 
                 f.key === 'title' || 
                 f.key === 'subject' ||
@@ -125,7 +125,7 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
             const errors = {};
             
             // Find the main field for validation
-            const nameField = detailFields?.find(f => 
+            const nameField = editViews?.find(f => 
                 f.key === 'name' || 
                 f.key === 'title' || 
                 f.key === 'subject' ||
@@ -158,9 +158,9 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                 
                 // Danh sách các field system không nên update
                 const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
-                
-                if (detailFields && Array.isArray(detailFields)) {
-                    detailFields.forEach(field => {
+
+                if (editViews && Array.isArray(editViews)) {
+                    editViews.forEach(field => {
                         // Bỏ qua system fields
                         if (!systemFields.includes(field.key)) {
                             const currentValue = updateMeetingData[field.key];
@@ -178,17 +178,12 @@ const useMeetingUpdate = (meeting, detailFields, routeGetFieldValue, routeGetFie
                         }
                     });
                 }
-
-                console.log('📤 Fields to update:', fieldsToUpdate);
-                
                 // Nếu không có field nào thay đổi, không cần gọi API
                 if (Object.keys(fieldsToUpdate).length === 0) {
                     setLoading(false);
                     return { success: true, message: 'Không có thay đổi nào để cập nhật' };
                 }
-
                 const result = await MeetingData.UpdateMeeting(meeting.id, fieldsToUpdate, token);
-              
                 setLoading(false);
                 if (result) {
                     // Success if we have any meaningful response
@@ -221,7 +216,9 @@ export default function MeetingUpdateScreen() {
   const route = useRoute();
   const { 
     routeMeeting, 
-    routeDetailFields, 
+    routeEditViews,
+    routeListViews,
+    routeRequiredFields, 
     routeGetFieldValue, 
     routeGetFieldLabel, 
     refreshMeeting,
@@ -230,7 +227,9 @@ export default function MeetingUpdateScreen() {
 
   // Alias để dễ sử dụng
   const meeting = routeMeeting;
-  const detailFields = routeDetailFields;
+  const editViews = routeEditViews;
+  const listViews = routeListViews;
+  const requiredFields = routeRequiredFields;
   const routeGetFieldValueFunc = routeGetFieldValue;
   const routeGetFieldLabelFunc = routeGetFieldLabel;
   
@@ -249,7 +248,7 @@ export default function MeetingUpdateScreen() {
     getFieldError,
     isFormValid,
     validateForm
-  } = useMeetingUpdate(meeting, detailFields, routeGetFieldValueFunc, routeGetFieldLabelFunc, navigation, refreshMeeting);
+  } = useMeetingUpdate(meeting, routeEditViews, routeListViews, routeRequiredFields, routeGetFieldValueFunc, routeGetFieldLabelFunc, navigation, refreshMeeting);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
@@ -287,9 +286,6 @@ export default function MeetingUpdateScreen() {
       const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
       
       const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
-      
-      console.log('📅 Date selected for field:', currentDateField);
-      console.log('📅 Formatted date:', formattedDate);
       
       updateField(currentDateField, formattedDate);
     }
@@ -386,7 +382,7 @@ export default function MeetingUpdateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0) {
+  if (!editViews || editViews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -427,61 +423,66 @@ export default function MeetingUpdateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
-              .filter(field => field.key !== 'id')
-              .map((field) => {
-                const fieldError = getFieldError(field.key);
-                const fieldValue = getFieldValue(field.key);
-                const isDate = isDateField(field.key);
-
-                return (
-                  <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
-                    
-                    {isDate ? (
-                      // Date picker field
-                      <Pressable
-                        style={[styles.valueBox, fieldError && styles.errorInput]}
-                        onPress={() => showDatePicker(field.key)}
-                      >
-                        <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                          {fieldValue ? formatDateForDisplay(fieldValue) : `Chọn ${field.label.toLowerCase()}`}
-                        </Text>
-                      </Pressable>
-                    ) : (
-                      // Regular text input
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <TextInput
-                          style={[
-                            styles.value,
-                            field.key === 'description' && styles.multilineInput
-                          ]}
-                          value={fieldValue}
-                          onChangeText={(value) => updateField(field.key, value)}
-                          placeholder={`Nhập ${field.label.toLowerCase()}`}
-                          autoCapitalize="none"
-                          returnKeyType={field.key === 'description' ? 'default' : 'done'}
-                          multiline={field.key === 'description'}
-                          numberOfLines={field.key === 'description' ? 4 : 1}
-                          textAlignVertical={field.key === 'description' ? 'top' : 'center'}
-                        />
-                      </View>
-                    )}
-                    
-                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                  </View>
-                );
-              })}
-
-            {/* Date Time Picker Modal */}
-            <DateTimePickerModal
-              isVisible={isDatePickerVisible}
-              mode="datetime"
-              onConfirm={handleConfirm}
-              onCancel={hideDatePicker}
-              date={currentDateField ? (getFieldValue(currentDateField) ? new Date(getFieldValue(currentDateField)) : new Date()) : new Date()}
-            />
-
+                        {editViews && Array.isArray(editViews) && editViews.length > 0 ? (
+                          editViews
+                            .filter(field => field && field.key && field.key !== 'id')
+                            .map((field) => {
+                              const fieldError = getFieldError(field.key);
+                              const fieldValue = getFieldValue(field.key);
+            
+                            // Handle account_type as dropdown (simplified for now)
+                            if (field.key === 'account_type') {
+                              return (
+                                <View key={field.key} style={styles.row}>
+                                  <Text style={styles.label}>{field.label}</Text>
+                                  <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                                    <TextInput
+                                      style={styles.value}
+                                      value={fieldValue}
+                                      onChangeText={(value) => updateField(field.key, value)}
+                                      placeholder={`Chọn ${field.label.toLowerCase()}`}
+                                      autoCapitalize="none"
+                                      returnKeyType="done"
+                                    />
+                                  </View>
+                                  {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                                </View>
+                              );
+                            }
+                            if (field.key === 'date_start' || field.key === 'date_end') {
+                              return null;
+                            }
+            
+                            return (
+                              <View key={field.key} style={styles.row}>
+                                <Text style={styles.label}>{field.label}</Text>
+                                <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                                  <TextInput
+                                    style={[
+                                      styles.value,
+                                      field.key === 'description' && styles.multilineInput
+                                    ]}
+                                    value={fieldValue}
+                                    onChangeText={(value) => updateField(field.key, value)}
+                                    placeholder={`Nhập ${field.label.toLowerCase()}`}
+                                    autoCapitalize="none"
+                                    returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                                    multiline={field.key === 'description'}
+                                    numberOfLines={field.key === 'description' ? 4 : 1}
+                                    textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                                  />
+                                </View>
+                                {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                              </View>
+                            );
+                          })
+                        ) : (
+                          <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: '#666', fontSize: 16 }}>
+                              Không có dữ liệu để hiển thị
+                            </Text>
+                          </View>
+                        )}
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
               {/* Reset Button */}

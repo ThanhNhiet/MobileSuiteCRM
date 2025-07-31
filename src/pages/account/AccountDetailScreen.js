@@ -22,7 +22,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
-const useAccountDetail = (account, detailFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
+const useAccountDetail = (account, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
     const [deleting, setDeleting] = useState(false);
     const [data, setData] = useState(account);
 
@@ -52,7 +52,8 @@ const useAccountDetail = (account, detailFields, getFieldValue, getFieldLabel, n
 
     return {
         account: data || account,
-        detailFields,
+        editViews,
+        requiredFields,
         loading: false,
         refreshing: false,
         error: null,
@@ -73,9 +74,8 @@ export default function AccountDetailScreen() {
     const mdName = 'Khách hàng';
     const navigation = useNavigation();
     const route = useRoute();
-    const {account: routeAccount, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshAccount: routeRefreshAccount} = route.params;
+    const {account: routeAccount, editViews: routeEditViews, requiredFields: routeRequiredFields, listViews: routeListViews, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshAccount: routeRefreshAccount} = route.params;
     const [relationships, setRelationships] = React.useState([]);
-   
 
     // Giả lập dữ liệu mối quan hệ
     useEffect(() => {
@@ -148,7 +148,8 @@ export default function AccountDetailScreen() {
     account,
     loading,
     refreshing,
-    detailFields,
+    editViews,
+    requiredFields,
     deleting,
     error,
     refreshAccount,
@@ -157,7 +158,7 @@ export default function AccountDetailScreen() {
     getFieldValue,
     getFieldLabel,
     shouldDisplayField
-} = useAccountDetail(routeAccount, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
+} = useAccountDetail(routeAccount, routeEditViews, routeRequiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshAccount);
 
 
     // Handle delete with confirmation
@@ -229,7 +230,9 @@ export default function AccountDetailScreen() {
         }
         navigation.navigate('AccountUpdateScreen', { 
             routeAccount: account, // Truyền updated account thay vì routeAccount
-            routeDetailFields, 
+            routeEditViews, 
+            routeListViews,
+            routeRequiredFields,
             routeGetFieldValue, 
             routeGetFieldLabel,
             refreshAccount: updateAccountData, // Truyền update function cho DetailScreen
@@ -265,34 +268,15 @@ export default function AccountDetailScreen() {
 
     // Render field item
     const renderFieldItem = (field) => {
-        const value = getFieldValue(account, field.key);
+        const value = getFieldValue(account, field.key.toLowerCase());
 
         if (!shouldDisplayField(field.key)) {
             return null;
         }
-        // Special handling for ID field with copy button
-                if (field.key === 'id') {
-                    return (
-                        <View key={field.key} style={styles.fieldContainer}>
-                            <Text style={styles.fieldLabel}>{field.label}:</Text>
-                            <View style={styles.idContainer}>
-                                <Text style={[styles.fieldValue, styles.idValue]}>
-                                    {formatFieldValue(field.key, value)}
-                                </Text>
-                                <TouchableOpacity 
-                                    style={styles.copyButton}
-                                    onPress={handleCopyId}
-                                >
-                                    <Ionicons name="copy-outline" size={16} color="#007AFF" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    );
-                }
 
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel(field.key.toLowerCase())}</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -396,12 +380,28 @@ export default function AccountDetailScreen() {
                                     </Text>
                                 </View>
                             )}
-
+                            {account.id && (
+                                 <View  style={styles.fieldContainer}>
+                                    <Text style={styles.fieldLabel}>ID:</Text>
+                                    <View style={styles.idContainer}>
+                                        <Text style={[styles.fieldValue, styles.idValue]}>
+                                            {formatFieldValue('id', account.id)}
+                                        </Text>
+                                        <TouchableOpacity 
+                                            style={styles.copyButton}
+                                            onPress={handleCopyId}
+                                        >
+                                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
                             <View style={styles.fieldsContainer}>
-                                {detailFields.map(field => renderFieldItem(field))}
+                                {editViews.map(field => renderFieldItem(field))}
                             </View>
                         </View>
                     )}
+                     </ScrollView>
 
                     {/* ===== Box 2: Mối quan hệ ===== */}
                     <View style={styles.sectionHeader}>
@@ -420,7 +420,7 @@ export default function AccountDetailScreen() {
                             scrollEnabled={paddedData.length > 8} // Enable scroll nếu có > 2 rows
                         />
                     </View>
-                </ScrollView>
+               
 
                 {/* Action Buttons */}
                 {account && (

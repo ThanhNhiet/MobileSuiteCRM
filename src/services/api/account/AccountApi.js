@@ -4,7 +4,7 @@ import { LOCALHOST_IP } from '../../../utils/localhost';
 const AccountApi = {};
 
 
-// Lấy thông tin trường của mô hình Accounts
+// require các hàm từ
 AccountApi.getFields = async (token) => {
     try {
         const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/fields/Accounts`, {
@@ -25,7 +25,7 @@ AccountApi.getFields = async (token) => {
 // lấy danh sách listfieldView
 AccountApi.getListFieldsView = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/list-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -42,9 +42,9 @@ AccountApi.getListFieldsView = async (token) => {
 };
 
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
-AccountApi.getLanguage = async (token) => {
+AccountApi.getLanguage = async (token,language) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/language/lang=${language}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -65,6 +65,24 @@ AccountApi.getLanguage = async (token) => {
     throw error;
   }
 };
+
+// lay danh sach editView
+AccountApi.getEditView = async (token) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Accounts/edit-fields`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getEditView:', error);
+    throw error;
+  }
+}
 
 // lấy data account theo trang
 //{{suitecrm.url}}/V8/module/Accounts?page[size]=10&page[number]=1&sort=date_entered
@@ -184,6 +202,23 @@ AccountApi.createAccount = async (accountData, token) => {
         console.error('Error creating account:', error);
         throw error;
     }
+};
+
+AccountApi.getLanguage = async (module, language, token) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${module}/language/lang=${language}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Lỗi trong language:', error);
+    throw error;
+  }
 };
 
 

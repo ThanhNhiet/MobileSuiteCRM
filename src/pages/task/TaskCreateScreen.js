@@ -18,15 +18,15 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 
-const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
+const useTaskCreate = (editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
     
-    // Tạo newTask từ detailFields
+    // Tạo newTask từ editViews
     const initializeNewTask = () => {
         const initialData = {};
-        if (detailFields && Array.isArray(detailFields)) {
-            detailFields.forEach(field => {
+        if (editViews && Array.isArray(editViews)) {
+            editViews.forEach(field => {
                 // Khởi tạo các field với giá trị rỗng
                 initialData[field.key] = '';
             });
@@ -64,7 +64,8 @@ const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, r
     };
    
     return {
-        detailFields,
+        editViews,
+        requiredFields,
         formData: newTask,
         loading,
         error: null,
@@ -76,12 +77,14 @@ const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, r
         getFieldError: getFieldErrorLocal,
         isFormValid: () => {
             // Find the main field for validation
-            const nameField = detailFields?.find(f => 
-                f.key === 'name' || 
-                f.key === 'title' || 
-                f.key === 'subject' ||
-                f.key.toLowerCase().includes('name') ||
-                f.key.toLowerCase().includes('title')
+            const nameField = requiredFields?.find(f => 
+                f && f.key && typeof f.key === 'string' && (
+                    f.key === 'name' || 
+                    f.key === 'title' || 
+                    f.key === 'subject' ||
+                    f.key.toLowerCase().includes('name') ||
+                    f.key.toLowerCase().includes('title')
+                )
             );
             
             if (nameField) {
@@ -89,7 +92,7 @@ const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, r
             }
             
             // Fallback - check first field
-            const firstField = detailFields?.find(f => f.key !== 'id');
+            const firstField = requiredFields?.find(f => f && f.key && typeof f.key === 'string' && f.key !== 'id');
             if (firstField) {
                 return newTask[firstField.key] && newTask[firstField.key].trim() !== '';
             }
@@ -122,7 +125,7 @@ const useTaskCreate = (detailFields, getFieldValue, getFieldLabel, navigation, r
 export default function TaskCreateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { detailFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshTask: routeRefreshTask } = route.params || {};
+  const { editViews, requiredFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshTask: routeRefreshTask } = route.params || {};
 
   // Sử dụng custom hook
   const {
@@ -137,7 +140,7 @@ export default function TaskCreateScreen() {
     getFieldLabel,
     getFieldError,
     isFormValid
-  } = useTaskCreate(detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
+  } = useTaskCreate(editViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
@@ -175,7 +178,7 @@ export default function TaskCreateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0) {
+  if (!editViews || editViews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -216,15 +219,28 @@ export default function TaskCreateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
-              .filter(field => field.key !== 'id')
+            {editViews
+              .filter(field => field && field.key && typeof field.key === 'string' && field.key !== 'id')
               .map((field) => {
                 const fieldError = getFieldError(field.key);
                 const fieldValue = getFieldValue(field.key);
+                let checkRequired = false;
+                
+                // Sửa lỗi kiểm tra requiredFields
+                if (requiredFields && Array.isArray(requiredFields)) {
+                    requiredFields.forEach((requiredField) => {
+                        if (requiredField && requiredField.field === field.key) {
+                            checkRequired = true;
+                        }
+                    });
+                }
+                 if (field.key === 'date_start' || field.key === 'date_end') {
+                return null;
+              }
 
                 return (
                   <View key={field.key} style={styles.row}>
-                    <Text style={styles.label}>{field.label}</Text>
+                    <Text style={styles.label}>{field.label}{checkRequired ? ' (*)' : ''}</Text>
                     <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                       <TextInput
                         style={[

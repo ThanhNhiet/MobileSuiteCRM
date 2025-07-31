@@ -26,7 +26,7 @@ TaskApi.getFields = async (token) => {
 // lấy danh sách listfieldView
 TaskApi.getListFieldsView = async (token) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/list-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -43,9 +43,9 @@ TaskApi.getListFieldsView = async (token) => {
 };
 
 // lấy danh sách ngôn ngữ theo model (tiếng anh)
-TaskApi.getLanguage = async (token) => {
+TaskApi.getLanguage = async (token, language) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Tasks/language/lang=${language}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -66,7 +66,23 @@ TaskApi.getLanguage = async (token) => {
     throw error;
   }
 };
-
+// lay danh sach editView
+TaskApi.getEditView = async (token) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/Meetings/edit-fields`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getEditView:', error);
+    throw error;
+  }
+}
 // lấy data task theo trang
 TaskApi.getDataByPage = async (token, page, pageSize) => {
   try{
@@ -92,23 +108,7 @@ TaskApi.getDataByPage = async (token, page, pageSize) => {
   }
 }
 
-// lấy metadata của tất cả modules từ V8/meta/modules
-TaskApi.getModuleMeta = async (token) => {
-  try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/meta/modules`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-      },
-    });
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Lỗi trong getModuleMeta:', error);
-    throw error;
-  }
-};
+
 
 // lấy mối quan hệ của task
 TaskApi.getRelationships = async (token, taskId) => {

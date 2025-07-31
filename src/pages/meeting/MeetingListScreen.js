@@ -81,14 +81,15 @@ export default function MeetingListScreen() {
         try {
             setLoading(true);
             const token = await AsyncStorage.getItem('token');
-            if (!token) {   
+            const language = await AsyncStorage.getItem('selectedLanguage') || 'en_us';
+            if (!token && !language) {   
                 navigation.navigate('LoginScreen');
                 return;
             }
             
             // Lấy dữ liệu với 20 dòng mỗi trang
-            const result = await MeetingData.getDataWithFields(token, pageNumber, 20);
-            setTypeOptions1(['All', ...result.detailFields.map(field => field.label)]);
+            const result = await MeetingData.useListData(token, pageNumber, 20, language);
+            setTypeOptions1(['All', ...result.editViews.map(field => field.label)]);
             setApiData(result);
             setFilteredData(result.meetings || []); // Khởi tạo filtered data
             
@@ -215,15 +216,15 @@ export default function MeetingListScreen() {
 
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
-        const displayFields = apiData?.detailFields
+        const displayFields = apiData?.listViews
             ?.filter(field => field.key !== 'id')
             ?.slice(0, 3) || [];
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('MeetingDetailScreen', { meeting: item, detailFields: apiData?.detailFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshMeeting:() => fetchDataByPage(page)})}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('MeetingDetailScreen', { meeting: item, editViews: apiData?.editViews, requiredFields: apiData?.requiredFields, listViews: apiData?.listViews, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshMeeting:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
-                    const rawValue = apiData?.getFieldValue(item, field.key) || '';
-                    
+                    const rawValue = apiData?.getFieldValue(item, field.key.toLowerCase()) || '';
+
                     // Kiểm tra và format nếu là dữ liệu ngày
                     let displayValue = rawValue;
                     if (rawValue && (
@@ -341,7 +342,8 @@ export default function MeetingListScreen() {
                                     // TODO: Điều hướng hoặc xử lý thêm mới dữ liệu
                                    // console.log('Add new');
                                     navigation.navigate('MeetingCreateScreen',{
-                                        detailFields: apiData?.detailFields,
+                                        editViews: apiData?.editViews,
+                                        requiredFields: apiData?.requiredFields,
                                         getFieldLabel: apiData?.getFieldLabel,
                                         getFieldValue: apiData?.getFieldValue,
                                         refreshMeeting: () => fetchDataByPage(page)
@@ -358,7 +360,7 @@ export default function MeetingListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {apiData?.detailFields
+                        {apiData?.listViews
                             ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
                             ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
                             ?.map((field, index) => (

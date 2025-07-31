@@ -22,7 +22,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { formatDateTime } from "../../utils/FormatDateTime";
 
-const useMeetingDetail = (meeting, detailFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
+const useMeetingDetail = (meeting, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
     const [deleting, setDeleting] = useState(false);
     const [data, setData] = useState(meeting);
     
@@ -52,7 +52,8 @@ const useMeetingDetail = (meeting, detailFields, getFieldValue, getFieldLabel, n
 
     return {
         meeting: data || meeting,
-        detailFields,
+        editViews,
+        requiredFields,
         loading: false,
         refreshing: false,
         error: null,
@@ -72,7 +73,7 @@ export default function MeetingDetailScreen() {
     const mdName = 'Cuộc họp';
     const navigation = useNavigation();
     const route = useRoute();
-    const {meeting: routeMeeting, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshMeeting: routeRefreshMeeting} = route.params;
+    const {meeting: routeMeeting, editViews: routeEditViews, requiredFields: routeRequiredFields, listViews: routeListViews, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshMeeting: routeRefreshMeeting} = route.params;
     const [relationships, setRelationships] = useState([]);
     // State để quản lý dữ liệu meeting hiện tại
     const [currentMeeting, setCurrentMeeting] = useState(routeMeeting);
@@ -87,7 +88,7 @@ export default function MeetingDetailScreen() {
                     return;
                 }
 
-                const response = await MeetingData.getRelationships(token, currentMeeting.id);
+                const response = await MeetingData.getRelationships(token, routeMeeting.id);
                 if (response && response.relationships) {
                     setRelationships(response.relationships);
                 } else {
@@ -151,9 +152,10 @@ export default function MeetingDetailScreen() {
     // Sử dụng custom hook
     const {
         meeting,
-        detailFields,
         loading,
         refreshing,
+        editViews,
+        requiredFields,
         error,
         deleting,
         refreshMeeting,
@@ -162,7 +164,7 @@ export default function MeetingDetailScreen() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField
-    } = useMeetingDetail(currentMeeting, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshMeeting);
+    } = useMeetingDetail(currentMeeting, routeEditViews, routeRequiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshMeeting);
 
     // Handle delete with confirmation
     const handleDelete = () => {
@@ -232,7 +234,9 @@ export default function MeetingDetailScreen() {
         }
         navigation.navigate('MeetingUpdateScreen', { 
             routeMeeting: meeting, // Truyền updated meeting thay vì currentMeeting
-            routeDetailFields,
+            routeEditViews,
+            routeListViews,
+            routeRequiredFields,
             routeGetFieldValue,
             routeGetFieldLabel,
             refreshMeeting: updateMeetingData, // Truyền update function cho DetailScreen
@@ -285,35 +289,15 @@ export default function MeetingDetailScreen() {
 
     // Render field item
     const renderFieldItem = (field) => {
-        const value = getFieldValue(meeting, field.key);
+        const value = getFieldValue(meeting, field.key.toLowerCase());
 
         if (!shouldDisplayField(field.key)) {
             return null;
         }
 
-        // Special handling for ID field with copy button
-        if (field.key === 'id') {
-            return (
-                <View key={field.key} style={styles.fieldContainer}>
-                    <Text style={styles.fieldLabel}>{field.label}:</Text>
-                    <View style={styles.idContainer}>
-                        <Text style={[styles.fieldValue, styles.idValue]}>
-                            {formatFieldValue(field.key, value)}
-                        </Text>
-                        <TouchableOpacity 
-                            style={styles.copyButton}
-                            onPress={handleCopyId}
-                        >
-                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            );
-        }
-
         return (
             <View key={field.key} style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}</Text>
+                <Text style={styles.fieldLabel}>{getFieldLabel(field.key.toLowerCase())}</Text>
                 <Text style={styles.fieldValue}>
                     {formatFieldValue(field.key, value)}
                 </Text>
@@ -399,7 +383,23 @@ export default function MeetingDetailScreen() {
                     {meeting && (
                         <View style={styles.detailsContainer}>
                             <Text style={styles.meetingTitle}>{meeting.name}</Text>
-
+                            {meeting.id && (
+                                            <View  style={styles.fieldContainer}>
+                                                <Text style={styles.fieldLabel}>ID:</Text>
+                                                <View style={styles.idContainer}>
+                                                <Text style={[styles.fieldValue, styles.idValue]}>
+                                                {formatFieldValue('id', meeting.id)}
+                                                                </Text>
+                                                <TouchableOpacity 
+                                                    style={styles.copyButton}
+                                                    onPress={handleCopyId}
+                                                >
+                                                    <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                                                </TouchableOpacity>
+                                                </View>
+                                            </View>
+                                        )
+                                    }
                             {meeting.date_start && (
                                 <View style={styles.timeInfo}>
                                     <Ionicons name="time-outline" size={16} color="#666" />
@@ -419,7 +419,7 @@ export default function MeetingDetailScreen() {
                             )}
 
                             <View style={styles.fieldsContainer}>
-                                {detailFields.map(field => renderFieldItem(field))}
+                                {editViews.map(field => renderFieldItem(field))}
                             </View>
                         </View>
                     )}

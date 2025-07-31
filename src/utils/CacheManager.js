@@ -36,6 +36,8 @@ class CacheManager {
             await this.ensureDirectoryExists(moduleDir);
 
             const filePath = `${moduleDir}${language}.json`;
+
+            console.log("➡️ FilePath:", filePath);
             await FileSystem.writeAsStringAsync(filePath, JSON.stringify(data, null, 2));
             console.log(`Saved language ${language} for module ${module}`);
             return true;
@@ -43,14 +45,13 @@ class CacheManager {
             console.warn(`Error saving language ${language} for module ${module}:`, error);
             return false;
         }
-    }
+    } 
 
     // Lưu system language
     async saveSystemLanguage(language, data) {
         try {
             const includeDir = `${this.cacheDir}Include/`;
             await this.ensureDirectoryExists(includeDir);
-
             const filePath = `${includeDir}${language}.json`;
             await FileSystem.writeAsStringAsync(filePath, JSON.stringify(data, null, 2));
             console.log(`Saved system language ${language}`);
@@ -61,11 +62,21 @@ class CacheManager {
         }
     }
 
+    
+    // Kiểm tra xem module file có tồn tại không
+    async checkModuleExists(module, name) {
+        const cleanName = name.startsWith('/') ? name.slice(1) : name;
+        const filePath = `${this.cacheDir}${module}/${cleanName}.json`;
+        return await this.fileExists(filePath);
+}
+
+
     // Kiểm tra xem module language có tồn tại không
     async checkModuleLanguageExists(module, language) {
         const filePath = `${this.cacheDir}${module}/language/${language}.json`;
         return await this.fileExists(filePath);
     }
+  
 
     // Kiểm tra xem system language có tồn tại không
     async checkSystemLanguageExists(language) {
@@ -88,6 +99,41 @@ class CacheManager {
             return null;
         }
     }
+    // Đọc dữ liệu ngôn ngữ của module  name =requiredFields
+    async saveModuleField(module, name, data) {
+  try {
+    const cleanName = name.startsWith('/') ? name.slice(1) : name;
+
+    const fullFilePath = `${this.cacheDir}${module}/${cleanName}.json`;
+
+    // Lấy đường dẫn thư mục chứa file
+    const folderPath = fullFilePath.substring(0, fullFilePath.lastIndexOf('/'));
+    await this.ensureDirectoryExists(folderPath);
+
+    console.log('➡️ Writing to:', fullFilePath);
+    await FileSystem.writeAsStringAsync(fullFilePath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.warn(`❌ Error saving required field ${name} for module ${module}:`, error);
+    return false;
+  }
+}
+async getModuleField(module, name) {
+  try {
+    const cleanName = name.startsWith('/') ? name.slice(1) : name;
+    const filePath = `${this.cacheDir}${module}/${cleanName}.json`;
+
+    const fileExists = await this.fileExists(filePath);
+    if (fileExists) {
+      const content = await FileSystem.readAsStringAsync(filePath);
+      return JSON.parse(content);
+    }
+    return null;
+  } catch (error) {
+    console.warn(`❌ Error reading module field ${module}/${name}:`, error);
+    return null;
+  }
+}
 
     // Đọc system language
     async getSystemLanguage(language) {
@@ -163,6 +209,22 @@ class CacheManager {
             return null;
         }
     }
-}
 
+    // Trong class CacheManager
+    async clearModuleCache(module) {
+        try {
+            const moduleDir = `${this.cacheDir}${module}/`;
+            const moduleExists = await this.fileExists(moduleDir);
+            if (moduleExists) {
+                await FileSystem.deleteAsync(moduleDir, { idempotent: true });
+                console.log(`🗑️ Cleared cache for module: ${module}`);
+            } else {
+                console.log(`ℹ️ No cache to clear for module: ${module}`);
+            }
+        } catch (error) {
+            console.warn(`❌ Error clearing module cache for ${module}:`, error);
+        }
+    }
+
+}
 export const cacheManager = new CacheManager();
