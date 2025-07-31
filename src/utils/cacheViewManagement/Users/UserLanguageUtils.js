@@ -43,6 +43,7 @@ class UserLanguageUtils {
                 const result = {
                     appStrings: languageData.data.app_strings || {},
                     appListStrings: languageData.data.app_list_strings || {},
+                    modStrings: languageData.data.mod_strings || {}, // Add User module strings
                     language: languageData.language || selectedLanguage,
                     meta: languageData.meta || {},
                     fullData: languageData.data // Keep full data for flexibility
@@ -67,6 +68,7 @@ class UserLanguageUtils {
         const emptyData = {
             appStrings: {},
             appListStrings: {},
+            modStrings: {}, // Add User module strings
             language: 'vi_VN',
             meta: {},
             fullData: {}
@@ -98,30 +100,58 @@ class UserLanguageUtils {
         try {
             const languageData = await this.loadLanguageData();
             
-            // Try appStrings first
-            let translation = languageData.appStrings[key];
+            // Try modStrings first (User module strings)
+            let translation = languageData.modStrings[key];
+            if (translation) {
+                return String(translation);
+            }
+            
+            // Try appStrings second
+            if (!translation) {
+                translation = languageData.appStrings[key];
+                if (translation) {
+                    return String(translation);
+                }
+            }
             
             // Then try appListStrings direct lookup
             if (!translation) {
                 translation = languageData.appListStrings[key];
+                if (translation) {
+                    return String(translation);
+                }
             }
             
             // Then try nested search in appListStrings (for values like "unread", "read", etc.)
             if (!translation) {
                 translation = this.searchNestedValue(languageData.appListStrings, key);
+                if (translation) {
+                    return String(translation);
+                }
             }
             
             // If not found, try with common prefix variations
             if (!translation && key.startsWith('LBL_')) {
-                // Try without LBL_ prefix
+                // Try without LBL_ prefix in all sources
                 const simpleKey = key.replace('LBL_', '');
-                translation = languageData.appStrings[simpleKey] || languageData.appListStrings[simpleKey];
+                translation = languageData.modStrings[simpleKey] || languageData.appStrings[simpleKey] || languageData.appListStrings[simpleKey];
+                if (translation) {
+                    return String(translation);
+                }
                 
                 // Try with LBL_LIST_ prefix
                 if (!translation) {
                     const listKey = key.replace('LBL_', 'LBL_LIST_');
-                    translation = languageData.appStrings[listKey] || languageData.appListStrings[listKey];
+                    translation = languageData.modStrings[listKey] || languageData.appStrings[listKey] || languageData.appListStrings[listKey];
+                    if (translation) {
+                        return String(translation);
+                    }
                 }
+            }
+
+            // If still not found, log a warning for debugging
+            if (!translation) {
+                console.warn(`[UserLanguageUtils] Key not found: ${key}`);
             }
 
             // Ensure we always return a string
@@ -140,8 +170,13 @@ class UserLanguageUtils {
             const translations = {};
 
             for (const key of keys) {
-                // Try appStrings first
-                let translation = languageData.appStrings[key];
+                // Try modStrings first (User module strings)
+                let translation = languageData.modStrings[key];
+                
+                // Try appStrings second
+                if (!translation) {
+                    translation = languageData.appStrings[key];
+                }
                 
                 // Then try appListStrings direct lookup
                 if (!translation) {
@@ -155,14 +190,14 @@ class UserLanguageUtils {
                 
                 // If not found, try with common prefix variations
                 if (!translation && key.startsWith('LBL_')) {
-                    // Try without LBL_ prefix
+                    // Try without LBL_ prefix in all sources
                     const simpleKey = key.replace('LBL_', '');
-                    translation = languageData.appStrings[simpleKey] || languageData.appListStrings[simpleKey];
+                    translation = languageData.modStrings[simpleKey] || languageData.appStrings[simpleKey] || languageData.appListStrings[simpleKey];
                     
                     // Try with LBL_LIST_ prefix
                     if (!translation) {
                         const listKey = key.replace('LBL_', 'LBL_LIST_');
-                        translation = languageData.appStrings[listKey] || languageData.appListStrings[listKey];
+                        translation = languageData.modStrings[listKey] || languageData.appStrings[listKey] || languageData.appListStrings[listKey];
                     }
                 }
 
@@ -180,6 +215,51 @@ class UserLanguageUtils {
             });
             return fallbackTranslations;
         }
+    }
+
+    // Translate field name to user-friendly label
+    async translateFieldName(fieldName, defaultValue = null) {
+        try {
+            // First try direct translation
+            let translation = await this.translate(fieldName, null);
+            if (translation && translation !== fieldName) {
+                return translation;
+            }
+
+            // Try with LBL_ prefix
+            const lblKey = `LBL_${fieldName.toUpperCase()}`;
+            translation = await this.translate(lblKey, null);
+            if (translation && translation !== lblKey) {
+                return translation;
+            }
+
+            // Try common field name patterns
+            const patterns = [
+                `LBL_${fieldName.replace(/_/g, '_').toUpperCase()}`,
+                `LBL_LIST_${fieldName.toUpperCase()}`,
+                fieldName.toUpperCase()
+            ];
+
+            for (const pattern of patterns) {
+                translation = await this.translate(pattern, null);
+                if (translation && translation !== pattern) {
+                    return translation;
+                }
+            }
+
+            // Return default value or formatted field name
+            return defaultValue || this.formatFieldName(fieldName);
+        } catch (error) {
+            console.warn('Error translating field name:', fieldName, error);
+            return defaultValue || this.formatFieldName(fieldName);
+        }
+    }
+
+    // Format field name as fallback (convert snake_case to Title Case)
+    formatFieldName(fieldName) {
+        return fieldName
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
     }
 
     // Get current language

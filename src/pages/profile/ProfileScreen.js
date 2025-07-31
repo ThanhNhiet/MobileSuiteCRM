@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Image,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -11,10 +12,40 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUserProfile } from '../../services/useApi/user/UseUser_Profile';
+import { UserLanguageUtils } from '../../utils/cacheViewManagement/Users/UserLanguageUtils';
 
 export default function ProfileScreen({ navigation }) {
     // Sử dụng custom hook để lấy thông tin profile
-    const { profileData, loading, error, refreshing, refreshProfile } = useUserProfile();
+    const { profileData, loading, error, refreshing, refreshProfile, fieldLabels } = useUserProfile();
+    
+    // Language translations
+    const [translations, setTranslations] = useState({});
+    const userLanguageUtils = UserLanguageUtils.getInstance();
+
+    // Load translations
+    useEffect(() => {
+        const loadTranslations = async () => {
+            try {
+                const keys = [
+                    'LBL_LOADING',
+                    'LBL_ERROR',
+                    'LBL_RETRY',
+                    'LBL_USER_INFORMATION', 
+                    'LBL_ADDRESS_INFORMATION',
+                    'LBL_EDIT',
+                    'LBL_CHANGE_PASSWORD',
+                    'LBL_SETTINGS'
+                ];
+                
+                const translatedLabels = await userLanguageUtils.translateKeys(keys);
+                setTranslations(translatedLabels);
+            } catch (error) {
+                console.warn('Error loading profile translations:', error);
+            }
+        };
+
+        loadTranslations();
+    }, []);
 
     // Hiển thị loading khi đang tải dữ liệu lần đầu
     if (loading) {
@@ -22,7 +53,9 @@ export default function ProfileScreen({ navigation }) {
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
-                    <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+                    <Text style={styles.loadingText}>
+                        {translations.LBL_LOADING || 'Đang tải thông tin...'}
+                    </Text>
                 </View>
             </SafeAreaView>
         );
@@ -39,28 +72,100 @@ export default function ProfileScreen({ navigation }) {
                         style={styles.retryButton}
                         onPress={() => refreshProfile()}
                     >
-                        <Text style={styles.retryButtonText}>Thử lại</Text>
+                        <Text style={styles.retryButtonText}>
+                            {translations.LBL_RETRY || 'Thử lại'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
         );
     }
 
-    // Dữ liệu mẫu sẽ được thay thế bằng profileData từ API
-    const displayData = profileData?.attributes || {
-        full_name: 'John Doe',
-        description: 'Senior Sales Manager',
-        phone_mobile: '0901 234 567',
-        phone_work: '0812 345 678',
-        address_street: '123 Nguyen Hue Street',
-        address_city: 'Ho Chi Minh City',
-        address_country: 'Vietnam',
-        reports_to_name: 'Jane Smith',
-        email1: 'john.doe@company.com'
+    // Dữ liệu từ API
+    const displayData = profileData?.attributes || {};
+
+    // Helper function to get field label with fallback
+    const getFieldLabel = (fieldName, defaultLabel) => {
+        return fieldLabels[fieldName] || defaultLabel;
     };
 
-    // Gộp address
-    const fullAddress = `${displayData.address_street || ''}, ${displayData.address_city || ''}, ${displayData.address_country || ''}`.replace(/^,\s*|,\s*$/g, '');
+    // Field icon mapping
+    const getFieldIcon = (fieldName) => {
+        const iconMap = {
+            full_name: 'person-outline',
+            user_name: 'person-circle-outline',
+            status: 'checkmark-circle-outline',
+            UserType: 'business-outline',
+            employee_status: 'briefcase-outline',
+            show_on_employees: 'eye-outline',
+            title: 'ribbon-outline',
+            department: 'business-outline',
+            reports_to_name: 'people-outline',
+            description: 'document-text-outline',
+            photo: 'image-outline',
+            phone_mobile: 'phone-portrait-outline',
+            phone_work: 'call-outline',
+            phone_other: 'call-outline',
+            phone_fax: 'print-outline',
+            phone_home: 'home-outline',
+            messenger_type: 'chatbubble-outline',
+            messenger_id: 'chatbubbles-outline',
+            address_street: 'location-outline',
+            address_city: 'business-outline',
+            address_state: 'map-outline',
+            address_postalcode: 'mail-outline',
+            address_country: 'globe-outline',
+        };
+        return iconMap[fieldName] || 'information-circle-outline';
+    };
+
+    // Dynamically group fields into sections based on field names
+    const getFieldSections = () => {
+        // Get all available fields from the API response
+        const availableFields = Object.keys(displayData);
+        
+        // Define field patterns for categorization
+        const phoneFields = availableFields.filter(field => 
+            field.startsWith('phone_') || field.includes('fax')
+        );
+        
+        const addressFields = availableFields.filter(field => 
+            field.startsWith('address_')
+        );
+        
+        const messengerFields = availableFields.filter(field => 
+            field.startsWith('messenger_')
+        );
+        
+        // Contact fields = phone + messenger fields
+        const contactFields = [...phoneFields, ...messengerFields];
+        
+        // User info fields = all other fields except contact, address, and header fields
+        const excludedFields = [...contactFields, ...addressFields, 'full_name', 'description', 'photo'];
+        const userInfoFields = availableFields.filter(field => 
+            !excludedFields.includes(field)
+        );
+
+        return { userInfoFields, contactFields, addressFields };
+    };
+
+    // Render dynamic profile fields
+    const renderProfileFields = (fieldNames, data) => {
+        return fieldNames.map(fieldName => {
+            const value = data[fieldName];
+            // Skip fields that are empty or null for cleaner UI (optional)
+            // if (!value || value.trim() === '') return null;
+            
+            return (
+                <ProfileField
+                    key={fieldName}
+                    fieldName={fieldName}
+                    value={value}
+                    icon={getFieldIcon(fieldName)}
+                />
+            );
+        }).filter(Boolean);
+    };
 
     const handleEditProfile = () => {
         console.log('Navigate to Edit Profile');
@@ -72,11 +177,13 @@ export default function ProfileScreen({ navigation }) {
         navigation.navigate('ChangePasswordScreen');
     };
 
-    const ProfileField = ({ label, value, icon }) => (
+    const ProfileField = ({ fieldName, label, value, icon }) => (
         <View style={styles.fieldContainer}>
             <View style={styles.fieldHeader}>
                 <Ionicons name={icon} size={20} color="#4B84FF" />
-                <Text style={styles.fieldLabel}>{label}</Text>
+                <Text style={styles.fieldLabel}>
+                    {fieldName ? getFieldLabel(fieldName, label) : label}
+                </Text>
             </View>
             <Text style={styles.fieldValue}>{value || 'N/A'}</Text>
         </View>
@@ -99,60 +206,47 @@ export default function ProfileScreen({ navigation }) {
                 >
                     {/* Header */}
                     <View style={styles.header}>
+                        <View style={styles.avatarContainer}>
+                            {displayData.photo ? (
+                                <Image 
+                                    source={{ uri: displayData.photo }} 
+                                    style={styles.avatar}
+                                />
+                            ) : (
+                                <View style={styles.avatar}>
+                                    <Ionicons name="person" size={40} color="white" />
+                                </View>
+                            )}
+                        </View>
                         <Text style={styles.fullName}>{displayData.full_name}</Text>
                         <Text style={styles.description}>{displayData.description}</Text>
                     </View>
 
                     {/* Profile Information */}
                     <View style={styles.infoSection}>
-                        <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
-
-                        <ProfileField
-                            label="Họ và tên"
-                            value={displayData.full_name}
-                            icon="person-outline"
-                        />
-
-                        <ProfileField
-                            label="Email"
-                            value={displayData.email1}
-                            icon="mail-outline"
-                        />
-
-                        <ProfileField
-                            label="Mô tả"
-                            value={displayData.description}
-                            icon="document-text-outline"
-                        />
-
-                        <ProfileField
-                            label="Báo cáo cho"
-                            value={displayData.reports_to_name}
-                            icon="people-outline"
-                        />
+                        <Text style={styles.sectionTitle}>
+                            {translations.LBL_USER_INFORMATION || 'Thông tin người dùng'}
+                        </Text>
+                        
+                        {renderProfileFields(getFieldSections().userInfoFields, displayData)}
                     </View>
 
                     {/* Contact Information */}
                     <View style={styles.infoSection}>
-                        <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
+                        <Text style={styles.sectionTitle}>
+                            {translations.LBL_CONTACT_INFORMATION || 'Thông tin liên hệ'}
+                        </Text>
+                        
+                        {renderProfileFields(getFieldSections().contactFields, displayData)}
+                    </View>
 
-                        <ProfileField
-                            label="Di động"
-                            value={displayData.phone_mobile}
-                            icon="phone-portrait-outline"
-                        />
-
-                        <ProfileField
-                            label="Điện thoại công ty"
-                            value={displayData.phone_work}
-                            icon="call-outline"
-                        />
-
-                        <ProfileField
-                            label="Địa chỉ"
-                            value={fullAddress}
-                            icon="location-outline"
-                        />
+                    {/* Address Information */}
+                    <View style={styles.infoSection}>
+                        <Text style={styles.sectionTitle}>
+                            {translations.LBL_ADDRESS_INFORMATION || 'Thông tin địa chỉ'}
+                        </Text>
+                        
+                        {renderProfileFields(getFieldSections().addressFields, displayData)}
                     </View>
 
                     {/* Action Buttons */}
@@ -162,7 +256,9 @@ export default function ProfileScreen({ navigation }) {
                             onPress={handleEditProfile}
                         >
                             <Ionicons name="create-outline" size={20} color="white" />
-                            <Text style={styles.primaryButtonText}>Chỉnh sửa thông tin</Text>
+                            <Text style={styles.primaryButtonText}>
+                                {translations.LBL_EDIT || 'Chỉnh sửa thông tin'}
+                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -170,7 +266,9 @@ export default function ProfileScreen({ navigation }) {
                             onPress={handleChangePassword}
                         >
                             <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
-                            <Text style={styles.secondaryButtonText}>Đổi mật khẩu</Text>
+                            <Text style={styles.secondaryButtonText}>
+                                {translations.LBL_CHANGE_PASSWORD || 'Đổi mật khẩu'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
