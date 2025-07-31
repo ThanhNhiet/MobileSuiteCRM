@@ -360,7 +360,7 @@ export default function MeetingListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {apiData?.detailFields
+                        {apiData?.listViews
                             ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
                             ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
                             ?.map((field, index) => (

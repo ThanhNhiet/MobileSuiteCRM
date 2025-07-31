@@ -25,7 +25,7 @@ import { formatDateTime } from "../../utils/FormatDateTime";
 const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 
-const useTaskDetail = (task, detailFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
+const useTaskDetail = (task, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
     const [deleting, setDeleting] = useState(false);
     const [data, setData] = useState(task);
 
@@ -55,7 +55,8 @@ const useTaskDetail = (task, detailFields, getFieldValue, getFieldLabel, navigat
 
     return {
         task: data || task,
-        detailFields,
+        editViews,
+        requiredFields,
         loading: false,
         refreshing: false,
         error: null,
@@ -73,12 +74,11 @@ export default function TaskDetailScreen() {
     const mdName = 'Công việc';
     const navigation = useNavigation();
     const route = useRoute();
-    const {task: routeTask, detailFields: routeDetailFields, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshTask: routeRefreshTask} = route.params;
+    const {task: routeTask, editViews: routeEditViews, requiredFields: routeRequiredFields,listViews: routeListViews, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshTask: routeRefreshTask} = route.params;
     const [relationships, setRelationships] = useState([]);
     // State để quản lý dữ liệu task hiện tại
     const [currentTask, setCurrentTask] = useState(routeTask);
     const [taskRefreshing, setTaskRefreshing] = useState(false);
-
     useEffect(() => {
         const fetchRelationships = async () => {
             try {
@@ -152,9 +152,10 @@ export default function TaskDetailScreen() {
     // Sử dụng custom hook
     const {
         task,
-        detailFields,
         loading,
         refreshing,
+        editViews,
+        requiredFields,
         error,
         deleting,
         refreshTask,
@@ -163,7 +164,7 @@ export default function TaskDetailScreen() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField
-    } = useTaskDetail(currentTask, routeDetailFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshTask);
+    } = useTaskDetail(currentTask, routeEditViews, routeRequiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, handleRefreshTask);
 
     // Handle delete with confirmation
     const handleDelete = () => {
@@ -232,8 +233,9 @@ export default function TaskDetailScreen() {
             return;
         }
         navigation.navigate('TaskUpdateScreen', { 
-            taskId: task?.id, // Truyền updated task ID
-            detailFields: routeDetailFields, 
+            task,
+            editViews: routeEditViews,
+            requiredFields: routeRequiredFields,
             getFieldValue: routeGetFieldValue, 
             getFieldLabel: routeGetFieldLabel, 
             refreshTask: updateTaskData, // Truyền update function cho DetailScreen
@@ -299,27 +301,6 @@ export default function TaskDetailScreen() {
         if (!shouldDisplayField(field.key)) {
             return null;
         }
-
-        // Special handling for ID field with copy button
-        if (field.key === 'id') {
-            return (
-                <View key={field.key} style={styles.fieldContainer}>
-                    <Text style={styles.fieldLabel}>{field.label}:</Text>
-                    <View style={styles.idContainer}>
-                        <Text style={[styles.fieldValue, styles.idValue]}>
-                            {formatFieldValue(field.key, value)}
-                        </Text>
-                        <TouchableOpacity 
-                            style={styles.copyButton}
-                            onPress={handleCopyId}
-                        >
-                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            );
-        }
-
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{getFieldLabel(field.key)}</Text>
@@ -409,6 +390,23 @@ export default function TaskDetailScreen() {
                         <View style={styles.detailsContainer}>
                             <Text style={styles.taskTitle}>{task.name}</Text>
 
+                            {task.id && (
+                                <View style={styles.fieldContainer}>
+                                    <Text style={styles.fieldLabel}>ID:</Text>
+                                    <View style={styles.idContainer}>
+                                        <Text style={[styles.fieldValue, styles.idValue]}>
+                                            {formatFieldValue('id', task.id)}
+                                        </Text>
+                                        <TouchableOpacity
+                                style={styles.copyButton}
+                                onPress={handleCopyId}
+                            >
+                                <Ionicons name="copy-outline" size={16} color="#007AFF" />
+                            </TouchableOpacity>
+                            </View>
+                        </View>
+                            )}
+
                             {task.date_due && (
                                 <View style={styles.dueDateInfo}>
                                     <Ionicons name="calendar-outline" size={16} color="#666" />
@@ -437,7 +435,7 @@ export default function TaskDetailScreen() {
                             )}
 
                             <View style={styles.fieldsContainer}>
-                                {detailFields.map(field => renderFieldItem(field))}
+                                {editViews.map(field => renderFieldItem(field))}
                             </View>
                         </View>
                     )}

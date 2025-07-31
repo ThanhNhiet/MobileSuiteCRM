@@ -81,14 +81,15 @@ export default function TaskListScreen() {
         try {
             setLoading(true);
             const token = await AsyncStorage.getItem('token');
-            if (!token) {   
+             const language = await AsyncStorage.getItem('selectedLanguage') || 'en_us';
+            if (!token && !language) {   
                 navigation.navigate('LoginScreen');
                 return;
             }
             
             // Lấy dữ liệu với 20 dòng mỗi trang
-            const result = await TaskData.getDataWithFields(token, pageNumber, 20);
-            setTypeOptions1(['All', ...result.detailFields.map(field => field.label)]);
+            const result = await TaskData.useListData(token, pageNumber, 20, language);
+            setTypeOptions1(['All', ...result.editViews.map(field => field.label)]);
             setApiData(result);
             setFilteredData(result.tasks || []); // Khởi tạo filtered data
             
@@ -110,7 +111,7 @@ export default function TaskListScreen() {
             const searchLower = searchQuery.toLowerCase();
             filtered = filtered.filter(task => {
                 // Tìm kiếm trong tất cả các fields
-                return apiData.detailFields?.some(field => {
+                return apiData.editViews?.some(field => {
                     const value = apiData.getFieldValue(task, field.key);
                     return value && value.toString().toLowerCase().includes(searchLower);
                 });
@@ -120,7 +121,7 @@ export default function TaskListScreen() {
         // Filter theo field (dropdown 1)
         if (fieldFilter && fieldFilter !== 'All') {
             // Tìm field tương ứng với label được chọn
-            const selectedField = apiData.detailFields?.find(field => field.label === fieldFilter);
+            const selectedField = apiData.editViews?.find(field => field.label === fieldFilter);
             if (selectedField) {
                 filtered = filtered.filter(task => {
                     const value = apiData.getFieldValue(task, selectedField.key);
@@ -215,12 +216,12 @@ export default function TaskListScreen() {
 
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
-        const displayFields = apiData?.detailFields
+        const displayFields = apiData?.listViews
             ?.filter(field => field.key !== 'id')
             ?.slice(0, 3) || [];
 
         return (
-            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { task: item, detailFields: apiData?.detailFields, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshTask:() => fetchDataByPage(page)})}}>
+            <TouchableOpacity style={styles.tableRow} onPress={() => {navigation.navigate('TaskDetailScreen', { task: item, editViews: apiData?.editViews, requiredFields: apiData?.requiredFields, listViews: apiData?.listViews, getFieldValue: apiData?.getFieldValue, getFieldLabel: apiData?.getFieldLabel, refreshTask:() => fetchDataByPage(page)})}}>
                 {displayFields.map((field, index) => {
                     const rawValue = apiData?.getFieldValue(item, field.key) || '';
                     
@@ -342,7 +343,8 @@ export default function TaskListScreen() {
                             <TouchableOpacity
                                 onPress={() => {
                                     navigation.navigate('TaskCreateScreen',{
-                                        detailFields: apiData?.detailFields,
+                                        editViews: apiData?.editViews,
+                                        requiredFields: apiData?.requiredFields,
                                         getFieldLabel: apiData?.getFieldLabel,
                                         getFieldValue: apiData?.getFieldValue,
                                         refreshTask: () => fetchDataByPage(page)
@@ -359,7 +361,7 @@ export default function TaskListScreen() {
 
                     {/* Table Header */}
                     <View style={styles.tableHeader}>
-                        {apiData?.detailFields
+                        {apiData?.listViews
                             ?.filter(field => field.key !== 'id') // 👉 Lọc bỏ 'id' tại chỗ
                             ?.slice(0, 3) // 👉 Chỉ lấy 3 fields đầu tiên
                             ?.map((field, index) => (

@@ -232,7 +232,6 @@ export default function MeetingUpdateScreen() {
   const requiredFields = routeRequiredFields;
   const routeGetFieldValueFunc = routeGetFieldValue;
   const routeGetFieldLabelFunc = routeGetFieldLabel;
-  console.log('MeetingUpdateScreen params:', {editViews});
   
   const {
     formData,

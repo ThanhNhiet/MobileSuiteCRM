@@ -7,20 +7,19 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 
-const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
+const useTaskUpdate = (task, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
     const [isDataChanged, setIsDataChanged] = useState(false);
@@ -31,27 +30,33 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
     
     // Khởi tạo dữ liệu task từ detailFields và getFieldValue
     const initializeTaskData = useCallback(() => {
-        if (!detailFields || !Array.isArray(detailFields) || !getFieldValue) return {};
-        
+        if (!Array.isArray(editViews)) return {};
+
         const initialData = {};
-        detailFields.forEach(field => {
-            if (field.key && field.key !== 'id') {
-                const value = getFieldValue(field.key);
+        editViews.forEach(field => {
+            if (field && field.key && typeof field.key === 'string' && field.key !== 'id') {
+                // Lấy giá trị từ task object trước, nếu không có thì dùng getFieldValue
+                let value = '';
+                if (task && task[field.key] !== undefined) {
+                    value = task[field.key];
+                } else if (getFieldValue) {
+                    value = getFieldValue(field.key);
+                }
                 initialData[field.key] = value || '';
             }
         });
         
         return initialData;
-    }, [detailFields, getFieldValue]);
+    }, [editViews, getFieldValue, task]);
     
     // Effect để khởi tạo dữ liệu khi component mount
     useEffect(() => {
-        if (detailFields && getFieldValue) {
+        if (editViews) {
             const initialData = initializeTaskData();
             setOriginalTaskData(initialData);
             setUpdateTaskData(initialData);
         }
-    }, [detailFields, getFieldValue, initializeTaskData]);
+    }, [editViews, initializeTaskData]);
     
     // Function để cập nhật field
     const updateField = useCallback((fieldKey, value) => {
@@ -79,7 +84,12 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
     
     // Function để lấy giá trị field hiện tại
     const getFieldValueLocal = useCallback((fieldKey) => {
-        return updateTaskData[fieldKey] || '';
+        // Trả về giá trị từ updateTaskData, nếu không có thì trả về string rỗng
+        const value = updateTaskData[fieldKey];
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value);
     }, [updateTaskData]);
     
     // Function để lấy field error
@@ -88,7 +98,8 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
     }, [validationErrors]);
     
     return {
-        detailFields,
+        editViews,
+        requiredFields,
         formData: updateTaskData,
         originalData: originalTaskData,
         loading,
@@ -102,13 +113,15 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
         getFieldError: getFieldErrorLocal,
         isFormValid: () => {
             // Validate required fields - tìm field chính để validate
-            const nameField = detailFields?.find(f => 
-                f.key === 'name' || 
-                f.key === 'title' || 
-                f.key === 'subject' ||
-                f.key.toLowerCase().includes('name') ||
-                f.key.toLowerCase().includes('title') ||
-                f.key.toLowerCase().includes('subject')
+            const nameField = requiredFields?.find(f => 
+                f && f.key && typeof f.key === 'string' && (
+                    f.key === 'name' || 
+                    f.key === 'title' || 
+                    f.key === 'subject' ||
+                    f.key.includes('name') ||
+                    f.key.includes('title') ||
+                    f.key.includes('subject')
+                )
             );
             
             if (nameField) {
@@ -116,7 +129,7 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
             }
             
             // Fallback - check first non-id field
-            const firstField = detailFields?.find(f => f.key !== 'id');
+            const firstField = requiredFields?.find(f => f && f.key && typeof f.key === 'string' && f.key !== 'id');
             if (firstField) {
                 return updateTaskData[firstField.key] && updateTaskData[firstField.key].trim() !== '';
             }
@@ -138,10 +151,10 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
                 // Danh sách các field system không nên update
                 const systemFields = ['id', 'date_entered', 'date_modified', 'created_by', 'modified_user_id', 'deleted'];
                 
-                if (detailFields && Array.isArray(detailFields)) {
-                    detailFields.forEach(field => {
-                        // Bỏ qua system fields
-                        if (!systemFields.includes(field.key)) {
+                if (editViews && Array.isArray(editViews)) {
+                    editViews.forEach(field => {
+                        // Kiểm tra field và field.key an toàn hơn
+                        if (field && field.key && typeof field.key === 'string' && !systemFields.includes(field.key)) {
                             const currentValue = updateTaskData[field.key];
                             const originalValue = originalTaskData[field.key];
                             
@@ -152,21 +165,18 @@ const useTaskUpdate = (taskId, detailFields, getFieldValue, getFieldLabel, navig
                             
                             if (normalizedCurrent !== normalizedOriginal) {
                                 fieldsToUpdate[field.key] = currentValue;
-                               
                             }
                         }
                     });
                 }
 
-                console.log('📤 Fields to update:', fieldsToUpdate);
-                
                 // Nếu không có field nào thay đổi, không cần gọi API
                 if (Object.keys(fieldsToUpdate).length === 0) {
                     setLoading(false);
                     return { success: true, message: 'Không có thay đổi nào để cập nhật' };
                 }
-                
-                const result = await TaskData.UpdateTask(taskId, fieldsToUpdate, token);
+
+                const result = await TaskData.UpdateTask(task.id, fieldsToUpdate, token);
                 setLoading(false);
                 return { success: true, data: result };
             } catch (error) {
@@ -187,13 +197,15 @@ export default function TaskUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { 
-    taskId, 
-    detailFields, 
+    task, 
+    editViews,
+    requiredFields,
     getFieldLabel: routeGetFieldLabel, 
     getFieldValue: routeGetFieldValue, 
     refreshTask: routeRefreshTask,
     refreshTaskList // Thêm callback để refresh TaskListScreen
   } = route.params || {};
+ 
 
   // Sử dụng custom hook
   const {
@@ -210,7 +222,7 @@ export default function TaskUpdateScreen() {
     getFieldLabel,
     getFieldError,
     isFormValid
-  } = useTaskUpdate(taskId, detailFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
+  } = useTaskUpdate(task, editViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, routeRefreshTask);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
@@ -248,10 +260,6 @@ export default function TaskUpdateScreen() {
       const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
       
       const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
-      
-      console.log('📅 Date selected for field:', currentDateField);
-      console.log('📅 Formatted date:', formattedDate);
-      
       updateField(currentDateField, formattedDate);
     }
     hideDatePicker();
@@ -259,16 +267,24 @@ export default function TaskUpdateScreen() {
 
   // Function to check if field is date type
   const isDateField = (fieldKey) => {
-    return fieldKey && (
-      fieldKey.toLowerCase().includes('date') ||
-      fieldKey.toLowerCase().includes('time') ||
-      fieldKey === 'date_start' ||
-      fieldKey === 'date_end' ||
-      fieldKey === 'date_due' ||
-      fieldKey === 'date_entered' ||
-      fieldKey === 'date_modified'
+    // Kiểm tra chi tiết hơn để tránh lỗi
+    if (!fieldKey || typeof fieldKey !== 'string' || fieldKey.trim() === '') {
+      return false;
+    }
+    
+    const keyLower = fieldKey.toLowerCase(); // Convert về lowercase để so sánh
+    return (
+      keyLower.includes('date') ||
+      keyLower.includes('time') ||
+      keyLower === 'date_start' ||
+      keyLower === 'date_end' ||
+      keyLower === 'date_due' ||
+      keyLower === 'date_entered' ||
+      keyLower === 'date_modified'
     );
   };
+
+
 
   // Function to format date for display
   const formatDateForDisplay = (dateString) => {
@@ -335,7 +351,7 @@ export default function TaskUpdateScreen() {
   };
 
   // Show loading state for initialization
-  if (!detailFields || detailFields.length === 0) {
+  if (!editViews || editViews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
@@ -376,46 +392,38 @@ export default function TaskUpdateScreen() {
             )}
 
             {/* Form các trường */}
-            {detailFields
-              .filter(field => field.key !== 'id')
+            {editViews
+              .filter((field) => field && typeof field.key === 'string' && field.key !== 'id')
               .map((field) => {
                 const fieldError = getFieldError(field.key);
                 const fieldValue = getFieldValue(field.key);
                 const isDate = isDateField(field.key);
 
+
+                if (isDate){
+                     return null;
+                   }
+
                 return (
                   <View key={field.key} style={styles.row}>
                     <Text style={styles.label}>{field.label}</Text>
                     
-                    {isDate ? (
-                      // Date picker field
-                      <Pressable
-                        style={[styles.valueBox, fieldError && styles.errorInput]}
-                        onPress={() => showDatePicker(field.key)}
-                      >
-                        <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                          {fieldValue ? formatDateForDisplay(fieldValue) : `Chọn ${field.label.toLowerCase()}`}
-                        </Text>
-                      </Pressable>
-                    ) : (
-                      // Regular text input
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <TextInput
-                          style={[
-                            styles.value,
-                            field.key === 'description' && styles.multilineInput
-                          ]}
-                          value={fieldValue}
-                          onChangeText={(value) => updateField(field.key, value)}
-                          placeholder={`Nhập ${field.label.toLowerCase()}`}
-                          autoCapitalize="none"
-                          returnKeyType={field.key === 'description' ? 'default' : 'done'}
-                          multiline={field.key === 'description'}
-                          numberOfLines={field.key === 'description' ? 4 : 1}
-                          textAlignVertical={field.key === 'description' ? 'top' : 'center'}
-                        />
-                      </View>
-                    )}
+                    <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                      <TextInput
+                        style={[
+                          styles.value,
+                          field.key === 'description' && styles.multilineInput
+                        ]}
+                        value={fieldValue ? String(fieldValue) : ''}
+                        onChangeText={(value) => updateField(field.key, value)}
+                        placeholder={`Nhập ${field.label.toLowerCase()}`}
+                        autoCapitalize="none"
+                        returnKeyType={field.key === 'description' ? 'default' : 'done'}
+                        multiline={field.key === 'description'}
+                        numberOfLines={field.key === 'description' ? 4 : 1}
+                        textAlignVertical={field.key === 'description' ? 'top' : 'center'}
+                      />
+                    </View>
                     
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
@@ -433,7 +441,7 @@ export default function TaskUpdateScreen() {
 
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
-              {/* Reset Button */}
+              {/* Reset Button
               {isDataChanged && (
                 <TouchableOpacity
                   style={[styles.resetButton]}
@@ -450,7 +458,7 @@ export default function TaskUpdateScreen() {
                 >
                   <Text style={styles.resetButtonText}>Khôi phục</Text>
                 </TouchableOpacity>
-              )}
+              )} */}
 
               {/* Save Button */}
               <TouchableOpacity
