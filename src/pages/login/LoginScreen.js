@@ -1,21 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { getAvailableLanguagesApi } from '../../services/api/login/Login_outApi';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
@@ -26,7 +26,7 @@ export default function LoginScreen() {
   const [languageList, setLanguageList] = useState([]);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [languageLoading, setLanguageLoading] = useState(false);
-  const [selectedLanguageLabel, setSelectedLanguageLabel] = useState('Chọn ngôn ngữ');
+  const [selectedLanguageLabel, setSelectedLanguageLabel] = useState('Language');
 
   const {
     website, setWebsite,
@@ -60,23 +60,23 @@ export default function LoginScreen() {
 
   const handleClearCache = async () => {
     Alert.alert(
-      'Xóa Cache',
-      'Bạn có chắc chắn muốn xóa tất cả dữ liệu cache?',
+      'Delete Cache',
+      'Are you sure you want to delete all cached data?',
       [
         {
-          text: 'Hủy',
+          text: 'Cancel',
           style: 'cancel'
         },
         {
-          text: 'Xóa',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await cacheManager.clearCache();
-              Alert.alert('Thành công', 'Đã xóa cache thành công!');
+              Alert.alert('Success', 'Cache cleared successfully!');
             } catch (error) {
               console.warn('Error clearing cache:', error);
-              Alert.alert('Lỗi', 'Không thể xóa cache');
+              Alert.alert('Error', 'Failed to clear cache');
             }
           }
         }
@@ -126,7 +126,7 @@ export default function LoginScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Tên đăng nhập"
+                placeholder="Username"
                 placeholderTextColor="#999"
                 value={username}
                 onChangeText={setUsername}
@@ -137,7 +137,7 @@ export default function LoginScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
-                placeholder="Mật khẩu"
+                placeholder="Password"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
@@ -160,7 +160,7 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                {loading ? 'Logging in...' : 'Login'}
               </Text>
             </TouchableOpacity>
 
@@ -171,7 +171,7 @@ export default function LoginScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="trash-outline" size={18} color="#666" />
-              <Text style={styles.clearCacheButtonText}>Xóa Cache</Text>
+              <Text style={styles.clearCacheButtonText}>Delete Cache</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -182,7 +182,7 @@ export default function LoginScreen() {
         <TouchableWithoutFeedback>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Chọn ngôn ngữ</Text>
+              <Text style={styles.modalTitle}>Select Language</Text>
               {languageLoading ? (
                 <ActivityIndicator size="large" color="#E85A4F" />
               ) : (

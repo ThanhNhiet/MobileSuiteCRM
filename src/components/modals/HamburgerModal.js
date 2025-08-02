@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
@@ -11,12 +11,63 @@ import {
     View
 } from 'react-native';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
 
 const { width } = Dimensions.get('window');
 
 const HamburgerModal = ({ visible, onClose, navigation }) => {
     const slideAnim = useRef(new Animated.Value(-width * 0.6)).current; // Start off-screen left
     const { handleLogout } = useLogin_out();
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const [translations, setTranslations] = useState({});
+
+    // Load translations for modules and logout
+    useEffect(() => {
+        const loadTranslations = async () => {
+            try {
+                // Get translations for each module and logout
+                const [
+                    accounts,
+                    notes,
+                    tasks,
+                    meetings,
+                    calendar,
+                    logout
+                ] = await Promise.all([
+                    systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
+                    systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
+                    systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
+                    systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
+                    systemLanguageUtils.translate('Calendar', 'Lịch của tôi'),
+                    systemLanguageUtils.translate('LBL_LOGOUT', 'Logout')
+                ]);
+                
+                // Set translations object with dot notation keys
+                setTranslations({
+                    accounts,
+                    notes,
+                    tasks,
+                    meetings,
+                    calendar,
+                    logout
+                });
+            } catch (error) {
+                console.warn('Error loading HamburgerModal translations:', error);
+                // Set fallback translations
+                setTranslations({
+                    accounts: 'Khách hàng',
+                    notes: 'Ghi chú',
+                    tasks: 'Công việc', 
+                    meetings: 'Cuộc họp',
+                    calendar: 'Lịch của tôi',
+                    logout: 'Logout'
+                });
+            }
+        };
+        
+        loadTranslations();
+    }, []);
+
 
     useEffect(() => {
         if (visible) {
@@ -101,35 +152,35 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                             style={styles.menuItem}
                             onPress={() => navigateTo('AccountListScreen')}
                         >
-                            <Text style={styles.menuText}>Khách hàng</Text>
+                            <Text style={styles.menuText}>{translations.accounts || 'Khách hàng'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.menuItem}
                             onPress={() => navigateTo('NoteListScreen')}
                         >
-                            <Text style={styles.menuText}>Ghi chú</Text>
+                            <Text style={styles.menuText}>{translations.notes || 'Ghi chú'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.menuItem}
                             onPress={() => navigateTo('TaskListScreen')}
                         >
-                            <Text style={styles.menuText}>Công việc</Text>
+                            <Text style={styles.menuText}>{translations.tasks || 'Công việc'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.menuItem}
                             onPress={() => navigateTo('MeetingListScreen')}
                         >
-                            <Text style={styles.menuText}>Cuộc họp</Text>
+                            <Text style={styles.menuText}>{translations.meetings || 'Cuộc họp'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.menuItem}
                             onPress={() => navigateTo('CalendarScreen')}
                         >
-                            <Text style={styles.menuText}>Lịch của tôi</Text>
+                            <Text style={styles.menuText}>{translations.calendar || 'Lịch của tôi'}</Text>
                         </TouchableOpacity>
                     </ScrollView>
 
@@ -141,7 +192,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                                 handleLogout();
                             }
                             }>
-                            <Text style={styles.logoutText}>Logout</Text>
+                            <Text style={styles.logoutText}>{translations.logout || 'Logout'}</Text>
                             <Ionicons name="log-out" size={20} color="white" />
                         </TouchableOpacity>
                     </View>
