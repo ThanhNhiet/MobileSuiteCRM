@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
 import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
-import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
-import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
+import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
+import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentId_typeByNoteIdApi } from '../../api/note/NoteApi';
 
 export const useNoteDetail = (noteId) => {
@@ -29,7 +29,7 @@ export const useNoteDetail = (noteId) => {
         try {
             // 1. Kiểm tra cache detailviewdefs.json có tồn tại không
             let fieldsData;
-            const cachedFields = await readCacheView.readCacheFile('detailviewdefs', 'Notes');
+            const cachedFields = await ReadCacheView.getModuleField('Notes', 'detailviewdefs');
             
             if (!cachedFields) {
                 // Nếu chưa có cache, fetch từ API
@@ -37,7 +37,7 @@ export const useNoteDetail = (noteId) => {
                 fieldsData = fieldsResponse;
                 
                 // Lưu vào cache
-                await writeCacheView.writeCacheFile('detailviewdefs', 'Notes', fieldsData);
+                await WriteCacheView.saveModuleField('Notes', 'detailviewdefs', fieldsData);
             } else {
                 // Nếu có cache, sử dụng cache
                 fieldsData = cachedFields;

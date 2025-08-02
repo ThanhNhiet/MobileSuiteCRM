@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { cacheManager } from '../../../utils/CacheManager';
 import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
-import { readCacheView } from '../../../utils/cacheViewManagement/Notes/ReadCacheView';
-import { writeCacheView } from '../../../utils/cacheViewManagement/Notes/WriteCacheView';
+import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
+import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { checkParentNameExistsApi, createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi, updateNoteApi } from '../../api/note/NoteApi';
 
 export const useNoteUpdate = (initialNoteData = null) => {
@@ -30,7 +30,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
         try {
             // 1. Kiểm tra cache editviewdefs.json có tồn tại không
             let fieldsData;
-            const cachedFields = await readCacheView.readCacheFile('editviewdefs', 'Notes');
+            const cachedFields = await ReadCacheView.getModuleField('Notes', 'editviewdefs');
 
             if (!cachedFields) {
                 // Nếu chưa có cache, fetch từ API
@@ -38,7 +38,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 fieldsData = fieldsResponse;
 
                 // Lưu vào cache
-                await writeCacheView.writeCacheFile('editviewdefs', 'Notes', fieldsData);
+                await WriteCacheView.saveModuleField('Notes', 'editviewdefs', fieldsData);
             } else {
                 // Nếu có cache, sử dụng cache
                 fieldsData = cachedFields;
@@ -58,7 +58,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
             // 3. Lấy required fields từ cache hoặc API
             let requiredFields;
-            const cachedRequiredFields = await readCacheView.readCacheFile('requiredfields', 'Notes');
+            const cachedRequiredFields = await ReadCacheView.getModuleField('Notes', 'requiredfields');
 
             if (!cachedRequiredFields) {
                 // Nếu chưa có cache, fetch từ API
@@ -66,7 +66,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 requiredFields = requiredFieldsResponse.data.attributes;
 
                 // Lưu vào cache với tên requiredfields.json
-                await writeCacheView.writeCacheFile('requiredfields', 'Notes', requiredFields);
+                await WriteCacheView.saveModuleField('Notes', 'requiredfields', requiredFields);
             } else {
                 // Nếu có cache, sử dụng cache
                 requiredFields = cachedRequiredFields;
