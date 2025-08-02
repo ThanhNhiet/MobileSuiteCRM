@@ -1,6 +1,7 @@
-import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
+import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
+import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { getUserDetailFieldsApi, getUserProfileApi } from '../../api/user/UserApi';
 
 export const useUserProfile = () => {
@@ -16,26 +17,16 @@ export const useUserProfile = () => {
     // Load or fetch detail fields configuration
     const loadDetailFields = async () => {
         try {
-            const detailFieldsPath = `${FileSystem.documentDirectory}cache/Users/metadata/detailviewdefs.json`;
-            const fileInfo = await FileSystem.getInfoAsync(detailFieldsPath);
+            // Try to get detail fields from cache
+            let detailFields = await ReadCacheView.getModuleField('Users', 'detailviewdefs');
             
-            let detailFields;
-            if (!fileInfo.exists) {
+            if (!detailFields) {
                 // Fetch from API and cache
                 const response = await getUserDetailFieldsApi();
                 detailFields = response;
                 
-                const dirPath = `${FileSystem.documentDirectory}cache/Users/metadata/`;
-                const dirInfo = await FileSystem.getInfoAsync(dirPath);
-                if (!dirInfo.exists) {
-                    await FileSystem.makeDirectoryAsync(dirPath, { intermediateDirectories: true });
-                }
-                
-                await FileSystem.writeAsStringAsync(detailFieldsPath, JSON.stringify(detailFields));
-            } else {
-                // Read from cache
-                const fileContent = await FileSystem.readAsStringAsync(detailFieldsPath);
-                detailFields = JSON.parse(fileContent);
+                // Save to cache
+                await WriteCacheView.saveModuleField('Users', 'detailviewdefs', detailFields);
             }
 
             // Extract field names for API request
