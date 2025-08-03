@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
 import {
@@ -58,6 +59,13 @@ export const useCountModules = () => {
       setLoading(true);
       setError(null);
 
+      // Check if we have a valid token before making API calls
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.log('No token available, skipping count modules fetch');
+        return;
+      }
+
       // Load translations first if not loaded
       let currentTranslations = translations;
       if (Object.keys(currentTranslations).length === 0) {
@@ -65,21 +73,60 @@ export const useCountModules = () => {
       }
 
       // Gọi các API song song để tăng hiệu suất
-      const [accountsCount, meetingsCount, tasksCount, notesCount] = await Promise.all([
+      const results = await Promise.allSettled([
         getCountAllAccounts(),
         getCountMyMeetings(),
         getCountMyTasks(),
         getCountMyNotes()
       ]);
 
+      // Extract results with fallback values and validation
+      const accountsCount = results[0].status === 'fulfilled' && typeof results[0].value === 'number' ? results[0].value : 0;
+      const meetingsCount = results[1].status === 'fulfilled' && typeof results[1].value === 'number' ? results[1].value : 0;
+      const tasksCount = results[2].status === 'fulfilled' && typeof results[2].value === 'number' ? results[2].value : 0;
+      const notesCount = results[3].status === 'fulfilled' && typeof results[3].value === 'number' ? results[3].value : 0;
+
+      // Log any rejected promises
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const modules = ['Accounts', 'Meetings', 'Tasks', 'Notes'];
+          console.warn(`Failed to fetch ${modules[index]} count:`, result.reason);
+        }
+      });
+
+      // Log if any count is invalid (for debugging)
+      if (accountsCount < 0 || meetingsCount < 0 || tasksCount < 0 || notesCount < 0) {
+        console.warn('Invalid count values detected:', { accountsCount, meetingsCount, tasksCount, notesCount });
+      }
+
       setData([
-        { title: currentTranslations.accounts, module: 'Accounts', all: accountsCount },
-        { title: currentTranslations.notes, module: 'Notes', my: notesCount },
-        { title: currentTranslations.tasks, module: 'Tasks', my: tasksCount },
-        { title: currentTranslations.meetings, module: 'Meetings', my: meetingsCount }
+        { title: currentTranslations.accounts, module: 'Accounts', all: Math.max(0, accountsCount) },
+        { title: currentTranslations.notes, module: 'Notes', my: Math.max(0, notesCount) },
+        { title: currentTranslations.tasks, module: 'Tasks', my: Math.max(0, tasksCount) },
+        { title: currentTranslations.meetings, module: 'Meetings', my: Math.max(0, meetingsCount) }
       ]);
     } catch (err) {
       console.error('Error fetching count modules:', err);
+      
+      // If it's a 401 error, don't set error state as token refresh might be in progress
+      if (err.response?.status === 401) {
+        console.log('Authentication error, will retry automatically');
+        return;
+      }
+      
+      // For other errors, set fallback data to prevent UI crash
+      let currentTranslations = translations;
+      if (Object.keys(currentTranslations).length === 0) {
+        currentTranslations = await loadTranslations();
+      }
+      
+      setData([
+        { title: currentTranslations.accounts, module: 'Accounts', all: 0 },
+        { title: currentTranslations.notes, module: 'Notes', my: 0 },
+        { title: currentTranslations.tasks, module: 'Tasks', my: 0 },
+        { title: currentTranslations.meetings, module: 'Meetings', my: 0 }
+      ]);
+      
       setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
@@ -109,10 +156,14 @@ export const useCountModules = () => {
   }, [translations, loadTranslations]);
 
   useEffect(() => {
-    // Initialize data only once
+    // Initialize data only once with delay to allow auth check to complete
     const initializeData = async () => {
       await loadTranslations();
-      fetchCountModules();
+      
+      // Add a small delay to ensure auth check has completed
+      setTimeout(() => {
+        fetchCountModules();
+      }, 1000);
     };
     
     initializeData();
@@ -121,10 +172,20 @@ export const useCountModules = () => {
     const handleLogout = () => {
       clearData();
     };
+    
+    // Listen for successful login to refetch data
+    const handleLoginSuccess = () => {
+      setTimeout(() => {
+        fetchCountModules();
+      }, 500);
+    };
+    
     eventEmitter.on('logout', handleLogout);
+    eventEmitter.on('loginSuccess', handleLoginSuccess);
 
     return () => {
       eventEmitter.off('logout', handleLogout);
+      eventEmitter.off('loginSuccess', handleLoginSuccess);
     };
   }, []); // Empty dependency array to run only once
 

@@ -34,8 +34,16 @@ export default function LoginScreen() {
     password, setPassword,
     handleLogin,
     loading,
+    isCheckingAuth,
+    selectedLanguage,
     handleLanguageSelect,
+    checkExistingAuth, // Add this
   } = useLogin_out();
+
+  // Check authentication when LoginScreen mounts
+  useEffect(() => {
+    checkExistingAuth();
+  }, []);
 
   useEffect(() => {
     const fetchLanguages = async () => {
@@ -43,6 +51,11 @@ export default function LoginScreen() {
         setLanguageLoading(true);
         const langs = await getAvailableLanguagesApi();
         setLanguageList(langs);
+        
+        // Set initial language label based on selectedLanguage from hook
+        if (selectedLanguage && langs.includes(selectedLanguage)) {
+          setSelectedLanguageLabel(selectedLanguage);
+        }
       } catch (error) {
         console.warn('Failed to fetch languages', error);
       } finally {
@@ -50,7 +63,7 @@ export default function LoginScreen() {
       }
     };
     fetchLanguages();
-  }, []);
+  }, [selectedLanguage]);
 
   const handleSelectLanguage = (lang) => {
     setLangModalVisible(false);
@@ -83,6 +96,20 @@ export default function LoginScreen() {
       ]
     );
   };
+
+  // Show loading screen while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
+        <View style={styles.loadingContent}>
+          <Image source={require("../../assets/images/logo-login.png")} style={styles.imageSize} />
+          <ActivityIndicator size="large" color="#E85A4F" style={{ marginTop: 40 }} />
+          <Text style={styles.loadingText}>Checking authentication...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -214,6 +241,25 @@ const styles = StyleSheet.create({
   logoContainer: { marginBottom: 40, alignItems: 'center' },
   formContainer: { width: '100%', alignItems: 'center' },
   imageSize: { width: 370, height: 110 },
+  
+  // Loading styles
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  
   inputContainer: { width: '100%', marginBottom: 20, position: 'relative' },
   input: {
     backgroundColor: '#E0E0E0',
