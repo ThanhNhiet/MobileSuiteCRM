@@ -15,11 +15,22 @@ import { useUserProfile } from '../../services/useApi/user/UseUser_Profile';
 import { UserLanguageUtils } from '../../utils/cacheViewManagement/Users/UserLanguageUtils';
 
 export default function ProfileScreen({ navigation }) {
-    // Sử dụng custom hook để lấy thông tin profile
-    const { profileData, loading, error, refreshing, refreshProfile, fieldLabels } = useUserProfile();
+    // Use custom hook to get profile information
+    const { 
+        profileData, 
+        loading, 
+        error, 
+        refreshing, 
+        refreshProfile, 
+        fieldLabels,
+        refreshLanguageCache,
+        refreshFieldsCache
+    } = useUserProfile();
     
     // Language translations
     const [translations, setTranslations] = useState({});
+    const [isRefreshingLanguage, setIsRefreshingLanguage] = useState(false);
+    const [isRefreshingFields, setIsRefreshingFields] = useState(false);
     const userLanguageUtils = UserLanguageUtils.getInstance();
 
     // Load translations
@@ -34,7 +45,10 @@ export default function ProfileScreen({ navigation }) {
                     'LBL_ADDRESS_INFORMATION',
                     'LBL_EDIT',
                     'LBL_GENERATE_PASSWORD_BUTTON_LABEL',
-                    'LBL_SETTINGS'
+                    'LBL_SETTINGS',
+                    'LBL_UPDATE',
+                    'LBL_LANGUAGE',
+                    'Field'
                 ];
                 
                 const translatedLabels = await userLanguageUtils.translateKeys(keys);
@@ -47,21 +61,21 @@ export default function ProfileScreen({ navigation }) {
         loadTranslations();
     }, []);
 
-    // Hiển thị loading khi đang tải dữ liệu lần đầu
+    // Show loading when loading data for the first time
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
                     <Text style={styles.loadingText}>
-                        {translations.LBL_LOADING || 'Đang tải thông tin...'}
+                        {translations.LBL_LOADING || 'Loading information...'}
                     </Text>
                 </View>
             </SafeAreaView>
         );
     }
 
-    // Hiển thị lỗi nếu có
+    // Show error if there is one
     if (error && !profileData) {
         return (
             <SafeAreaView style={styles.container}>
@@ -73,7 +87,7 @@ export default function ProfileScreen({ navigation }) {
                         onPress={() => refreshProfile()}
                     >
                         <Text style={styles.retryButtonText}>
-                            {translations.LBL_RETRY || 'Thử lại'}
+                            {translations.LBL_RETRY || 'Retry'}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -81,7 +95,7 @@ export default function ProfileScreen({ navigation }) {
         );
     }
 
-    // Dữ liệu từ API
+    // Data from API
     const displayData = profileData?.attributes || {};
 
     // Helper function to get field label with fallback
@@ -175,6 +189,34 @@ export default function ProfileScreen({ navigation }) {
         navigation.navigate('ChangePasswordScreen');
     };
 
+    const handleRefreshLanguage = async () => {
+        try {
+            setIsRefreshingLanguage(true);
+            await refreshLanguageCache();
+            // Show success message or toast here if needed
+            console.log('Language cache refreshed successfully');
+        } catch (error) {
+            console.warn('Error refreshing language cache:', error);
+            // Show error message or toast here if needed
+        } finally {
+            setIsRefreshingLanguage(false);
+        }
+    };
+
+    const handleRefreshFields = async () => {
+        try {
+            setIsRefreshingFields(true);
+            await refreshFieldsCache();
+            // Show success message or toast here if needed
+            console.log('Fields cache refreshed successfully');
+        } catch (error) {
+            console.warn('Error refreshing fields cache:', error);
+            // Show error message or toast here if needed
+        } finally {
+            setIsRefreshingFields(false);
+        }
+    };
+
     const ProfileField = ({ fieldName, label, value, icon }) => (
         <View style={styles.fieldContainer}>
             <View style={styles.fieldHeader}>
@@ -198,7 +240,7 @@ export default function ProfileScreen({ navigation }) {
                             refreshing={refreshing}
                             onRefresh={refreshProfile}
                             colors={['#007AFF']}
-                            title="Đang tải..."
+                            title="Loading..."
                         />
                     }
                 >
@@ -223,7 +265,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Profile Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_USER_INFORMATION || 'Thông tin người dùng'}
+                            {translations.LBL_USER_INFORMATION || 'User Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().userInfoFields, displayData)}
@@ -232,7 +274,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Contact Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_CONTACT_INFORMATION || 'Thông tin liên hệ'}
+                            {translations.LBL_CONTACT_INFORMATION || 'Contact Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().contactFields, displayData)}
@@ -241,7 +283,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Address Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_ADDRESS_INFORMATION || 'Thông tin địa chỉ'}
+                            {translations.LBL_ADDRESS_INFORMATION || 'Address Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().addressFields, displayData)}
@@ -255,7 +297,7 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="create-outline" size={20} color="white" />
                             <Text style={styles.primaryButtonText}>
-                                {translations.LBL_EDIT || 'Chỉnh sửa thông tin'}
+                                {translations.LBL_EDIT || 'Edit Information'}
                             </Text>
                         </TouchableOpacity>
 
@@ -265,7 +307,37 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
                             <Text style={styles.secondaryButtonText}>
-                                {translations.LBL_GENERATE_PASSWORD_BUTTON_LABEL || 'Đổi mật khẩu'}
+                                {translations.LBL_GENERATE_PASSWORD_BUTTON_LABEL || 'Change Password'}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.secondaryButton, isRefreshingLanguage && styles.disabledButton]}
+                            onPress={handleRefreshLanguage}
+                            disabled={isRefreshingLanguage}
+                        >
+                            {isRefreshingLanguage ? (
+                                <ActivityIndicator size={20} color="#4B84FF" />
+                            ) : (
+                                <Ionicons name="language-outline" size={20} color="#4B84FF" />
+                            )}
+                            <Text style={styles.secondaryButtonText}>
+                                {`${translations.LBL_UPDATE || 'Update'} ${translations.LBL_LANGUAGE || 'Language'}`}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.secondaryButton, isRefreshingFields && styles.disabledButton]}
+                            onPress={handleRefreshFields}
+                            disabled={isRefreshingFields}
+                        >
+                            {isRefreshingFields ? (
+                                <ActivityIndicator size={20} color="#4B84FF" />
+                            ) : (
+                                <Ionicons name="list-outline" size={20} color="#4B84FF" />
+                            )}
+                            <Text style={styles.secondaryButtonText}>
+                                {`${translations.LBL_UPDATE || 'Update'} ${translations.LBL_FIELD || 'Fields'}`}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -424,6 +496,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginLeft: 8,
+    },
+    disabledButton: {
+        opacity: 0.6,
     },
     bottomSpacing: {
         height: 30,
