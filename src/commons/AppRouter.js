@@ -40,7 +40,6 @@ import TaskListScreen from "../pages/task/TaskListScreen";
 import TaskUpdateScreen from "../pages/task/TaskUpdateScreen";
 
 //import page relationship
-import RelationshipDetailScreen from "../pages/relationship/RelationshipDetailScreen";
 import RelationshipListScreen from "../pages/relationship/RelationshipListScreen";
 
 const Stack = createNativeStackNavigator();
@@ -117,8 +116,6 @@ export default function AppRouter() {
                 
                 {/*Relationship List Screen*/}
                 <Stack.Screen name="RelationshipListScreen" component={RelationshipListScreen} options={{ headerShown: false }} />
-                {/*Relationship Detail Screen*/}
-                <Stack.Screen name="RelationshipDetailScreen" component={RelationshipDetailScreen} options={{ headerShown: false }} />
                 {/* Add more screens as needed */}
 
                 {/* <Stack.Screen name="MessageStackNavigator" component={MessageStackNavigator} options={{ headerShown: false }} /> */}

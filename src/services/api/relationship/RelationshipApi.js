@@ -1,7 +1,7 @@
 const RelationshipsApi = {};
 import { LOCALHOST_IP } from '../../../utils/localhost';
 
-RelationshipsApi.getRelationships = async (token, relatedLink, page, pageSize) => {
+RelationshipsApi.getRelationshipsData = async (token, relatedLink, page, pageSize) => {
     try {
         // Tạo URL đầy đủ cho SuiteCRM API
         // relatedLink có format: /V8/module/Accounts/xxx/relationships/contacts
@@ -31,9 +31,9 @@ RelationshipsApi.getRelationships = async (token, relatedLink, page, pageSize) =
     }
 }
 
-RelationshipsApi.getRelationshipsLanguage = async (token,moduleName) => {
+RelationshipsApi.getRelationshipsLanguage = async (token,moduleName,language) => {
     try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${moduleName}/language/lang=en_us`, {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${moduleName}/language/lang=${language}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -56,7 +56,7 @@ RelationshipsApi.getRelationshipsLanguage = async (token,moduleName) => {
 }
 RelationshipsApi.getListViewModules = async (token,moduleName) => {
     try {
-        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${moduleName}/default-fields`, {
+        const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${moduleName}/list-fields`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -88,7 +88,37 @@ RelationshipsApi.getFields = async (token,moduleName) => {
         throw error;
     }
 }
-
-
+RelationshipsApi.getEditView = async (token,moduleName) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/V8/custom/${moduleName}/edit-fields`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi trong getEditView:', error);
+    throw error;
+  }
+}
+RelationshipsApi.getDataRelationship = async (token, relatedLink) => {
+  try {
+    const response = await fetch(`${LOCALHOST_IP}/Api/${relatedLink}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+            },
+        });
+        const data = await response.json();
+        return data;
+  } catch (error) {
+    console.error('Lỗi trong getDataRelationship:', error);
+    throw error;  
+  }
+}
 
 export default RelationshipsApi;

@@ -1,4 +1,5 @@
 import AccountData from '@/src/services/useApi/account/AccountData';
+import RelationshipsData from '@/src/services/useApi/relationship/RelationshipData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -20,7 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
-import { formatDateTime } from "../../utils/FormatDateTime";
+
 
 const useAccountDetail = (account, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshAccount) => {
     const [deleting, setDeleting] = useState(false);
@@ -61,7 +62,7 @@ const useAccountDetail = (account, editViews, requiredFields, getFieldValue, get
         refreshAccount,
         updateAccountData, // Expose function để update data
         deleteAccount,
-        getFieldValue: getFieldValue || ((item, key) => item[key]),
+        getFieldValue: (account, key) => account?.[key] || '',
         getFieldLabel: getFieldLabel || ((key) => key),
         shouldDisplayField: (key) => true,
     };
@@ -76,7 +77,7 @@ export default function AccountDetailScreen() {
     const route = useRoute();
     const {account: routeAccount, editViews: routeEditViews, requiredFields: routeRequiredFields, listViews: routeListViews, getFieldValue: routeGetFieldValue, getFieldLabel: routeGetFieldLabel, refreshAccount: routeRefreshAccount} = route.params;
     const [relationships, setRelationships] = React.useState([]);
-
+    const [getDataRelationship, setGetDataRelationship] = React.useState([]);
     // Giả lập dữ liệu mối quan hệ
     useEffect(() => {
         const fetchRelationships = async () => {
@@ -87,8 +88,7 @@ export default function AccountDetailScreen() {
                     return;
                 }
                 const response = await AccountData.getRelationships(token, routeAccount.id);
-                
-                
+            
                 // Kiểm tra và xử lý response
                 if (response && response.relationships && Array.isArray(response.relationships)) {
                     setRelationships(response.relationships);
@@ -105,6 +105,32 @@ export default function AccountDetailScreen() {
         };
         fetchRelationships();
     }, []);
+
+    useEffect(() => {
+        // Xử lý khi relationships thay đổi
+            if(!relationships) return;
+            const relatedLinks = relationships.map( (item) => {
+                    return {
+                        relatedLink: item.relatedLink,
+                        moduleName : item.moduleName,
+                    };
+            });
+            // Xử lý relatedLinks ở đây nếu cần
+            const fetchRelatedData = async () => {
+                try{
+                    const token = AsyncStorage.getItem('token');
+                    if (!token) {
+                        navigation.navigate('LoginScreen');
+                        return;
+                    }
+                    const results = await RelationshipsData.getDataRelationship(token, relatedLinks);
+                    setGetDataRelationship(results);
+                } catch (error) {
+                    console.error('Lỗi khi xử lý relationships:', error);
+                }
+            };
+        fetchRelatedData();
+    }, [relationships]);
 
 
     const padData = (raw, cols) => {
@@ -124,24 +150,38 @@ export default function AccountDetailScreen() {
         return padData([...safeRelationships], 4);
     }, [relationships]);
 
-    const renderItem = ({ item }) => {
-        if (item.empty) {
-            return <View style={styles.cardInvisible} />;
+   const renderItem = ({ item }) => {
+    if (item.empty) {
+        return <View style={styles.cardInvisible} />;
+    }
+
+    let checked = false;
+    getDataRelationship.map((data) => {
+        if (data.moduleName === item.displayName) {
+            if (data.length > 0) {
+                checked = true;
+            }
         }
-        return (
-            <Pressable
-                onPress={() => {navigation.navigate('RelationshipListScreen', { relationship: item }); }}
-                style={({ pressed }) => [
-                    styles.card,
-                    pressed && styles.cardPressed,   // thêm nền khi nhấn
-                ]}
-            >
-                <Text style={styles.cardText}>
-                    {item.displayName || item.moduleLabel || item.moduleName || item.name}
-                </Text>
-            </Pressable>
-        );
-    };
+    });
+
+    return (
+        <Pressable
+            onPress={() => {
+                navigation.navigate('RelationshipListScreen', { relationship: item });
+            }}
+            style={({ pressed }) => [
+                styles.card,
+                !checked && styles.cardNoData,       // màu khác nếu không có data
+                pressed && styles.cardPressed,       // hiệu ứng khi nhấn
+            ]}
+        >
+            <Text style={styles.cardText}>
+                {item.displayName || item.moduleLabel || item.moduleName || item.name}
+            </Text>
+        </Pressable>
+    );
+};
+
 
     // Sử dụng custom hook
     const {
@@ -258,7 +298,7 @@ export default function AccountDetailScreen() {
         switch (fieldKey) {
             case 'date_entered':
             case 'date_modified':
-                return formatDateTime(value);
+                return new Date(value).toLocaleDateString('vi-VN');
             case 'website':
                 return value.startsWith('http') ? value : `https://${value}`;
             default:
@@ -273,7 +313,6 @@ export default function AccountDetailScreen() {
         if (!shouldDisplayField(field.key)) {
             return null;
         }
-
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{getFieldLabel(field.key.toLowerCase())}</Text>
@@ -642,28 +681,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         justifyContent: 'flex-start',
     },
-    card: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        aspectRatio: 1,
-        borderRadius: 8,
-        backgroundColor: '#ececec',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     cardInvisible: {
         width: ITEM_W,
         marginHorizontal: 2,
         marginVertical: 8,
         backgroundColor: 'transparent',
-    },
-    cardPressed: {
-        backgroundColor: "blue",
-    },
-    cardText: {
-        fontSize: 13,
-        color: 'black',
     },
      copyButton: {
         padding: 6,
@@ -681,5 +703,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         flex: 1,
+    },
+    card: {
+        backgroundColor: '#2196F3',
+        padding: 24,          // tăng từ 16 lên 24
+        borderRadius: 12,     // bo góc mượt hơn
+        margin: 12,           // tăng khoảng cách giữa các card
+        alignItems: 'center',
+        minWidth: 120,        // nếu bạn muốn mỗi card rộng hơn
+    },
+    cardNoData: {
+        backgroundColor: '#B0BEC5', // màu xám cho module không có dữ liệu
+    },
+
+    cardPressed: {
+        opacity: 0.7,
+    },
+
+    cardText: {
+        color: '#fff',
+        fontWeight: 'bold',
     },
 });

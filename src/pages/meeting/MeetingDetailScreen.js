@@ -1,4 +1,5 @@
 import MeetingData from '@/src/services/useApi/meeting/MeetingData';
+import RelationshipsData from '@/src/services/useApi/relationship/RelationshipData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -78,6 +79,7 @@ export default function MeetingDetailScreen() {
     // State để quản lý dữ liệu meeting hiện tại
     const [currentMeeting, setCurrentMeeting] = useState(routeMeeting);
     const [meetingRefreshing, setMeetingRefreshing] = useState(false);
+    const [getDataRelationship, setGetDataRelationship] = React.useState([]);
 
     useEffect(() => {
         const fetchRelationships = async () => {
@@ -101,6 +103,31 @@ export default function MeetingDetailScreen() {
 
         fetchRelationships();
     }, [currentMeeting.id]);
+     useEffect(() => {
+        // Xử lý khi relationships thay đổi
+            if(!relationships) return;
+            const relatedLinks = relationships.map( (item) => {
+                    return {
+                        relatedLink: item.relatedLink,
+                        moduleName : item.moduleName,
+                    };
+            });
+            // Xử lý relatedLinks ở đây nếu cần
+            const fetchRelatedData = async () => {
+                try{
+                    const token = AsyncStorage.getItem('token');
+                    if (!token) {
+                        navigation.navigate('LoginScreen');
+                        return;
+                    }
+                    const results = await RelationshipsData.getDataRelationship(token, relatedLinks);
+                    setGetDataRelationship(results);
+                } catch (error) {
+                    console.error('Lỗi khi xử lý relationships:', error);
+                }
+            };
+        fetchRelatedData();
+    }, [relationships]);
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -121,18 +148,33 @@ export default function MeetingDetailScreen() {
         if (item.empty) {
             return <View style={styles.cardInvisible} />;
         }
+    
+        let checked = false;
+        getDataRelationship.map((data) => {
+            if (data.moduleName === item.displayName) {
+                if (data.length > 0) {
+                    checked = true;
+                }
+            }
+        });
+    
         return (
-            <Pressable 
-                onPress={() => navigation.navigate('RelationshipListScreen', { relationship: item })}
+            <Pressable
+                onPress={() => {
+                    navigation.navigate('RelationshipListScreen', { relationship: item });
+                }}
                 style={({ pressed }) => [
                     styles.card,
-                    pressed && styles.cardPressed,
+                    !checked && styles.cardNoData,       // màu khác nếu không có data
+                    pressed && styles.cardPressed,       // hiệu ứng khi nhấn
                 ]}
             >
-                <Text style={styles.cardText}>{item.moduleLabel}</Text>
+                <Text style={styles.cardText}>
+                    {item.displayName || item.moduleLabel || item.moduleName || item.name}
+                </Text>
             </Pressable>
         );
-    }
+    };
 
     // Function để refresh dữ liệu meeting hiện tại
     const handleRefreshMeeting = useCallback(async () => {
@@ -708,29 +750,29 @@ const styles = StyleSheet.create({
         minHeight: 120, // Đổi từ height cố định sang minHeight
         maxHeight: 300, // Thêm maxHeight để giới hạn khi có quá nhiều items
     },
-    card: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        aspectRatio: 1,
-        borderRadius: 8,
-        backgroundColor: '#ececec',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     cardInvisible: {
         width: ITEM_W,
         marginHorizontal: 2,
         marginVertical: 8,
         backgroundColor: 'transparent',
     },
+    card: {
+        backgroundColor: '#2196F3',
+        padding: 24,          // tăng từ 16 lên 24
+        borderRadius: 12,     // bo góc mượt hơn
+        margin: 12,           // tăng khoảng cách giữa các card
+        alignItems: 'center',
+        minWidth: 120,        // nếu bạn muốn mỗi card rộng hơn
+    },
+    cardNoData: {
+        backgroundColor: '#B0BEC5', // màu xám cho module không có dữ liệu
+    },
     cardPressed: {
-        backgroundColor: "blue",
+        opacity: 0.7,
     },
     cardText: {
-        fontSize: 13,
-        color: 'black',
+        color: '#fff',
+        fontWeight: 'bold',
     },
-
 
 });

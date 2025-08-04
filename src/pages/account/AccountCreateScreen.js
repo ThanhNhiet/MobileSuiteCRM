@@ -77,11 +77,19 @@ const useAccountCreate = (editViews, requiredFields, getFieldValue, getFieldLabe
         //isFormValid: () => {},
         validateForm: () => {
             const errors = {};
-            if (!newAccount.name || newAccount.name.trim() === '') {
-                errors.name = 'Tên khách hàng không được để trống';
-            }
+            requiredFields.map((field) => {
+              const fieldKey = field.field;
+              const fieldValue = newAccount[fieldKey];
+              if(fieldValue.trim() === '') {
+                errors[fieldKey] = `${getFieldLabel(fieldKey)} không được để trống`;
+              }
+            });
+            // Kiểm tra các trường bắt buộc
             setValidationErrors(errors);
-            return Object.keys(errors).length === 0;
+            if (Object.keys(errors).length > 0) {
+                return false;
+            }
+            return true;
         },
         createAccount: async () => {
             try {
@@ -132,11 +140,14 @@ export default function AccountCreateScreen() {
   // Handle save
   const handleSave = async () => {
     // Validate form trước khi save
-    if (!validateForm()) {
-      Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin đã nhập');
+    if (validateForm() === false) {
+      Alert.alert(
+        'lỗi',
+        'Vui lòng điền đầy đủ các trường bắt buộc (*) trước khi lưu.',
+        [{ text: 'OK' }]
+      );
       return;
     }
-
     try {
       setSaving(true);
       const result = await createAccount();
@@ -224,7 +235,28 @@ export default function AccountCreateScreen() {
                     return checkRequired = true;
                   }
                 });
-
+                if(field.key === 'phone_office' || field.key === 'phone_fax' || field.key === 'phone_alternate') {
+                  // Handle phone fields with specific formatting
+                  return (
+                    <View key={field.key} style={styles.row}>
+                      <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
+                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
+                        <TextInput
+                          style={styles.value}
+                          value={fieldValue}
+                          onChangeText={(value) => updateField(field.key, value)}
+                          placeholder={`Nhập ${field.label.toLowerCase()}`}
+                          keyboardType="phone-pad"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          returnKeyType="done"
+                          maxLength={10} // tuỳ theo số điện thoại quốc gia, có thể thay đổi
+                        />
+                      </View>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                  );
+                }
                 // Handle account_type as dropdown (simplified for now)
                 if (field.key === 'account_type') {
                   return (

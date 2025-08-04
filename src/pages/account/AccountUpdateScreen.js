@@ -17,11 +17,12 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 import AccountData from '../../services/useApi/account/AccountData';
-
+import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
 const useAccountUpdate = (account, editViews, listViews, requiredFields, routeGetFieldValue, routeGetFieldLabel, navigation, refreshAccount) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
 
+    const systemLanguageUtils = new SystemLanguageUtils.getInstance();
     
     // Tạo updateAccount từ account và detailFields
     const initializeUpdateAccount = useCallback(() => {
@@ -230,9 +231,6 @@ export default function AccountUpdateScreen() {
   const account = routeAccount;
   const routeGetFieldValueFunc = routeGetFieldValue;
   const routeGetFieldLabelFunc = routeGetFieldLabel;
-
-
-  console.log('🔍 AccountUpdateScreen params:', routeRequiredFields);
   const {
     formData,
     editViews,
@@ -402,6 +400,13 @@ export default function AccountUpdateScreen() {
                 }
                 if (field.key === 'date_entered' || field.key === 'date_modified') {
                   return null;
+                }
+                if (field.key === 'parent_name' || 
+                  field.key === 'assigned_user_name'|| 
+                  field.key === 'created_by_name'|| 
+                  field.key === 'campaign_name'|| 
+                  field.key === 'account_type') {
+                return null;
                 }
 
                 return (

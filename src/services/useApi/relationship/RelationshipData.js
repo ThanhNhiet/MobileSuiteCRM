@@ -1,318 +1,374 @@
+import ReadCacheView from '@/src/utils/cacheViewManagement/Relationships/ReadCacheView';
+import WriteCacheView from '@/src/utils/cacheViewManagement/Relationships/WriteCacheView';
 import RelationshipsApi from '../../api/relationship/RelationshipApi';
-
 const RelationshipsData = {};
 
-RelationshipsData.getFields = async (token, moduleName) => {
+RelationshipsData.getRequiredFields = async (token,moduleName) => {
   try {
-    const fields = await RelationshipsApi.getFields(token, moduleName);
-    const language = await RelationshipsApi.getRelationshipsLanguage(token, moduleName);
-
-    if (!fields || !fields.data) {
-      console.log(`❌ Fields or fields.data is null/undefined for module: ${moduleName}`);
-      return null;
-    }
-
-    // Xác định cấu trúc language
-    let modStrings = null;
-    if (language && language.data && language.data.mod_strings) {
-      modStrings = language.data.mod_strings;
-    } else if (language && language.mod_strings) {
-      modStrings = language.mod_strings;
-    } else {
-      modStrings = {};
-    }
-
-    const attributes = fields.data.attributes;
-
-    const requiredFields = Object.entries(attributes || {})
-      .filter(([_, val]) => val.required === true)
-      .map(([key, val]) => {
-        const { required, ...rest } = val;
-
-        let translatedLabel = key; // Fallback mặc định
-
-        // Dùng mod_strings từ API để dịch
-        if (modStrings) {
-          // Cách 1: Dùng pattern LBL_FIELDNAME
-          const labelKey = `LBL_${key.toUpperCase()}`;
-          if (modStrings[labelKey]) {
-            translatedLabel = modStrings[labelKey];
-          }
-          // Cách 2: Dùng pattern LBL_LIST_FIELDNAME (cho list views)
-          else if (modStrings[`LBL_LIST_${key.toUpperCase()}`]) {
-            translatedLabel = modStrings[`LBL_LIST_${key.toUpperCase()}`];
-          }
-          // Cách 3: Dùng key trực tiếp
-          else if (modStrings[key]) {
-            translatedLabel = modStrings[key];
-          }
-          // Cách 4: Dùng key uppercase
-          else if (modStrings[key.toUpperCase()]) {
-            translatedLabel = modStrings[key.toUpperCase()];
-          }
-          // Cách 5: Xử lý các field đặc biệt theo module
-          else if (key === 'name') {
-            // Tự động tạo pattern cho field name theo module
-            const moduleNamePattern = `LBL_${moduleName.toUpperCase()}_NAME`;
-            const listNamePattern = `LBL_LIST_${moduleName.toUpperCase()}_NAME`;
-            if (modStrings[moduleNamePattern]) {
-              translatedLabel = modStrings[moduleNamePattern];
-            } else if (modStrings[listNamePattern]) {
-              translatedLabel = modStrings[listNamePattern];
-            } else if (modStrings['LBL_NAME']) {
-              translatedLabel = modStrings['LBL_NAME'];
-            }
-          }
-          else if (key === 'email1' && (modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'])) {
-            translatedLabel = modStrings['LBL_EMAIL'] || modStrings['LBL_EMAIL_ADDRESS'];
-          }
-          else if (key.includes('phone') && modStrings['LBL_PHONE']) {
-            translatedLabel = modStrings['LBL_PHONE'];
-          }
-          else if (key.includes('phone') && key.includes('office') && modStrings['LBL_PHONE_OFFICE']) {
-            translatedLabel = modStrings['LBL_PHONE_OFFICE'];
-          }
-          else if (key === 'website' && modStrings['LBL_WEBSITE']) {
-            translatedLabel = modStrings['LBL_WEBSITE'];
-          }
-          else if (key === 'description' && modStrings['LBL_DESCRIPTION']) {
-            translatedLabel = modStrings['LBL_DESCRIPTION'];
-          }
-          // Cách 6: Tìm theo pattern khác trong mod_strings
-          else {
-            // Tìm các keys trong mod_strings có chứa tên field
-            const possibleKeys = Object.keys(modStrings).filter(k => 
-              k.toLowerCase().includes(key.toLowerCase()) ||
-              (key === 'name' && (k.includes(moduleName.toUpperCase()) || k.includes('NAME'))) ||
-              (key.includes('email') && k.includes('EMAIL')) ||
-              (key.includes('phone') && k.includes('PHONE')) ||
-              (key.includes('address') && k.includes('ADDRESS')) ||
-              (key.includes('date') && k.includes('DATE'))
-            );
-            
-            if (possibleKeys.length > 0) {
-              translatedLabel = modStrings[possibleKeys[0]];
-            }
-          }
-        }
-
-        // Nếu vẫn chưa có label từ API, format key đẹp hơn
-        if (translatedLabel === key) {
-          // Format đặc biệt cho một số field thông dụng (đa module)
-          const specialFormats = {
-            'name': 'Tên',
-            'email1': 'Email',
-            'phone_office': 'Số điện thoại',
-            'phone_work': 'Điện thoại công ty',
-            'phone_mobile': 'Điện thoại di động',
-            'website': 'Website',
-            'billing_address_street': 'Địa chỉ thanh toán',
-            'shipping_address_street': 'Địa chỉ giao hàng',
-            'assigned_user_name': 'Người phụ trách',
-            'date_entered': 'Ngày tạo',
-            'date_modified': 'Ngày sửa',
-            'description': 'Mô tả',
-            'status': 'Trạng thái',
-            'priority': 'Độ ưu tiên',
-            'first_name': 'Tên',
-            'last_name': 'Họ',
-            'title': 'Chức danh',
-            'department': 'Phòng ban',
-            'account_name': 'Tên công ty',
-            'lead_source': 'Nguồn khách hàng',
-            'industry': 'Ngành nghề',
-            'annual_revenue': 'Doanh thu hàng năm',
-            'employees': 'Số nhân viên'
-          };
-          
-          if (specialFormats[key]) {
-            translatedLabel = specialFormats[key];
-          } else {
-            // Format mặc định: viết hoa chữ cái đầu và thay _ thành khoảng trắng
-            translatedLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
-          }
-        }
-
-        return {
-          key,
-          label: translatedLabel,
-          moduleName, // Thêm thông tin module để debug
-          ...rest
-        };
-      });
-
-    return requiredFields;
+    let ObjectrequiredFields = null;
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/requiredFields/required_fields');
     
+    if (!cacheExists) {
+      // Lấy từ API
+      ObjectrequiredFields = await RelationshipsApi.getFields(token,moduleName);
+      if (!ObjectrequiredFields) {
+        console.error('❌ Không thể lấy required fields từ API');
+        return null;
+      }
+     
+      // Lưu vào cache
+      await WriteCacheView.saveModuleField(moduleName, '/requiredFields/required_fields', ObjectrequiredFields);
+    } else {
+      // Lấy từ cache
+      ObjectrequiredFields = await ReadCacheView.getModuleField(moduleName, '/requiredFields/required_fields');
+      if (!ObjectrequiredFields) {
+        console.error('❌ Không thể lấy required fields từ cache');
+        return null;
+      }
+    }
+    
+    const attributes = ObjectrequiredFields?.data?.attributes || {};
+    const requiredFields = Object.entries(attributes)
+      .filter(([_, val]) => val.required === true)
+      .map(([key, val]) => ({
+        field: key,
+        type: val.type || null,
+        dbType: val.dbType || null
+      }));
+      
+    return requiredFields;
   } catch (error) {
-    console.error(`💥 Error in getFields for ${moduleName}:`, error);
+    console.error('💥 Error in getRequiredFields:', error);
     return null;
   }
 };
 
-// Lấy danh sách các trường hiển thị trong view cho bất kỳ module nào
-RelationshipsData.getListFieldsView = async (token, moduleName) => {
+/**
+ * Lấy dữ liệu ngôn ngữ cho module
+ */
+RelationshipsData.getLanguageModule = async (token, language,moduleName) => {
   try {
-    const fields = await RelationshipsApi.getListViewModules(token, moduleName);
-    const language = await RelationshipsApi.getRelationshipsLanguage(token, moduleName);
-    
-    // Kiểm tra fields response
-    if (!fields) {
-      return null;
-    }
-    
-    // Xác định cấu trúc fields
-    let defaultFieldsObject = null;
-    if (fields.default_fields) {
-      defaultFieldsObject = fields.default_fields;
-    } else if (fields.data && fields.data.default_fields) {
-      defaultFieldsObject = fields.data.default_fields;
-    } else {
-      return null;
-    }
+    let languageData = null;
+    const cacheExists = await WriteCacheView.checkPath(moduleName, `/language/${language}`);
 
-    // Kiểm tra language response
-    if (!language) {
-      return null;
-    }
-    
-    // Xác định cấu trúc language
-    let modStrings = null;
-    if (language.data && language.data.mod_strings) {
-      modStrings = language.data.mod_strings;
-    } else if (language.mod_strings) {
-      modStrings = language.mod_strings;
-    } else {
-      return null;
-    }
-
-    // Chuyển đổi object thành array
-    const defaultFields = Object.entries(defaultFieldsObject).map(([key, field]) => ({
-      key,
-      ...field
-    }));
-    
-    // Dịch labels
-    const translatedFields = defaultFields.map((field) => {
-      let translatedLabel = field.key; // Fallback mặc định
-      
-      // Thử các cách dịch khác nhau
-      if (field.label && modStrings[field.label]) {
-        // Cách 1: Dùng field.label làm key trong mod_strings
-        translatedLabel = modStrings[field.label];
-      } else if (modStrings[field.key]) {
-        // Cách 2: Dùng field.key trực tiếp
-        translatedLabel = modStrings[field.key];
-      } else if (modStrings[`LBL_${field.key.toUpperCase()}`]) {
-        // Cách 3: Dùng pattern LBL_FIELDNAME
-        translatedLabel = modStrings[`LBL_${field.key.toUpperCase()}`];
-      } else if (field.label && field.label.startsWith('LBL_')) {
-        // Cách 4: Nếu field.label là LBL_* nhưng không có trong mod_strings, format nó
-        translatedLabel = field.label.replace('LBL_', '').charAt(0).toUpperCase() + 
-                         field.label.replace('LBL_', '').slice(1).toLowerCase().replace(/_/g, ' ');
-      } else if (field.label && !field.label.startsWith('LBL_')) {
-        // Cách 5: Nếu có field.label từ API và không phải LBL_*, dùng nó
-        translatedLabel = field.label;
-      } else {
-        // Cách 6: Format mặc định - viết hoa chữ cái đầu và thay _ thành khoảng trắng
-        translatedLabel = field.key.charAt(0).toUpperCase() + field.key.slice(1).replace(/_/g, ' ');
+    if (!cacheExists) {
+      // Lấy từ API
+      languageData = await RelationshipsApi.getRelationshipsLanguage(token, moduleName, language);
+      if (!languageData) {
+        console.error('❌ Không thể lấy dữ liệu ngôn ngữ từ API');
+        return {};
       }
       
-      return {
-        ...field,
-        label: translatedLabel,
-        originalLabel: field.label // Giữ lại label gốc để debug
-      };
-    });
+      // Lưu vào cache
+      await WriteCacheView.writeModuleLanguage(moduleName, language, languageData);
+    } else {
+      // Lấy từ cache
+      languageData = await ReadCacheView.getModuleLanguage(moduleName, language);
+      if (!languageData) {
+        console.error('❌ Không thể lấy dữ liệu ngôn ngữ từ cache');
+        return {};
+      }
+    }
     
-    return translatedFields;
-    
+    return languageData?.data?.mod_strings || languageData?.mod_strings || {};
   } catch (error) {
-    console.error(`💥 Error in getListFieldsView for ${moduleName}:`, error);
-    return null;
+    console.error('💥 Error in getLanguageModule:', error);
+    return {};
   }
 };
-// Lấy danh sách dữ liệu theo trang cho bất kỳ module nào
+
+/**
+ * Lấy dữ liệu list view
+ */
+RelationshipsData.getListView = async (token,moduleName) => {
+  try {
+    let listViewData = null;
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/listViews/list_view');
+
+    if (!cacheExists) {
+      // Lấy từ API
+      listViewData = await RelationshipsApi.getListViewModules(token,moduleName);
+      if (!listViewData) {
+        console.error('❌ Không thể lấy dữ liệu list view từ API');
+        return [];
+      }
+     
+      // Lưu vào cache
+      await WriteCacheView.saveModuleField(moduleName, '/listViews/list_view', listViewData);
+    } else {
+      // Lấy từ cache
+      listViewData = await ReadCacheView.getModuleField(moduleName, '/listViews/list_view');
+      if (!listViewData) {
+        console.error('❌ Không thể lấy dữ liệu list view từ cache');
+        return [];
+      }
+    }
+    
+    const default_fields = listViewData?.default_fields || {};
+    const listViewFields = Object.entries(default_fields).map(([key, value]) => ({
+      field: key,
+      label: value.label || key,
+      type: value.type || 'string',
+      link: value.link || false
+    }));
+    
+    return listViewFields;
+  } catch (error) {
+    console.error('💥 Error in getListView:', error);
+    return [];
+  }
+};
+
+/**
+ * Lấy dữ liệu edit view
+ */
+RelationshipsData.getEditView = async (token,moduleName) => {
+  try {
+    let editViewData = null;
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/editViews/edit_view');
+
+    if (!cacheExists) {
+      // Lấy từ API
+      editViewData = await  RelationshipsApi.getEditView(token, moduleName);
+      if (!editViewData) {
+        console.error('❌ Không thể lấy dữ liệu edit view từ API');
+        return [];
+      }
+    
+      // Lưu vào cache
+      await WriteCacheView.saveModuleField(moduleName, '/editViews/edit_view', editViewData);
+    } else {
+      // Lấy từ cache
+      editViewData = await ReadCacheView.getModuleField(moduleName, '/editViews/edit_view');
+      if (!editViewData) {
+        console.error('❌ Không thể lấy dữ liệu edit view từ cache');
+        return [];
+      }
+    }
+    
+    const editViews = Object.entries(editViewData || {}).map(([field, label]) => ({ 
+      field, 
+      label 
+    }));
+    
+    return editViews;
+  } catch (error) {
+    console.error('💥 Error in getEditView:', error);
+    return [];
+  }
+};
+
+/**
+ * Lấy danh sách dữ liệu theo trang
+ */
 RelationshipsData.getDataByPage = async (token, relatedLink, page, pageSize) => {
   try {
-    const response = await RelationshipsApi.getRelationships(token, relatedLink, page, pageSize);
-    
+    const response = await RelationshipsApi.getRelationshipsData(token, relatedLink, page, pageSize);
+
     if (!response || !response.data) {
-      console.log(`❌ No data received for ${relatedLink}`);
-      return null;
+      return { accounts: [], meta: {} };
     }
 
-    // Trả về data với meta information
     return {
       meta: response.meta || {},
-      records: response.data.map(record => ({
-        id: record.id,
-        type: record.type,
-        ...record.attributes
+      accounts: response.data.map(account => ({
+        id: account.id,
+        type: account.type,
+        ...account.attributes
       }))
     };
     
   } catch (error) {
-    console.error(`💥 Error in getDataByPage for ${relatedLink}:`, error);
-    return null;
+    console.error('💥 Error in getDataByPage:', error);
+    return { accounts: [], meta: {} };
   }
 };
-// Lấy danh sách dữ liệu với các trường cụ thể cho bất kỳ module nào
-RelationshipsData.getDataWithFields = async (token, moduleName, relatedLink, page, pageSize) => {
+
+/**
+ * Tổng hợp tất cả dữ liệu cần thiết cho list view
+ */
+RelationshipsData.useListData = async (token, page, pageSize, language,moduleName,relatedLink) => {
   try {
-    // Lấy fields và data song song
-    const [fieldsResult, dataResult] = await Promise.all([
-      RelationshipsData.getListFieldsView(token, moduleName),
-      RelationshipsData.getDataByPage(token, relatedLink, page, pageSize)
+    // Lấy dữ liệu fields và data song song
+    const [requiredFields, listViews, editViews, languageData, data] = await Promise.all([
+      RelationshipsData.getRequiredFields(token,moduleName),
+      RelationshipsData.getListView(token,moduleName),
+      RelationshipsData.getEditView(token,moduleName),
+      RelationshipsData.getLanguageModule(token, language,moduleName),
+      RelationshipsData.getDataByPage(token,relatedLink, page, pageSize)
     ]);
 
-    if (!fieldsResult || !dataResult) {
-      console.log(`❌ Fields or Data is null/undefined for ${moduleName}`);
+    // console.log('📊 Data loaded:', {
+    //   requiredFields: requiredFields?.length || 0,
+    //   listViews: listViews?.length || 0,
+    //   editViews: editViews?.length || 0,
+    //   languageKeys: Object.keys(languageData || {}).length,
+    //   accounts: data?.accounts?.length || 0
+    // });
+    // Nếu không có dữ liệu nào, trả về null
+    if (!data || !requiredFields || !listViews || !editViews || !languageData) {
+      console.warn('❗ Không có dữ liệu tài khoản nào để hiển thị');
       return null;
     }
 
-    // Xử lý records data
-    const processedRecords = dataResult.records.map((record, index) => {
-      // Tạo object record với cấu trúc đơn giản
-      const processedRecord = { 
-        id: record.id, 
-        type: record.type 
-      };
-      
-      // Thêm tất cả attributes từ record gốc vào processed record
-      Object.keys(record).forEach(key => {
-        if (key !== 'id' && key !== 'type') {
-          processedRecord[key] = record[key];
+    // Helper function để dịch label từ languageData
+    const translateLabel = (fieldKey, originalLabel) => {
+      if (!languageData || typeof languageData !== 'object') {
+        return originalLabel || fieldKey;
+      }
+
+      const translationKeys = [
+        originalLabel,
+        `LBL_${fieldKey.toUpperCase()}`,
+        `LBL_LIST_${fieldKey.toUpperCase()}`,
+        fieldKey,
+        fieldKey.toUpperCase(),
+      ];
+
+      // Xử lý các trường đặc biệt
+      if (fieldKey === 'name') {
+        translationKeys.unshift('LBL_ACCOUNT_NAME', 'LBL_LIST_ACCOUNT_NAME');
+      }
+
+      // Tìm translation đầu tiên khả dụng
+      for (const key of translationKeys) {
+        if (languageData[key]) {
+          return languageData[key];
         }
-      });
-      
-      return processedRecord;
+      }
+
+      // Fallback formatting
+      const specialFormats = {
+        'email1': 'Email',
+        'phone_office': 'Số điện thoại',
+        'website': 'Website',
+        'billing_address_street': 'Địa chỉ thanh toán',
+        'shipping_address_street': 'Địa chỉ giao hàng',
+        'assigned_user_name': 'Người phụ trách',
+        'date_entered': 'Ngày tạo',
+        'date_modified': 'Ngày sửa',
+        'description': 'Mô tả'
+      };
+
+      return specialFormats[fieldKey] || 
+        (fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/_/g, ' '));
+    };
+
+    // Tạo danh sách với labels đã dịch
+    const translatedListViews = (listViews || []).map(field => ({
+      key: field.field.toLowerCase(),
+      label: translateLabel(field.field, field.label),
+      originalLabel: field.label,
+      type: field.type || 'string',
+      link: field.link || false
+    }));
+
+   const translatedEditViews = (editViews || []).map(field => {
+      let label = null;
+      if (field.label.trim() === '') {
+        label = `LBL_${field.field.toUpperCase()}`;
+      }
+      return {
+        key: field.field,
+        label: translateLabel(field.field, field.label || label),
+        originalLabel: field.label,
+        type: field.type || 'string'
+      };
     });
 
-    // Trả về object với cấu trúc giống useAccountDetail nhưng cho relationships
+
+    // Process accounts data
+    const processedAccounts = (data?.accounts || []).map(account => {
+      const processedAccount = { 
+        id: account.id, 
+        type: account.type 
+      };
+
+      // Thêm tất cả fields từ listViews
+      (editViews || []).forEach(field => {
+        processedAccount[field.field] = account[field.field] || '';
+      });
+
+      return processedAccount;
+    });
+    
     return {
-      records: processedRecords,
-      detailFields: fieldsResult.map(field => ({
-        key: field.key,
-        label: field.label ? field.label.replace(':', '') : field.key
-      })),
-      meta: dataResult.meta || {},
-      moduleName: moduleName, // Thêm thông tin module
-      getFieldValue: (recordData, key) => {
-        return recordData[key] || '';
-      },
+      accounts: processedAccounts,
+      detailFields: translatedListViews,
+      listViews: translatedListViews,
+      editViews: translatedEditViews,
+      requiredFields: requiredFields || [],
+      meta: data?.meta || {},
+      
+      // Utility functions
+      getFieldValue: (accountData, key) => accountData?.[key] || '',
+      
       getFieldLabel: (key) => {
-        const field = fieldsResult.find(f => f.key === key);
-        return field ? field.label : key;
+        const listField = translatedListViews.find(f => f.key === key);
+        if (listField) return listField.label;
+        
+        const editField = translatedEditViews.find(f => f.key === key);
+        if (editField) return editField.label;
+        
+        return translateLabel(key, key);
       },
-      shouldDisplayField: (key) => {
-        return fieldsResult.some(f => f.key === key);
+      
+      shouldDisplayField: (key) => (listViews || []).some(f => f.field === key),
+      
+      formatFieldValue: (key, value) => {
+        if (!value) return '';
+        
+        const field = translatedListViews.find(f => f.key === key) || 
+                     translatedEditViews.find(f => f.key === key);
+        
+        if (!field) return value;
+        
+        switch (field.type) {
+          case 'date':
+          case 'datetime':
+            try {
+              return new Date(value).toLocaleDateString('vi-VN');
+            } catch (e) {
+              return value;
+            }
+          case 'currency':
+            return new Intl.NumberFormat('vi-VN', {
+              style: 'currency',
+              currency: 'VND'
+            }).format(parseFloat(value) || 0);
+          case 'bool':
+            return value ? 'Có' : 'Không';
+          default:
+            return value;
+        }
       }
     };
     
   } catch (error) {
-    console.error(`💥 Error in getDataWithFields for ${moduleName}:`, error);
-    return null;
+    console.error('💥 Error in useListData:', error);
+    return null;   
   }
 };
+
+RelationshipsData.getDataRelationship = async (token, relatedLinks) => {
+  try {
+    let data = [];
+    for (const relatedLink of relatedLinks) {
+      const response = await RelationshipsApi.getDataRelationship(token, relatedLink.relatedLink);
+      // Kiểm tra nếu response.data là mảng thì lấy length, nếu không thì gán là 0
+      const length = Array.isArray(response.data) ? response.data.length : 0;
+      const item = {
+        length: length,
+        moduleName: relatedLink.moduleName,
+      };
+      data.push(item);
+    }
+    return data;
+  } catch (error) {
+    console.error('❌ Lỗi trong getDataRelationship:', error);
+    throw error;
+  }
+};
+
 
 export default RelationshipsData;

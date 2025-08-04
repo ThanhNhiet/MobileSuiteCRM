@@ -77,18 +77,21 @@ export default function RelationshipListScreen() {
         try {
             setLoading(true);
             const token = await AsyncStorage.getItem('token');
-            if (!token) {
+             const language = await AsyncStorage.getItem('selectedLanguage');
+
+            if (!token && !language) {
                 navigation.navigate('LoginScreen');
                 return;
             }
 
             // Lấy dữ liệu với 20 dòng mỗi trang - sử dụng pageNumber thay vì page
-            const result = await RelationshipsData.getDataWithFields(
+            const result = await RelationshipsData.useListData(
                 token,
-                relationship.moduleName,
-                relationship.relatedLink,
                 pageNumber,
-                20
+                20,
+                language,
+                relationship.moduleName,
+                relationship.relatedLink
             );
             setApiData(result);
         } catch (error) {
@@ -97,6 +100,9 @@ export default function RelationshipListScreen() {
             setLoading(false);
         }
     };
+    useEffect(() => {
+        fetchDataByPage(page);
+    }, [page]);
 
 
     const handleSearch = () => {
@@ -116,14 +122,32 @@ export default function RelationshipListScreen() {
                     if (relationship?.displayName === 'Notes') {
                         navigation.navigate('NoteDetailScreen', { noteId: item.id })
                     }
-                    else {
-                        navigation.navigate('RelationshipDetailScreen', {
-                            record: item,
-                            detailFields: displayFields,
-                            getFieldValue: apiData?.getFieldValue,
-                            getFieldLabel: apiData?.getFieldLabel,
-                            moduleName: apiData?.moduleName
-                        })
+                    else if (relationship?.displayName === 'Tasks') {
+                        navigation.navigate('TaskDetailScreen', { task: item, 
+                                                                     editViews: apiData?.editViews, 
+                                                                     requiredFields: apiData?.requiredFields,
+                                                                     listViews: apiData?.listViews,
+                                                                     getFieldValue: apiData?.getFieldValue,
+                                                                     getFieldLabel: apiData?.getFieldLabel,
+                                                                     refreshTask:() => fetchDataByPage(page)})
+                    }
+                    else if (relationship?.displayName === 'Accounts') {
+                        navigation.navigate('AccountDetailScreen', { account: item, 
+                                                                     editViews: apiData?.editViews, 
+                                                                     requiredFields: apiData?.requiredFields,
+                                                                     listViews: apiData?.listViews,
+                                                                     getFieldValue: apiData?.getFieldValue,
+                                                                     getFieldLabel: apiData?.getFieldLabel,
+                                                                     refreshAccount:() => fetchDataByPage(page)})
+                    }
+                    else if (relationship?.displayName === 'Meetings') {
+                        navigation.navigate('MeetingDetailScreen', { meeting: item, 
+                                                                     editViews: apiData?.editViews, 
+                                                                     requiredFields: apiData?.requiredFields,
+                                                                     listViews: apiData?.listViews,
+                                                                     getFieldValue: apiData?.getFieldValue,
+                                                                     getFieldLabel: apiData?.getFieldLabel,
+                                                                     refreshMeeting:() => fetchDataByPage(page)})
                     }
                 }}
             >
@@ -169,43 +193,6 @@ export default function RelationshipListScreen() {
             </TouchableOpacity>
         );
     };
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const token = await AsyncStorage.getItem('token');
-                if (!token) {
-                    navigation.navigate('LoginScreen');
-                    return;
-                }
-                // Lấy dữ liệu với 20 dòng cho trang đầu tiên
-                const result = await RelationshipsData.getDataWithFields(
-                    token,
-                    relationship.moduleName,
-                    relationship.relatedLink,
-                    1,
-                    20
-                );
-                if (result) {
-                    setApiData(result);
-                    // Cập nhật pagination từ meta data
-                    if (result.meta && result.meta['total-pages']) {
-                        // Nếu có thông tin từ API, có thể cập nhật totalPages
-                    }
-                }
-
-            } catch (error) {
-                console.error('💥 Lỗi lấy dữ liệu ban đầu:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (relationship?.moduleName && relationship?.relatedLink) {
-            fetchData();
-        }
-    }, [relationship]);
 
     // Component Dropdown
     const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
@@ -289,8 +276,37 @@ export default function RelationshipListScreen() {
                     <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                         <TouchableOpacity
                             onPress={() => {
-                                navigation.navigate('AccountCreateScreen');
-                            }}
+                   if (relationship?.displayName === 'Notes') {
+                       navigation.navigate('NoteCreateScreen');
+                    }
+                    else if (relationship?.displayName === 'Tasks') {
+                        navigation.navigate('TaskCreateScreen', {
+                                                                     editViews: apiData?.editViews, 
+                                                                     requiredFields: apiData?.requiredFields,
+                                                                     getFieldValue: apiData?.getFieldValue,
+                                                                     getFieldLabel: apiData?.getFieldLabel,
+                                                                     refreshTask:() => fetchDataByPage(page)
+                                                                    });
+                    }
+                    else if (relationship?.displayName === 'Accounts') {
+                        navigation.navigate('AccountCreateScreen', {
+                                                                    getFieldLabel: apiData.getFieldLabel,
+                                                                    getFieldValue: apiData.getFieldValue,
+                                                                    editViews: apiData.editViews,
+                                                                    requiredFields: apiData.requiredFields,
+                                                                    refreshAccount: () => fetchDataByPage(page)
+                                                                    });
+                    }
+                    else if (relationship?.displayName === 'Meetings') {
+                        navigation.navigate('MeetingCreateScreen', {                                
+                                                                     editViews: apiData?.editViews,
+                                                                     requiredFields: apiData?.requiredFields,
+                                                                     getFieldValue: apiData?.getFieldValue,
+                                                                     getFieldLabel: apiData?.getFieldLabel,
+                                                                     refreshMeeting:() => fetchDataByPage(page)
+                                                                    });
+                    }
+                }}
                             style={[styles.addNewBtn]}
                         >
                             <Text style={styles.plusText}>+</Text>

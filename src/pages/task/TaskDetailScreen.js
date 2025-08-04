@@ -1,3 +1,4 @@
+import RelationshipsData from '@/src/services/useApi/relationship/RelationshipData';
 import TaskData from '@/src/services/useApi/task/TaskData';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -79,6 +80,7 @@ export default function TaskDetailScreen() {
     // State để quản lý dữ liệu task hiện tại
     const [currentTask, setCurrentTask] = useState(routeTask);
     const [taskRefreshing, setTaskRefreshing] = useState(false);
+    const [getDataRelationship, setGetDataRelationship] = React.useState([]);
     useEffect(() => {
         const fetchRelationships = async () => {
             try {
@@ -101,6 +103,31 @@ export default function TaskDetailScreen() {
 
         fetchRelationships();
     }, [currentTask.id]);
+    useEffect(() => {
+        // Xử lý khi relationships thay đổi
+            if(!relationships) return;
+            const relatedLinks = relationships.map( (item) => {
+                    return {
+                        relatedLink: item.relatedLink,
+                        moduleName : item.moduleName,
+                    };
+            });
+            // Xử lý relatedLinks ở đây nếu cần
+            const fetchRelatedData = async () => {
+                try{
+                    const token = AsyncStorage.getItem('token');
+                    if (!token) {
+                        navigation.navigate('LoginScreen');
+                        return;
+                    }
+                    const results = await RelationshipsData.getDataRelationship(token, relatedLinks);
+                    setGetDataRelationship(results);
+                } catch (error) {
+                    console.error('Lỗi khi xử lý relationships:', error);
+                }
+            };
+        fetchRelatedData();
+    }, [relationships]);
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -118,21 +145,35 @@ export default function TaskDetailScreen() {
     }, [relationships]);
 
     const renderItem = ({ item }) => {
-        if (item.empty) {
-            return <View style={styles.cardInvisible} />;
-        }
-        return (
-            <Pressable 
-                onPress={() => navigation.navigate('RelationshipListScreen', { relationship: item })}
-                style={({ pressed }) => [
-                    styles.card,
-                    pressed && styles.cardPressed,
-                ]}
-            >
-                <Text style={styles.cardText}>{item.moduleLabel}</Text>
-            </Pressable>
-        );
-    }
+            if (item.empty) {
+                return <View style={styles.cardInvisible} />;
+            }
+        
+            let checked = false;
+            getDataRelationship.map((data) => {
+                if (data.moduleName === item.displayName) {
+                    if (data.length > 0) {
+                        checked = true;
+                    }
+                }
+            });
+            return (
+                <Pressable
+                    onPress={() => {
+                        navigation.navigate('RelationshipListScreen', { relationship: item });
+                    }}
+                    style={({ pressed }) => [
+                        styles.card,
+                        !checked && styles.cardNoData,       // màu khác nếu không có data
+                        pressed && styles.cardPressed,       // hiệu ứng khi nhấn
+                    ]}
+                >
+                    <Text style={styles.cardText}>
+                        {item.displayName || item.moduleLabel || item.moduleName || item.name}
+                    </Text>
+                </Pressable>
+            );
+        };
 
     // Function để refresh dữ liệu task hiện tại
     const handleRefreshTask = useCallback(async () => {
@@ -725,27 +766,30 @@ const styles = StyleSheet.create({
         minHeight: 120, // Đổi từ height cố định sang minHeight
         maxHeight: 300, // Thêm maxHeight để giới hạn khi có quá nhiều items
     },
-    card: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        aspectRatio: 1,
-        borderRadius: 8,
-        backgroundColor: '#ececec',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     cardInvisible: {
         width: ITEM_W,
         marginHorizontal: 2,
         marginVertical: 8,
         backgroundColor: 'transparent',
     },
-    cardPressed: {
-        backgroundColor: "blue",
+    card: {
+        backgroundColor: '#2196F3',
+        padding: 24,          // tăng từ 16 lên 24
+        borderRadius: 12,     // bo góc mượt hơn
+        margin: 12,           // tăng khoảng cách giữa các card
+        alignItems: 'center',
+        minWidth: 120,        // nếu bạn muốn mỗi card rộng hơn
     },
+    cardNoData: {
+        backgroundColor: '#B0BEC5', // màu xám cho module không có dữ liệu
+    },
+
+    cardPressed: {
+        opacity: 0.7,
+    },
+
     cardText: {
-        fontSize: 13,
-        color: 'black',
+        color: '#fff',
+        fontWeight: 'bold',
     },
 });
