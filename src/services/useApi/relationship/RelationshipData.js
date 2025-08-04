@@ -49,7 +49,7 @@ RelationshipsData.getRequiredFields = async (token,moduleName) => {
 RelationshipsData.getLanguageModule = async (token, language,moduleName) => {
   try {
     let languageData = null;
-    const cacheExists = await WriteCacheView.checkPath(moduleName, `/language/${language}`);
+    const cacheExists = await WriteCacheView.checkLanguage(moduleName, language);
 
     if (!cacheExists) {
       // Lấy từ API

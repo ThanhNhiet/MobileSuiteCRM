@@ -52,7 +52,7 @@ TaskData.getRequiredFields = async (token) => {
 TaskData.getLanguageModule = async (token, language) => {
   try {
     let languageData = null;
-    const cacheExists = await WriteCacheView.checkPath('Tasks', `/language/${language}`);
+    const cacheExists = await WriteCacheView.checkLanguage('Tasks', language);
 
     if (!cacheExists) {
       // Lấy từ API

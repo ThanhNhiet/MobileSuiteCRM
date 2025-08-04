@@ -12,6 +12,15 @@ WriteCacheView.checkPath = async (module, path) => {
         throw error;
     }
 }
+WriteCacheView.checkLanguage = async (module, language) => {
+    try {
+        const result = await cacheManager.checkModuleLanguageExists(module, language);
+        return result;
+    } catch (error) {
+        console.error(`❌ Error checking language ${language} for module ${module}:`, error);
+        throw error;
+    }
+}
 
 WriteCacheView.writeModuleLanguage = async (module, language, data) => {
     try {
@@ -25,7 +34,6 @@ WriteCacheView.writeModuleLanguage = async (module, language, data) => {
 WriteCacheView.saveModuleField = async (module, name, data) => {
     try {
         await cacheManager.saveModuleField(module, name, data);
-        console.log(`✅ Field ${name} for module ${module} written to cache successfully.`);
         return true;
     } catch (error) {
         console.error(`❌ Error writing field ${name} for module ${module}:`, error);
@@ -36,7 +44,6 @@ WriteCacheView.saveModuleField = async (module, name, data) => {
 WriteCacheView.clearModuleCache = async (module) => {
     try {
         await cacheManager.clearModuleCache(module);
-        console.log(`✅ Cache for module ${module} cleared successfully.`);
         return true;
     } catch (error) {
         console.error(`❌ Error clearing cache for ${module}:`, error);

@@ -91,6 +91,7 @@ export default function AccountListScreen() {
             //token, page, pageSize, language
             const result = await AccountData.useListData(token, pageNumber, 20, language);
             setApiData(result);
+           
            // console.log('Dữ liệu trang', pageNumber, ':', result.listViews);
         } catch (error) {
             console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
@@ -363,11 +364,10 @@ export default function AccountListScreen() {
                     <View style={styles.tableHeader}>
                         {apiData?.listViews
                             ?.filter(field =>
-                            ['name', 'phone_office', 'billing_address_city'].includes(field.key)
-                            )
+                            ['name', 'phone_office', 'billing_address_city'].includes(field.key))
                             ?.map((field, index) => (
                             <Text key={index} style={styles.headerCell}>
-                                {field.label || field.key}
+                                {field.label }
                             </Text>
                             )) || []}
                     </View>

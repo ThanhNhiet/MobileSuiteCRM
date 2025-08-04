@@ -54,7 +54,7 @@ MeetingData.getRequiredFields = async (token) => {
 MeetingData.getLanguageModule = async (token, language) => {
   try {
     let languageData = null;
-    const cacheExists = await WriteCacheView.checkPath('Meetings', `/language/${language}`);
+    const cacheExists = await WriteCacheView.checkLanguage('Meetings', language);
 
     if (!cacheExists) {
       // Lấy từ API

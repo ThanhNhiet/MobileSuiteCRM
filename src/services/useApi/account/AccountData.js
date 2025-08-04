@@ -2,6 +2,7 @@ import ReadCacheView from '../../../utils/cacheViewManagement/Accounts/ReadCache
 import WriteCacheView from '../../../utils/cacheViewManagement/Accounts/WriteCacheView';
 import AccountApi from '../../api/account/AccountApi';
 
+
 const AccountData = {};
 
 /**
@@ -53,8 +54,7 @@ AccountData.getRequiredFields = async (token) => {
 AccountData.getLanguageModule = async (token, language) => {
   try {
     let languageData = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', `/language/${language}`);
-    
+    const cacheExists = await WriteCacheView.checkLanguage('Accounts', language);
     if (!cacheExists) {
       // Lấy từ API
       languageData = await AccountApi.getLanguage(token, language);
@@ -210,61 +210,74 @@ AccountData.useListData = async (token, page, pageSize, language) => {
     //   accounts: data?.accounts?.length || 0
     // });
     // Nếu không có dữ liệu nào, trả về null
+
     if (!data || !requiredFields || !listViews || !editViews || !languageData) {
       console.warn('❗ Không có dữ liệu tài khoản nào để hiển thị');
       return null;
     }
 
     // Helper function để dịch label từ languageData
-    const translateLabel = (fieldKey, originalLabel) => {
-      if (!languageData || typeof languageData !== 'object') {
-        return originalLabel || fieldKey;
-      }
+   const translateLabel = (fieldKey, originalLabel) => {
+    if (!languageData || typeof languageData !== 'object') {
+      return originalLabel || fieldKey;
+    }
 
-      const translationKeys = [
-        originalLabel,
-        `LBL_${fieldKey.toUpperCase()}`,
-        `LBL_LIST_${fieldKey.toUpperCase()}`,
-        fieldKey,
-        fieldKey.toUpperCase(),
-      ];
+    const normalizedKey = fieldKey?.toLowerCase?.() || '';
 
-      // Xử lý các trường đặc biệt
-      if (fieldKey === 'name') {
-        translationKeys.unshift('LBL_ACCOUNT_NAME', 'LBL_LIST_ACCOUNT_NAME');
-      }
-
-      // Tìm translation đầu tiên khả dụng
-      for (const key of translationKeys) {
-        if (languageData[key]) {
-          return languageData[key];
-        }
-      }
-
-      // Fallback formatting
-      const specialFormats = {
-        'email1': 'Email',
-        'phone_office': 'Số điện thoại',
-        'website': 'Website',
-        'billing_address_street': 'Địa chỉ thanh toán',
-        'shipping_address_street': 'Địa chỉ giao hàng',
-        'assigned_user_name': 'Người phụ trách',
-        'date_entered': 'Ngày tạo',
-        'date_modified': 'Ngày sửa',
-        'description': 'Mô tả'
-      };
-
-      return specialFormats[fieldKey] || 
-        (fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/_/g, ' '));
+    const specialFormats = {
+      email1: 'Địa chỉ Email',
+      phone_office: 'Điện thoại VP',
+      website: 'Trang web',
+      billing_address_street: 'Địa chỉ thanh toán',
+      shipping_address_street: 'Địa chỉ giao hàng',
+      assigned_user_name: 'Người phụ trách',
+      date_entered: 'Ngày tạo',
+      date_modified: 'Ngày sửa',
+      description: 'Mô tả',
     };
+
+    if (specialFormats[normalizedKey]) {
+      return specialFormats[normalizedKey];
+    }
+
+    const translationKeys = [];
+
+    // Ưu tiên originalLabel trước nếu có
+    if (originalLabel) translationKeys.push(originalLabel);
+
+    // Thêm các khả năng khác
+    if (normalizedKey === 'name') {
+      translationKeys.push('LBL_ACCOUNT_NAME', 'LBL_LIST_ACCOUNT_NAME');
+    }
+
+    translationKeys.push(
+      `LBL_${fieldKey.toUpperCase()}`,
+      `LBL_LIST_${fieldKey.toUpperCase()}`,
+      fieldKey.toUpperCase(),
+      fieldKey
+    );
+
+    for (const key of translationKeys) {
+      if (languageData[key]) {
+        return languageData[key];
+      }
+    }
+
+    // Fallback cuối
+    return (
+      normalizedKey.charAt(0).toUpperCase() +
+      normalizedKey.slice(1).replace(/_/g, ' ')
+    );
+  };
+
 
     // Tạo danh sách với labels đã dịch
     const translatedListViews = (listViews || []).map(field => ({
-      key: field.field.toLowerCase(),
-      label: translateLabel(field.field, field.label),
+      key: field.field?.toLowerCase?.() || '',
+      label: translateLabel(field.field.toLowerCase(), field.label, languageData),
       originalLabel: field.label,
       type: field.type || 'string',
-      link: field.link || false
+      link: !!field.link, // ép kiểu boolean
     }));
 
    const translatedEditViews = (editViews || []).map(field => {
@@ -274,7 +287,7 @@ AccountData.useListData = async (token, page, pageSize, language) => {
       }
       return {
         key: field.field,
-        label: translateLabel(field.field, field.label || label),
+        label: translateLabel(field.field, field.label || label, languageData),
         originalLabel: field.label,
         type: field.type || 'string'
       };
@@ -295,12 +308,11 @@ AccountData.useListData = async (token, page, pageSize, language) => {
 
       return processedAccount;
     });
-    
     return {
       accounts: processedAccounts,
-      detailFields: translatedListViews,
+      detailFields: translatedListViews || [],
       listViews: translatedListViews,
-      editViews: translatedEditViews,
+      editViews: translatedEditViews || [],
       requiredFields: requiredFields || [],
       meta: data?.meta || {},
       
