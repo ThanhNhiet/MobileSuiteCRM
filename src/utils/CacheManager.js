@@ -105,12 +105,13 @@ class CacheManager {
             const cleanName = name.startsWith('/') ? name.slice(1) : name;
 
             const fullFilePath = `${this.cacheDir}${module}/metadata/${cleanName}.json`;
+            console.log('➡️ Full file path:', fullFilePath);
 
             // Lấy đường dẫn thư mục chứa file
             const folderPath = fullFilePath.substring(0, fullFilePath.lastIndexOf('/'));
             await this.ensureDirectoryExists(folderPath);
 
-            console.log('➡️ Writing to:', fullFilePath);
+            
             await FileSystem.writeAsStringAsync(fullFilePath, JSON.stringify(data, null, 2));
             return true;
         } catch (error) {
@@ -187,7 +188,6 @@ class CacheManager {
             return null;
         }
     }
-
     // Pretty print JSON from cache for system language
     async getSystemLanguage_Pretty(language) {
         try {

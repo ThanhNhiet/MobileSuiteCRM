@@ -106,7 +106,8 @@ RelationshipsApi.getEditView = async (token,moduleName) => {
 }
 RelationshipsApi.getDataRelationship = async (token, relatedLink) => {
   try {
-    const response = await fetch(`${LOCALHOST_IP}/Api/${relatedLink}`, {
+     const fullUrl = `${LOCALHOST_IP}/Api/${relatedLink}`;
+    const response = await fetch(fullUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,

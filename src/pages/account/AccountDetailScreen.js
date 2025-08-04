@@ -118,7 +118,7 @@ export default function AccountDetailScreen() {
             // Xử lý relatedLinks ở đây nếu cần
             const fetchRelatedData = async () => {
                 try{
-                    const token = AsyncStorage.getItem('token');
+                     const token = await AsyncStorage.getItem('token');
                     if (!token) {
                         navigation.navigate('LoginScreen');
                         return;

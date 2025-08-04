@@ -11,7 +11,7 @@ const AccountData = {};
 AccountData.getRequiredFields = async (token) => {
   try {
     let ObjectrequiredFields = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/requiredFields/required_fields');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/requiredFields/requiredfields');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -22,10 +22,10 @@ AccountData.getRequiredFields = async (token) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/requiredFields/required_fields', ObjectrequiredFields);
+      await WriteCacheView.saveModuleField('Accounts', '/requiredFields/requiredfields', ObjectrequiredFields);
     } else {
       // Lấy từ cache
-      ObjectrequiredFields = await ReadCacheView.getModuleField('Accounts', '/requiredFields/required_fields');
+      ObjectrequiredFields = await ReadCacheView.getModuleField('Accounts', '/requiredFields/requiredfields');
       if (!ObjectrequiredFields) {
         console.error('❌ Không thể lấy required fields từ cache');
         return null;
@@ -87,7 +87,7 @@ AccountData.getLanguageModule = async (token, language) => {
 AccountData.getListView = async (token) => {
   try {
     let listViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/listViews/list_view');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/listViews/listviewdefs');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -98,10 +98,10 @@ AccountData.getListView = async (token) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/listViews/list_view', listViewData);
+      await WriteCacheView.saveModuleField('Accounts', '/listViews/listviewdefs', listViewData);
     } else {
       // Lấy từ cache
-      listViewData = await ReadCacheView.getModuleField('Accounts', '/listViews/list_view');
+      listViewData = await ReadCacheView.getModuleField('Accounts', '/listViews/listviewdefs');
       if (!listViewData) {
         console.error('❌ Không thể lấy dữ liệu list view từ cache');
         return [];
@@ -129,7 +129,7 @@ AccountData.getListView = async (token) => {
 AccountData.getEditView = async (token) => {
   try {
     let editViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/editViews/edit_view');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/editViews/editviewdefs');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -140,10 +140,10 @@ AccountData.getEditView = async (token) => {
       }
     
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/editViews/edit_view', editViewData);
+      await WriteCacheView.saveModuleField('Accounts', '/editViews/editviewdefs', editViewData);
     } else {
       // Lấy từ cache
-      editViewData = await ReadCacheView.getModuleField('Accounts', '/editViews/edit_view');
+      editViewData = await ReadCacheView.getModuleField('Accounts', '/editViews/editviewdefs');
       if (!editViewData) {
         console.error('❌ Không thể lấy dữ liệu edit view từ cache');
         return [];

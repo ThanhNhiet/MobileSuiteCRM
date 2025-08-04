@@ -353,13 +353,13 @@ RelationshipsData.useListData = async (token, page, pageSize, language,moduleNam
 RelationshipsData.getDataRelationship = async (token, relatedLinks) => {
   try {
     let data = [];
-    for (const relatedLink of relatedLinks) {
-      const response = await RelationshipsApi.getDataRelationship(token, relatedLink.relatedLink);
+    for (const ratelink of relatedLinks) {
+      const response = await RelationshipsApi.getDataRelationship(token, ratelink.relatedLink);
       // Kiểm tra nếu response.data là mảng thì lấy length, nếu không thì gán là 0
       const length = Array.isArray(response.data) ? response.data.length : 0;
       const item = {
         length: length,
-        moduleName: relatedLink.moduleName,
+        moduleName: ratelink.moduleName,
       };
       data.push(item);
     }

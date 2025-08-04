@@ -9,7 +9,7 @@ const TaskData = {};
 TaskData.getRequiredFields = async (token) => {
   try {
     let ObjectrequiredFields = null;
-    const cacheExists = await WriteCacheView.checkPath('Tasks', '/requiredFields/required_fields');
+    const cacheExists = await WriteCacheView.checkPath('Tasks', '/requiredFields/requiredfields');
 
     if (!cacheExists) {
       // Lấy từ API
@@ -20,10 +20,10 @@ TaskData.getRequiredFields = async (token) => {
       }
       
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Meetings', '/requiredFields/required_fields', ObjectrequiredFields);
+      await WriteCacheView.saveModuleField('Tasks', '/requiredFields/requiredfields', ObjectrequiredFields);
     } else {
       // Lấy từ cache
-      ObjectrequiredFields = await ReadCacheView.getModuleField('Meetings', '/requiredFields/required_fields');
+      ObjectrequiredFields = await ReadCacheView.getModuleField('Tasks', '/requiredFields/requiredfields');
       if (!ObjectrequiredFields) {
         console.error('❌ Không thể lấy required fields từ cache');
         return null;
@@ -87,7 +87,7 @@ TaskData.getLanguageModule = async (token, language) => {
 TaskData.getListView = async (token) => {
   try {
     let listViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Tasks', '/listViews/list_view');
+    const cacheExists = await WriteCacheView.checkPath('Tasks', '/listViews/listviewdefs');
 
     if (!cacheExists) {
       // Lấy từ API
@@ -98,10 +98,10 @@ TaskData.getListView = async (token) => {
       }
       
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Tasks', '/listViews/list_view', listViewData);
+      await WriteCacheView.saveModuleField('Tasks', '/listViews/listviewdefs', listViewData);
     } else {
       // Lấy từ cache
-      listViewData = await ReadCacheView.getModuleField('Tasks', '/listViews/list_view');
+      listViewData = await ReadCacheView.getModuleField('Tasks', '/listViews/listviewdefs');
       if (!listViewData) {
         console.error('❌ Không thể lấy dữ liệu list view từ cache');
         return [];
@@ -129,7 +129,7 @@ TaskData.getListView = async (token) => {
 TaskData.getEditView = async (token) => {
   try {
     let editViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Tasks', '/editViews/edit_view');
+    const cacheExists = await WriteCacheView.checkPath('Tasks', '/editViews/editviewdefs');
 
     if (!cacheExists) {
       // Lấy từ API
@@ -140,10 +140,10 @@ TaskData.getEditView = async (token) => {
       }
       
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Tasks', '/editViews/edit_view', editViewData);
+      await WriteCacheView.saveModuleField('Tasks', '/editViews/editviewdefs', editViewData);
     } else {
       // Lấy từ cache
-      editViewData = await ReadCacheView.getModuleField('Tasks', '/editViews/edit_view');
+      editViewData = await ReadCacheView.getModuleField('Tasks', '/editViews/editviewdefs');
       if (!editViewData) {
         console.error('❌ Không thể lấy dữ liệu edit view từ cache');
         return [];
@@ -152,6 +152,7 @@ TaskData.getEditView = async (token) => {
     
     const editViews = Object.entries(editViewData || {}).map(([field, label]) => ({ 
       field, 
+
       label 
     }));
     
