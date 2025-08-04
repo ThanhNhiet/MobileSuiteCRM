@@ -46,13 +46,6 @@ export default function HomeScreen() {
 
         <TopNavigation moduleName={homeTitle} navigation={navigation} />
 
-        {/* {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        )} */}
-
         <ScrollView 
           contentContainerStyle={styles.container}
           refreshControl={

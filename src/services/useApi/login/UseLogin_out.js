@@ -1,10 +1,11 @@
-// src/useApi/Login.js
+// Login authentication hook with language management
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import { cacheManager } from '../../../utils/CacheManager';
-import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi } from '../../api/login/Login_outApi';
+import { LOCALHOST_IP } from '../../../utils/localhost';
+import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
 export const useLogin_out = () => {
@@ -13,17 +14,18 @@ export const useLogin_out = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Loading state for auth check
   const [selectedLanguage, setSelectedLanguage] = useState('vi_VN'); // Default language
 
-  // Định nghĩa các module cần cache language
+  // Define modules that need language caching
   const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
 
-  // Function để fetch và cache language data cho tất cả modules
+  // Function to fetch and cache language data for all modules
   const fetchAndCacheLanguageData = async (lang) => {
     try {
       console.log(`Starting to fetch and cache language data for: ${lang}`);
       
-      // Fetch và cache system language
+      // Fetch and cache system language
       try {
         const systemLanguageExists = await cacheManager.checkSystemLanguageExists(lang);
         if (!systemLanguageExists) {
@@ -36,7 +38,7 @@ export const useLogin_out = () => {
       } catch (error) {
         console.warn('Error fetching system language:', error);
       }
-      // Fetch và cache language cho từng module
+      // Fetch and cache language for each module
       for (const module of modules) {
         try {
           const languageExists = await cacheManager.checkModuleLanguageExists(module, lang);
@@ -56,15 +58,101 @@ export const useLogin_out = () => {
     }
   };
 
-  // Function để handle chọn ngôn ngữ
+  // Function to handle language selection
   const handleLanguageSelect = (lang) => {
     setSelectedLanguage(lang);
+  };
+
+  // Function to check existing authentication
+  const checkExistingAuth = async () => {
+    try {
+      setIsCheckingAuth(true);
+      
+      // Check if refresh token exists
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      const existingToken = await AsyncStorage.getItem('token');
+      const savedLanguage = await AsyncStorage.getItem('selectedLanguage');
+      
+      if (savedLanguage) {
+        setSelectedLanguage(savedLanguage);
+      }
+      
+      // If we have both tokens, try to validate them
+      if (refreshToken && refreshToken.trim() !== '' && existingToken && existingToken.trim() !== '') {
+        console.log('Found tokens, validating authentication...');
+        
+        try {
+          // Try a simple API call to validate current token
+          const testResponse = await fetch(`${LOCALHOST_IP}/Api/V8/custom/system/language/lang=${savedLanguage || selectedLanguage}`, {
+            headers: {
+              'Authorization': `Bearer ${existingToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (testResponse.ok) {
+            console.log('Current token is valid, navigating to HomeScreen');
+            // Fetch and cache language data if needed
+            await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
+            // Emit login success event
+            eventEmitter.emit('loginSuccess');
+            navigation.navigate('HomeScreen');
+            return;
+          }
+        } catch (tokenTestError) {
+          console.log('Current token invalid, trying refresh...');
+        }
+        
+        // If current token is invalid, try refresh
+        try {
+          const response = await refreshTokenApi(refreshToken);
+          const newAccessToken = response?.access_token;
+          const newRefreshToken = response?.refresh_token;
+          
+          if (newAccessToken) {
+            // Save new tokens
+            await AsyncStorage.setItem('token', newAccessToken);
+            if (newRefreshToken) {
+              await AsyncStorage.setItem('refreshToken', newRefreshToken);
+            }
+            
+            console.log('Token refreshed successfully, navigating to HomeScreen');
+            
+            // Fetch and cache language data if needed
+            await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
+            
+            // Emit login success event
+            eventEmitter.emit('loginSuccess');
+            
+            // Navigate to HomeScreen directly
+            navigation.navigate('HomeScreen');
+            return;
+          }
+        } catch (refreshError) {
+          console.warn('Failed to refresh token:', refreshError);
+          // Clear invalid tokens
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('refreshToken');
+        }
+      }
+      
+      // If no valid tokens found, stay on login screen
+      console.log('No valid authentication found, staying on login screen');
+      
+    } catch (error) {
+      console.warn('Error checking existing auth:', error);
+      // Clear potentially corrupted tokens
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('refreshToken');
+    } finally {
+      setIsCheckingAuth(false);
+    }
   };
 
   // Function to handle login
   const handleLogin = async () => {
     if (!website.trim() || !username.trim() || !password.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
+      Alert.alert('Error', 'Please fill in all required information');
       return;
     }
     Keyboard.dismiss();
@@ -79,25 +167,25 @@ export const useLogin_out = () => {
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
         await AsyncStorage.setItem('selectedLanguage', selectedLanguage);
         
-        // Sau khi đăng nhập thành công, fetch và cache language data
+        // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
         
-        //log
-        // console.log('Login successful, token:', token);
-        // console.log('Refresh token:', refreshToken);
+        // Emit login success event
+        eventEmitter.emit('loginSuccess');
+        
         navigation.navigate('HomeScreen');
       } else {
-        Alert.alert('Lỗi', 'Không nhận được token từ máy chủ');
+        Alert.alert('Error', 'No token received from server');
       }
     } catch (err) {
       console.warn('Login failed', err);
-      Alert.alert('Lỗi', 'Sai tên đăng nhập hoặc mật khẩu');
+      Alert.alert('Error', 'Invalid username or password');
     } finally {
       setLoading(false);
     }
   };
 
-  // function to handle logout
+  // Function to handle logout
   const handleLogout = async () => {
     try {
       // Emit logout event to clear all data in other hooks
@@ -106,10 +194,15 @@ export const useLogin_out = () => {
       await logoutApi();
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('refreshToken');
+      
+      // Clear user data but keep language preference
+      setUsername('');
+      setPassword('');
+      
       navigation.navigate('LoginScreen');
     } catch (error) {
       console.warn('Logout failed', error);
-      Alert.alert('Lỗi', 'Không thể đăng xuất');
+      Alert.alert('Error', 'Unable to logout');
     }
   };
 
@@ -120,7 +213,9 @@ export const useLogin_out = () => {
     handleLogin,
     handleLogout,
     loading,
+    isCheckingAuth, // Export auth checking state
     selectedLanguage,
-    handleLanguageSelect
+    handleLanguageSelect,
+    checkExistingAuth // Export for manual auth check if needed
   };
 };

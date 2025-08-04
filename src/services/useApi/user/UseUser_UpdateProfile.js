@@ -1,6 +1,7 @@
-import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
+import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
+import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { getUserEditFieldsApi, getUserProfileApi, getUsernameApi, updateUserProfileApi } from '../../api/user/UserApi';
 
 export const useUpdateProfile = () => {
@@ -32,26 +33,16 @@ export const useUpdateProfile = () => {
     // Load or fetch edit fields configuration
     const loadEditFields = async () => {
         try {
-            const editFieldsPath = `${FileSystem.documentDirectory}cache/Users/metadata/editviewdefs.json`;
-            const fileInfo = await FileSystem.getInfoAsync(editFieldsPath);
+            // Try to get edit fields from cache
+            let editFields = await ReadCacheView.getModuleField('Users', 'editviewdefs');
             
-            let editFields;
-            if (!fileInfo.exists) {
+            if (!editFields) {
                 // Fetch from API and cache
                 const response = await getUserEditFieldsApi();
                 editFields = response;
                 
-                const dirPath = `${FileSystem.documentDirectory}cache/Users/metadata/`;
-                const dirInfo = await FileSystem.getInfoAsync(dirPath);
-                if (!dirInfo.exists) {
-                    await FileSystem.makeDirectoryAsync(dirPath, { intermediateDirectories: true });
-                }
-                
-                await FileSystem.writeAsStringAsync(editFieldsPath, JSON.stringify(editFields));
-            } else {
-                // Read from cache
-                const fileContent = await FileSystem.readAsStringAsync(editFieldsPath);
-                editFields = JSON.parse(fileContent);
+                // Save to cache
+                await WriteCacheView.saveModuleField('Users', 'editviewdefs', editFields);
             }
 
             // Filter out hidden fields

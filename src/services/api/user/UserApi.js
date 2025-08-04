@@ -2,29 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosInstance from '../../../configs/AxiosConfig';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 
-//GET /Api/V8/module/Users/{id}?fields[User]=full_name,description,date_entered,date_modified,modified_by_name,phone_work,phone_fax,phone_mobile,address_street,address_city,address_country,employee_status,reports_to_name,email1
-// export const getUserProfileApi = async () => {
-//     try {
-//         const token = await AsyncStorage.getItem('token');
-//         const userId = getUserIdFromToken(token);
-        
-//         const response = await axiosInstance.get(`/Api/V8/module/Users/${userId}`, {
-//             params: {
-//                 'fields[User]': 'full_name,description,date_entered,date_modified,modified_by_name,phone_work,phone_fax,phone_mobile,address_street,address_city,address_country,employee_status,reports_to_name,email1'
-//             }
-//         });
-//         return response.data;
-//     } catch (error) {
-//         console.warn("Get User Profile API error:", error);
-//         throw error;
-//     }
-// }
-
+//GET /Api/V8/module/Users/{id}?fields[User]={nameFields}
 export const getUserProfileApi = async (nameFields) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         const response = await axiosInstance.get(`/Api/V8/module/Users/${userId}`, {
             params: {
                 'fields[User]': nameFields
@@ -65,7 +48,7 @@ export const changePasswordApi = async (oldPassword, newPassword) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         const response = await axiosInstance.post(`/Api/V8/custom/change-password/${userId}`, {
             old_password: oldPassword,
             new_password: newPassword
@@ -78,22 +61,12 @@ export const changePasswordApi = async (oldPassword, newPassword) => {
 }
 
 //PATCH /Api/V8/module
-//body:
-//{
-//   "data": {
-//     "type": "Users",
-//     "id": "",
-//     "attributes": {
-//       "name": "",
-//       ...
-//     }
-//   }
-// }
+//body:{ "data": {"type": "Users","id": "","attributes": {"name": "",...}}}
 export const updateUserProfileApi = async (updateData) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         const response = await axiosInstance.patch(`/Api/V8/module`, {
             data: {
                 type: 'Users',
@@ -120,3 +93,70 @@ export const getUsernameApi = async () => {
         throw error;
     }
 };
+
+//GET /Api/V8/custom/{module}/language/lang=vi_VN
+export const getLanguageApi = async (module, lang) => {
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/${module}/language/lang=${lang}`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Language API error:", error);
+    throw error;
+  }
+}
+
+//GET /Api/V8/custom/system/language/lang=vi_VN
+export const getSystemLanguageApi = async (lang = "vi_VN") => {
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/system/language/lang=${lang}`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get System Language API error:", error);
+    throw error;
+  }
+}
+
+//GET /Api/V8/custom/{module}/list-fields
+export const getModuleListFieldsApi = async (module) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/${module}/list-fields`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Module List Fields API error:", error);
+        throw error;
+    }
+};
+
+//GET /Api/V8/custom/{module}/detail-fields
+export const getModuleDetailFieldsApi = async (module) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/${module}/detail-fields`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Module Detail Fields API error:", error);
+        throw error;
+    }
+};
+
+//GET /Api/V8/custom/{module}/edit-fields
+export const getModuleEditFieldsApi = async (module) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/${module}/edit-fields`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Module Edit Fields API error:", error);
+        throw error;
+    }
+};
+
+//GET /Api/V8/meta/fields/{module}
+export const getModuleFieldsRequiredApi = async (module) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/meta/fields/${module}`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Module Fields API error:", error);
+        throw error;
+    }
+};
+

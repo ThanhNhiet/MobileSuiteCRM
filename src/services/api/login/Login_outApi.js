@@ -24,6 +24,24 @@ export const loginApi = async (username, password) => {
   }
 }
 
+// Refresh token API
+export const refreshTokenApi = async (refreshToken) => {
+  try {
+    console.log("Attempting to refresh token...");
+    const response = await axios.post(`${LOCALHOST_IP}/Api/access_token`, {
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      refresh_token: refreshToken
+    });
+    console.log("Token refreshed successfully");
+    return response.data;
+  } catch (error) {
+    console.warn("Refresh token API error:", error);
+    throw error;
+  }
+}
+
 //POST http://localhost/suitecrm7/Api/V8/logout
 export const logoutApi = async () => {
   try {
