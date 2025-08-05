@@ -16,8 +16,8 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useNoteDetail } from "../../services/useApi/note/UseNote_Detail";
-import { formatDateTime } from "../../utils/FormatDateTime";
-import { SystemLanguageUtils } from "../../utils/SystemLanguageUtils";
+import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
+import { formatDateTime } from "../../utils/format/FormatDateTime";
 
 export default function NoteDetailScreen() {
     const navigation = useNavigation();

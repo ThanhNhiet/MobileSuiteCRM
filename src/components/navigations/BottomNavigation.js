@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 const BottomNavigation = ({ navigation }) => {
   const systemLanguageUtils = SystemLanguageUtils.getInstance();

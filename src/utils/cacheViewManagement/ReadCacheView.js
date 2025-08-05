@@ -65,7 +65,7 @@
 
 // export const readCacheView = new ReadCacheView();
 
-import { cacheManager } from '../CacheManager';
+import { cacheManager } from './CacheManager';
 
 
 const ReadCacheView = {};

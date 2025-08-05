@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import {
   getCountAllAccounts,
   getCountMyMeetings,

@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCalendar } from '../../services/useApi/calendar/UseCalendar';
-import { formatDate } from '../../utils/FormatDateTime';
 import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
+import { formatDate } from '../../utils/format/FormatDateTime';
 
 export default function CalendarScreen({ navigation }) {
     // Language translations

@@ -1,25 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import { getAvailableLanguagesApi } from '../../services/api/login/Login_outApi';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
-import { cacheManager } from '../../utils/CacheManager';
+import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);

@@ -12,8 +12,8 @@ import {
     View
 } from 'react-native';
 import { useAlert } from '../../services/useApi/alert/UseAlert';
-import { formatDateTime } from '../../utils/FormatDateTime';
-import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatDateTime } from '../../utils/format/FormatDateTime';
 
 const AlertModal = ({ visible, onClose }) => {
     // Translation state

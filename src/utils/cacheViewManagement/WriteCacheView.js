@@ -42,7 +42,7 @@
 
 // export const writeCacheView = new WriteCacheView();
 
-import { cacheManager } from '../CacheManager';
+import { cacheManager } from './CacheManager';
 
 
 const WriteCacheView = {};

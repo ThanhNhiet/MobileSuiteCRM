@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/src/utils/FormatDateTime';
+import { formatDateTime } from '@/src/utils/format/FormatDateTime';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
