@@ -1,29 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { getAvailableLanguagesApi } from '../../services/api/login/Login_outApi';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
+import { convertLocaleCode } from '../../utils/convert/ConvertLanguageCode';
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [languageList, setLanguageList] = useState([]);
+  const [originalLangs, setOriginalLangs] = useState([]); // Store original locale codes
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [languageLoading, setLanguageLoading] = useState(false);
   const [selectedLanguageLabel, setSelectedLanguageLabel] = useState('Language');
@@ -50,11 +52,17 @@ export default function LoginScreen() {
       try {
         setLanguageLoading(true);
         const langs = await getAvailableLanguagesApi();
-        setLanguageList(langs);
+        
+        // Store original langs for mapping later
+        setOriginalLangs(langs);
+        
+        // Convert locale codes to display names
+        const convertedLangs = langs.map(lang => convertLocaleCode(lang));
+        setLanguageList(convertedLangs);
         
         // Set initial language label based on selectedLanguage from hook
         if (selectedLanguage && langs.includes(selectedLanguage)) {
-          setSelectedLanguageLabel(selectedLanguage);
+          setSelectedLanguageLabel(convertLocaleCode(selectedLanguage));
         }
       } catch (error) {
         console.warn('Failed to fetch languages', error);
@@ -65,10 +73,15 @@ export default function LoginScreen() {
     fetchLanguages();
   }, [selectedLanguage]);
 
-  const handleSelectLanguage = (lang) => {
+  const handleSelectLanguage = (displayName) => {
     setLangModalVisible(false);
-    setSelectedLanguageLabel(lang);
-    handleLanguageSelect(lang);
+    setSelectedLanguageLabel(displayName);
+    
+    // Find the original locale code by matching display name
+    const originalLangIndex = languageList.indexOf(displayName);
+    if (originalLangIndex !== -1 && originalLangs[originalLangIndex]) {
+      handleLanguageSelect(originalLangs[originalLangIndex]);
+    }
   };
 
   const handleClearCache = async () => {

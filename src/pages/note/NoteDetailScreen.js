@@ -17,7 +17,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useNoteDetail } from "../../services/useApi/note/UseNote_Detail";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
-import { formatDateTime } from "../../utils/format/FormatDateTime";
+import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
 
 export default function NoteDetailScreen() {
     const navigation = useNavigation();
@@ -216,7 +216,7 @@ export default function NoteDetailScreen() {
         switch (fieldKey) {
             case 'date_entered':
             case 'date_modified':
-                return formatDateTime(value);
+                return formatDateTimeBySelectedLanguage(value);
             case 'parent_type':
                 const typeLabels = {
                     'Accounts': systemLanguageUtils.translate('LBL_ACCOUNTS'),

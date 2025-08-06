@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAlert } from '../../services/useApi/alert/UseAlert';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-import { formatDateTime } from '../../utils/format/FormatDateTime';
+import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime';
 
 const AlertModal = ({ visible, onClose }) => {
     // Translation state
@@ -141,7 +141,7 @@ const AlertModal = ({ visible, onClose }) => {
             // Hiển thị thông tin chi tiết
             Alert.alert(
                 alert.name,
-                `${translations.type || 'Loại'}: ${alert.target_module}\n${translations.creator || 'Người tạo'}: ${alert.created_by_name}\n${translations.time || 'Thời gian'}: ${formatDateTime(alert.date_entered)}`,
+                `${translations.type || 'Loại'}: ${alert.target_module}\n${translations.creator || 'Người tạo'}: ${alert.created_by_name}\n${translations.time || 'Thời gian'}: ${formatDateTimeBySelectedLanguage(alert.date_entered)}`,
                 [{ text: translations.ok || 'OK' }]
             );
         } catch (err) {
@@ -220,7 +220,7 @@ const AlertModal = ({ visible, onClose }) => {
                         <Text style={styles.moduleText}>{item.target_module}</Text>
                     </View>
                 </View>
-                <Text style={styles.time}>{formatDateTime(item.date_entered)}</Text>
+                <Text style={styles.time}>{formatDateTimeBySelectedLanguage(item.date_entered)}</Text>
             </View>
 
             <Text
