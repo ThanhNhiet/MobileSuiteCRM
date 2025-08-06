@@ -132,4 +132,18 @@ ReadCacheView.getModuleLanguage_Pretty = async (module, language) => {
         throw error;
     }
 }
+
+ReadCacheView.getCurrencyData = async () => {
+    try {
+        const result = await cacheManager.getCurrencyData();
+        if (!result) {
+            console.warn('⚠️ No cached currency data found');
+            return null;
+        }
+        return result;
+    } catch (error) {
+        console.error('❌ Error reading currency data:', error);
+        throw error;
+    }
+}
 export default ReadCacheView;

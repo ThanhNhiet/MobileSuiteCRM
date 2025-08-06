@@ -153,6 +153,35 @@ class CacheManager {
         }
     }
 
+    // Save currency data to cache
+    async saveCurrencyData(data) {
+        try {
+            const filePath = `${this.cacheDir}Include/currency.json`;
+            await this.ensureDirectoryExists(this.cacheDir);
+            await FileSystem.writeAsStringAsync(filePath, JSON.stringify(data, null, 2));
+            return true;
+        } catch (error) {
+            console.warn('Error saving currency data:', error);
+            return false;
+        }
+    }
+
+    // Get currency data from cache
+    async getCurrencyData() {
+        try {
+            const filePath = `${this.cacheDir}Include/currency.json`;
+            const fileExists = await this.fileExists(filePath);
+            if (fileExists) {
+                const content = await FileSystem.readAsStringAsync(filePath);
+                return JSON.parse(content);
+            }
+            return null;
+        } catch (error) {
+            console.warn('Error reading currency data:', error);
+            return null;
+        }
+    }
+
     // Xóa cache (nếu cần)
     async clearCache() {
         try {
