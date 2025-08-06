@@ -42,6 +42,9 @@ import TaskUpdateScreen from "../pages/task/TaskUpdateScreen";
 //import page relationship
 import RelationshipListScreen from "../pages/relationship/RelationshipListScreen";
 
+//import page search
+import SearchModulesScreen from "../pages/search/SearchModulesScreen";
+
 const Stack = createNativeStackNavigator();
 
 export default function AppRouter() {
@@ -72,6 +75,9 @@ export default function AppRouter() {
                 <Stack.Screen name="NoteUpdateScreen" component={NoteUpdateScreen} options={{ headerShown: false }} />
                 {/*Note Create Screen*/}
                 <Stack.Screen name="NoteCreateScreen" component={NoteCreateScreen} options={{ headerShown: false }} />
+
+                {/*Search Modules Screen*/}
+                <Stack.Screen name="SearchModulesScreen" component={SearchModulesScreen} options={{ headerShown: false }} />
 
                 {/*Profile Screen*/}
                 <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Profile" }} />

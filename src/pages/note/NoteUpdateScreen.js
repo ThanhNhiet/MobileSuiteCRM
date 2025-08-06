@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
@@ -176,14 +176,17 @@ export default function NoteUpdateScreen() {
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
 
-  // Loading state for parent check
-  const [checkingParent, setCheckingParent] = useState(false);
-
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
 
   // Parent type options with translations
   const [parentTypeOptions, setParentTypeOptions] = useState([]);
+
+  // Handle search modal item selection
+  const handleSearchModalSelect = async (selectedItem) => {
+    await updateField('parent_name', selectedItem.name);
+    await updateField('parent_id', selectedItem.id); // Store the parent ID
+  };
 
   // Load parent type options
   useEffect(() => {
@@ -237,6 +240,9 @@ export default function NoteUpdateScreen() {
   // Handle parent type selection
   const handleParentTypeSelect = async (value) => {
     await updateField('parent_type', value);
+    // Clear parent_name and parent_id when parent_type changes
+    await updateField('parent_name', '');
+    await updateField('parent_id', '');
     setShowParentTypeModal(false);
   };
 
@@ -246,13 +252,11 @@ export default function NoteUpdateScreen() {
     return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
   };
 
-  // Handle delete parent relationship
   const handleDeleteParentRelationship = async () => {
     const currentParentType = getFieldValue('parent_type');
-    const currentParentId = getFieldValue('parent_id');
 
     // Check if there's a relationship to delete
-    if (!currentParentType && !currentParentId) {
+    if (!currentParentType) {
       Alert.alert(translations.notification || 'Thông báo', translations.noRelationship || 'Không có mối quan hệ nào để xóa');
       return;
     }
@@ -280,13 +284,6 @@ export default function NoteUpdateScreen() {
         }
       ]
     );
-  };
-
-  // Handle check parent ID
-  const handleCheckParentId = async () => {
-    setCheckingParent(true);
-    await checkParentName();
-    setCheckingParent(false);
   };
 
   // Render field label with red asterisk for required fields
@@ -355,11 +352,6 @@ export default function NoteUpdateScreen() {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
 
-              // Skip parent_name field - use logic cũ với parent_type modal và parent_id input
-              if (field.key === 'parent_name') {
-                return null;
-              }
-
               // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {
                 return (
@@ -378,75 +370,50 @@ export default function NoteUpdateScreen() {
                 );
               }
 
-              // Special handling for parent_id field with check button
-              if (field.key === 'parent_id') {
+              // Handle parent_name as search modal
+              if (field.key === 'parent_name') {
                 return (
-                  <View key={field.key}>
-                    <View style={styles.row}>
-                      {renderFieldLabel(field.key)}
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <TextInput
-                          style={[styles.value]}
-                          value={fieldValue}
-                          onChangeText={async (value) => await updateField(field.key, value)}
-                          autoCapitalize="none"
-                          returnKeyType="done"
-                        />
-                      </View>
-                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                    </View>
-
-                    {/* Check button as label and result field below */}
-                    <View style={styles.row}>
-                      <View style={styles.checkLabelContainer}>
-                        <TouchableOpacity
-                          style={[styles.checkButton, checkingParent && styles.disabledButton]}
-                          onPress={handleCheckParentId}
-                          disabled={checkingParent}
-                        >
-                          {checkingParent ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                          ) : (
-                            <Text style={styles.checkButtonText}>{translations.checkButton || 'Check'}</Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                      {(getFieldValue('parent_name') || getFieldValue('parent_check_error')) ? (
-                        getFieldValue('parent_name') ? (
-                          <View style={[styles.valueBox, styles.successBox]}>
-                            <Text style={[styles.value, styles.successFieldText]}>
-                              ✓ {getFieldValue('parent_name')}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.valueBox, styles.errorBox]}>
-                            <Text style={[styles.value, styles.errorFieldText]}>
-                              ✗ {getFieldValue('parent_check_error')}
-                            </Text>
-                          </View>
-                        )
-                      ) : (
-                        <View style={[styles.valueBox, styles.placeholderBox]}>
-                          <Text style={[styles.value, styles.placeholderText]}>
-                            {translations.checkToVerify}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[
+                        styles.valueBox, 
+                        fieldError && styles.errorInput,
+                        !getFieldValue('parent_type') && styles.disabledValueBox
+                      ]}
+                      onPress={() => {
+                        if (getFieldValue('parent_type')) {
+                          navigation.navigate('SearchModulesScreen', {
+                            parentType: getFieldValue('parent_type'),
+                            title: getParentTypeLabel(),
+                            onSelect: handleSearchModalSelect
+                          });
+                        } else {
+                          Alert.alert(
+                            translations.notification || 'Thông báo',
+                            'Vui lòng chọn loại cấp trên trước'
+                          );
+                        }
+                      }}
+                      disabled={!getFieldValue('parent_type')}
+                    >
+                      <Text style={[
+                        styles.value, 
+                        !fieldValue && styles.placeholderText,
+                        !getFieldValue('parent_type') && styles.disabledText
+                      ]}>
+                        {fieldValue || (translations.selectPlaceholder || '--------')}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
               }
 
-              // Change parent_id display
-              const displayLabel = field.key === 'parent_id' ? (translations.parentIdLabel || 'Parent ID') : field.label;
-
+              // Default handling for all other fields
               return (
                 <View key={field.key} style={styles.row}>
-                  {field.key === 'parent_id' ? (
-                    <Text style={styles.label}>{displayLabel}</Text>
-                  ) : (
-                    renderFieldLabel(field.key)
-                  )}
+                  {renderFieldLabel(field.key)}
                   <View style={[styles.valueBox, fieldError && styles.errorInput]}>
                     <TextInput
                       style={[
@@ -624,6 +591,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
+  },
+  disabledValueBox: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: '#999',
   },
   value: {
     fontSize: 16,

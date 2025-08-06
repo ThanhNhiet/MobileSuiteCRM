@@ -4,7 +4,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
-import { initializeLocaleCache } from '../../../utils/format/FormatDateTime';
 import { LOCALHOST_IP } from '../../../utils/localhost';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
@@ -170,7 +169,6 @@ export const useLogin_out = () => {
         
         // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
-        await initializeLocaleCache(); // Initialize locale cache
         
         // Emit login success event
         eventEmitter.emit('loginSuccess');

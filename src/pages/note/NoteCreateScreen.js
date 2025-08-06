@@ -2,18 +2,18 @@
 import { NoteLanguageUtils } from '@/src/utils/cacheViewManagement/Notes/NoteLanguageUtils';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
@@ -234,11 +234,6 @@ export default function NoteCreateScreen({ navigation }) {
             {createFields.map((field) => {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
-
-              // Skip parent_name field - use logic cũ với parent_type modal và parent_id input
-              if (field.key === 'parent_name') {
-                return null;
-              }
 
               // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {
