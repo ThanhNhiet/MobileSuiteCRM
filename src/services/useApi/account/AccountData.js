@@ -1,5 +1,6 @@
 import ReadCacheView from '../../../utils/cacheViewManagement/Accounts/ReadCacheView';
 import WriteCacheView from '../../../utils/cacheViewManagement/Accounts/WriteCacheView';
+import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import AccountApi from '../../api/account/AccountApi';
 
 
@@ -201,6 +202,8 @@ AccountData.useListData = async (token, page, pageSize, language) => {
       AccountData.getLanguageModule(token, language),
       AccountData.getDataByPage(token, page, pageSize)
     ]);
+    console.log('✅ Tất cả dữ liệu đã được tải thành công', getUserIdFromToken(token));
+
 
     // console.log('📊 Data loaded:', {
     //   requiredFields: requiredFields?.length || 0,
@@ -421,7 +424,7 @@ AccountData.getRelationships = async (token, accountId) => {
       };
     });
 
-    const importantModules = ['Notes', 'Contacts', 'Accounts', 'Tasks', 'Calls'];
+    const importantModules = ['Notes', 'Accounts', 'Tasks', 'Calls'];
     const sortedRelationships = relationshipsArray
       .filter(rel => importantModules.includes(rel.moduleName))
       .sort((a, b) => {

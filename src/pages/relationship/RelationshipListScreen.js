@@ -339,7 +339,7 @@ export default function RelationshipListScreen() {
                     </View>
                 ) : (
                     <FlatList
-                        data={apiData?.records || []}
+                        data={apiData?.relationships || []}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id}
                         style={styles.list}

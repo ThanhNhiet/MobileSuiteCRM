@@ -293,7 +293,7 @@ RelationshipsData.useListData = async (token, page, pageSize, language,moduleNam
     });
     
     return {
-      accounts: processedAccounts,
+      relationships: processedAccounts,
       detailFields: translatedListViews,
       listViews: translatedListViews,
       editViews: translatedEditViews,
