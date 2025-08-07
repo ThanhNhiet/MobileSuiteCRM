@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/src/utils/FormatDateTime';
+import { formatDateTimeBySelectedLanguage } from '@/src/utils/format/FormatDateTime';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -86,13 +86,13 @@ export default function TimetableScreen({ navigation, route }) {
 
         // Hiển thị thông tin chi tiết từ rawData
         if (event.rawData && event.type === 'task') {
-            const startDate_fm = formatDateTime(event.rawData.attributes.date_start);
-            const dueDate_fm = formatDateTime(event.rawData.attributes.date_due);
+            const startDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_start);
+            const dueDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_due);
             details += `\n${startDateText}: ${startDate_fm}`;
             details += `\n${dueDateText}: ${dueDate_fm}`;
         } else if (event.rawData && event.type === 'meeting') {
-            const startDate_fm = formatDateTime(event.rawData.attributes.date_start);
-            const endDate_fm = formatDateTime(event.rawData.attributes.date_end);
+            const startDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_start);
+            const endDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_end);
             details += `\n${startDateText}: ${startDate_fm}`;
             details += `\n${endDateText} ${endDate_fm}`;
             details += `\n${durationText}: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;

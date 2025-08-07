@@ -18,7 +18,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useNoteList } from '../../services/useApi/note/UseNote_List';
-import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
 
 export default function NoteListScreen() {
     const navigation = useNavigation();
@@ -129,11 +130,12 @@ export default function NoteListScreen() {
     const formatCellValue = (fieldKey, value) => {
         if (!value) return '';
         
-        // Format dates
+        // Format dates using formatDateBySelectedLanguage
         if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified')) {
             try {
-                const date = new Date(value);
-                return date.toLocaleDateString('vi-VN');
+                // Convert to ISO string if it's not already
+                const isoString = value.includes('T') ? value : new Date(value).toISOString();
+                return formatDateBySelectedLanguage(isoString);
             } catch {
                 return value;
             }

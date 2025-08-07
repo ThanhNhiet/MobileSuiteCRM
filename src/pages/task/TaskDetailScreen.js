@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
-import { formatDateTime } from "../../utils/FormatDateTime";
+import { formatDateTime } from "../../utils/format/FormatDateTime";
 
 const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;

@@ -42,7 +42,7 @@
 
 // export const writeCacheView = new WriteCacheView();
 
-import { cacheManager } from '../CacheManager';
+import { cacheManager } from './CacheManager';
 
 
 const WriteCacheView = {};
@@ -88,4 +88,14 @@ WriteCacheView.clearModuleCache = async (module) => {
     }
 };
 
+WriteCacheView.getCurrencyData = async (data) => {
+    try {
+        await cacheManager.saveCurrencyData(data);
+        console.log('✅ Currency data written to cache successfully.');
+        return true;
+    } catch (error) {
+        console.error('❌ Error writing currency data:', error);
+        throw error;
+    }
+};
 export default WriteCacheView;

@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
-import { formatDateTime } from "../../utils/FormatDateTime";
+import { formatDateTime } from "../../utils/format/FormatDateTime";
 
 const useMeetingDetail = (meeting, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
     const [deleting, setDeleting] = useState(false);

@@ -11,7 +11,7 @@ import {
     View
 } from 'react-native';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
-import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 const { width } = Dimensions.get('window');
 

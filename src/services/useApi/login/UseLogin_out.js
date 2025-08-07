@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
-import { cacheManager } from '../../../utils/CacheManager';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { LOCALHOST_IP } from '../../../utils/localhost';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { cacheManager } from '../../../utils/CacheManager';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';

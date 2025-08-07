@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { cacheManager } from '../../../utils/CacheManager';
-import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { deleteNoteApi, getNoteDetailApi, getNoteDetailFieldsApi, getParentId_typeByNoteIdApi } from '../../api/note/NoteApi';
 

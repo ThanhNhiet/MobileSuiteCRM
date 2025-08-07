@@ -18,7 +18,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
 import { useNoteCreate } from '../../services/useApi/note/UseNote_Create';
-import { SystemLanguageUtils } from '../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 export default function NoteCreateScreen({ navigation }) {
   // LanguageUtils instance
@@ -234,11 +234,6 @@ export default function NoteCreateScreen({ navigation }) {
             {createFields.map((field) => {
               const fieldError = getFieldError(field.key);
               const fieldValue = getFieldValue(field.key);
-
-              // Skip parent_name field - use logic cũ với parent_type modal và parent_id input
-              if (field.key === 'parent_name') {
-                return null;
-              }
 
               // Handle parent_type as modal combobox
               if (field.key === 'parent_type') {

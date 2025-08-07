@@ -1,5 +1,5 @@
 import TopNavigationRelationship from '@/src/components/navigations/TopNavigationRelationship';
-import { formatDateTime } from '@/src/utils/FormatDateTime';
+import { formatDateTime } from '@/src/utils/format/FormatDateTime';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';

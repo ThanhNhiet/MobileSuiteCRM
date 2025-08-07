@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import {
     getMeetingsByMonthApi,
     getMeetingsLanguageApi,

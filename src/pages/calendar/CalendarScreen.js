@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCalendar } from '../../services/useApi/calendar/UseCalendar';
-import { formatDate } from '../../utils/FormatDateTime';
 import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
 
 export default function CalendarScreen({ navigation }) {
     // Language translations
@@ -110,7 +110,7 @@ export default function CalendarScreen({ navigation }) {
             navigation.navigate('TimetableScreen', {
                 selectedDate: dateKey,
                 events: events,
-                dateString: formatDate(date)
+                dateString: formatDateBySelectedLanguage(date.toISOString())
             });
         } else {
             Alert.alert(

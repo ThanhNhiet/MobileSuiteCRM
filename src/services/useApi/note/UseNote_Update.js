@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { cacheManager } from '../../../utils/CacheManager';
-import { SystemLanguageUtils } from '../../../utils/SystemLanguageUtils';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { checkParentNameExistsApi, createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi, updateNoteApi } from '../../api/note/NoteApi';
+import { createNoteParentRelationApi, deleteNoteParentRelationApi, getNoteEditFieldsApi, getNoteFieldsRequiredApi, updateNoteApi } from '../../api/note/NoteApi';
 
 export const useNoteUpdate = (initialNoteData = null) => {
     // SystemLanguageUtils instance
@@ -16,7 +16,15 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({
-        id: ''
+        id: '',
+        contact_name: '',
+        parent_name: '',
+        parent_type: '',
+        parent_id: '',
+        name: '',
+        filename: '',
+        description: '',
+        assigned_user_name: ''
     });
 
     // Track original data for comparison
@@ -148,6 +156,18 @@ export const useNoteUpdate = (initialNoteData = null) => {
                                     break;
                                 }
                             }
+                        } else if (fieldKey === 'parent_name') {
+                            // Thử nhiều pattern cho parent_name field
+                            const patterns = ['LBL_PARENT_NAME', 'LBL_LIST_PARENT_NAME', 'LBL_RELATED_TO'];
+                            for (const pattern of patterns) {
+                                if (modStrings && modStrings[pattern]) {
+                                    translation = modStrings[pattern];
+                                    break;
+                                } else if (appStrings && appStrings[pattern]) {
+                                    translation = appStrings[pattern];
+                                    break;
+                                }
+                            }
                         } else {
                             // Các field khác
                             const lblKey = `LBL_${fieldKey.toUpperCase()}`;
@@ -159,7 +179,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                         }
 
                         // Thử các pattern khác nếu không tìm thấy
-                        if (!translation && !['assigned_user_name', 'name'].includes(fieldKey)) {
+                        if (!translation && !['assigned_user_name', 'name', 'parent_name'].includes(fieldKey)) {
                             const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
                             if (modStrings && modStrings[listKey]) {
                                 translation = modStrings[listKey];
@@ -177,6 +197,9 @@ export const useNoteUpdate = (initialNoteData = null) => {
                     } else if (fieldKey === 'assigned_user_name') {
                         // Xử lý trường hợp đặc biệt cho assigned_user_name - thử nhiều pattern
                         vietnameseLabel = 'LBL_LIST_ASSIGNED_TO_NAME';
+                    } else if (fieldKey === 'parent_name') {
+                        // Xử lý trường hợp đặc biệt cho parent_name
+                        vietnameseLabel = 'LBL_PARENT_NAME';
                     } else {
                         vietnameseLabel = fieldKey;
                     }
@@ -197,7 +220,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 };
             });
 
-            // Nếu có parent_name trong editviewdefs, thêm parent_type và parent_id để có modal
+            // Nếu có parent_name trong editviewdefs, thêm parent_type để có modal
             const hasParentName = fieldsData.hasOwnProperty('parent_name');
             if (hasParentName) {
                 // Lấy bản dịch cho parent_type
@@ -215,21 +238,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
                     }
                 }
 
-                // Lấy bản dịch cho parent_id
-                let parentIdLabel = 'parent_id';
-                if (modStrings || appStrings) {
-                    const patterns = ['LBL_PARENT_ID', 'LBL_ID', 'LBL_LIST_PARENT_ID'];
-                    for (const pattern of patterns) {
-                        if (modStrings && modStrings[pattern]) {
-                            parentIdLabel = modStrings[pattern];
-                            break;
-                        } else if (appStrings && appStrings[pattern]) {
-                            parentIdLabel = appStrings[pattern];
-                            break;
-                        }
-                    }
-                }
-
                 // Thêm parent_type field (modal)
                 const parentTypeField = {
                     key: 'parent_type',
@@ -238,20 +246,30 @@ export const useNoteUpdate = (initialNoteData = null) => {
                     required: false
                 };
 
-                // Thêm parent_id field (input)
-                const parentIdField = {
-                    key: 'parent_id',
-                    label: parentIdLabel,
-                    type: 'text',
-                    required: false
-                };
-
-                // Thêm vào đầu danh sách để hiển thị trước
-                updateFieldsData.unshift(parentIdField);
-                updateFieldsData.unshift(parentTypeField);
+                // Tìm vị trí của contact_name và chèn parent_type sau nó
+                const contactNameIndex = updateFieldsData.findIndex(field => field.key === 'contact_name');
+                if (contactNameIndex !== -1) {
+                    // Chèn parent_type sau contact_name
+                    updateFieldsData.splice(contactNameIndex + 1, 0, parentTypeField);
+                } else {
+                    // Nếu không tìm thấy contact_name, thêm vào đầu danh sách như cũ
+                    updateFieldsData.unshift(parentTypeField);
+                }
             }
 
             setUpdateFields(updateFieldsData);
+
+            // Initialize form data with empty values for all fields
+            const initialFormData = { id: '' };
+            updateFieldsData.forEach(field => {
+                if (field.key !== 'id') {
+                    initialFormData[field.key] = '';
+                }
+            });
+            // Ensure parent_id is always included
+            initialFormData['parent_id'] = '';
+            setFormData(initialFormData);
+            setOriginalData(initialFormData);
 
         } catch (err) {
             console.warn('Initialize update fields error:', err);
@@ -268,21 +286,14 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
         // Thêm các field từ updateFields vào formData
         updateFields.forEach(field => {
-            if (field.key === 'parent_name') {
-                // Xử lý đặc biệt cho parent_name
-                formValues[field.key] = noteData.parent_name || '';
-                formValues['parent_type'] = noteData.parent_type || '';
-                formValues['parent_id'] = noteData.parent_id || '';
-            } else {
-                formValues[field.key] = noteData[field.key] || '';
-            }
+            formValues[field.key] = noteData[field.key] || '';
         });
+        
+        // Ensure parent_id is always included, even if not in updateFields
+        formValues['parent_id'] = noteData['parent_id'] || '';
 
         // Create clean originalData without temporary fields
         const cleanOriginalData = { ...formValues };
-        // Remove temporary fields that should not be tracked for changes
-        delete cleanOriginalData.parent_check_error;
-        delete cleanOriginalData.parent_name; // This is derived from check operation
 
         setFormData(formValues);
         setOriginalData(cleanOriginalData);
@@ -311,7 +322,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
     // Check if form has changes
     const hasChanges = useCallback(() => {
-        const excludeFields = ['parent_check_error']; // Exclude temporary fields
+        const excludeFields = []; // No fields to exclude
         return Object.keys(formData).some(key =>
             !excludeFields.includes(key) && formData[key] !== originalData[key]
         );
@@ -339,22 +350,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
                     errors[field.key] = `${requiredMessage}`;
                 }
             }
-        }
-
-        // Special validation for parent relationship
-        const parentType = formData.parent_type;
-        const parentId = formData.parent_id?.trim();
-
-        // If parent_id is provided, parent_type must be selected (and vice versa)
-        if (parentId && !parentType) {
-            const selectLabel = await systemLanguageUtils.translate('LBL_SELECT_BUTTON_LABEL') || 'Vui lòng chọn';
-            const typeLabel = await systemLanguageUtils.translate('Type') || 'loại';
-            errors.parent_type = `${selectLabel} ${typeLabel}`;
-        }
-        if (parentType && !parentId) {
-            const importLabel = await systemLanguageUtils.translate('LBL_IMPORT') || 'Vui lòng nhập';
-            const idLabel = await systemLanguageUtils.translate('LBL_ID') || 'ID';
-            errors.parent_id = `${importLabel} ${idLabel}`;
         }
 
         setValidationErrors(errors);
@@ -387,7 +382,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
             // Prepare basic update data (exclude parent-related and special fields)
             const updateData = {};
-            const excludeFields = ['id', 'parent_type', 'parent_id', 'parent_name', 'parent_check_error'];
+            const excludeFields = ['id', 'parent_id']; // Remove parent_type from exclude list
 
             Object.keys(formData).forEach(key => {
                 if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
@@ -402,33 +397,22 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
             // Handle parent relationship changes
             const oldParentType = originalData.parent_type;
+            const oldParentName = originalData.parent_name;
             const oldParentId = originalData.parent_id;
             const newParentType = formData.parent_type;
-            const newParentId = formData.parent_id?.trim();
+            const newParentName = formData.parent_name?.trim();
+            const newParentId = formData.parent_id;
 
             // If parent relationship has changed
-            if (oldParentType !== newParentType || oldParentId !== newParentId) {
-                // Delete old relationship if it exists
-                if (oldParentType && oldParentId) {
-                    try {
-                        await deleteNoteParentRelationApi(oldParentType, oldParentId, formData.id);
-                    } catch (err) {
-                        console.warn('Delete old parent relation error:', err);
-                        // Continue execution even if delete fails
-                    }
-                }
-
-                // Create new relationship if specified
-                if (newParentType && newParentId) {
+            if (oldParentType !== newParentType || oldParentName !== newParentName || oldParentId !== newParentId) {
+                // Create new relationship if specified and we have parent_id
+                if (newParentType && newParentName && newParentId) {
                     await createNoteParentRelationApi(newParentType, newParentId, formData.id);
                 }
             }
 
-            // Update original data to reflect saved state (exclude temporary fields)
-            const newOriginalData = { ...formData };
-            delete newOriginalData.parent_check_error;
-            delete newOriginalData.parent_name;
-            setOriginalData(newOriginalData);
+            // Update original data to reflect saved state
+            setOriginalData({ ...formData });
 
             return {
                 success: true,
@@ -511,48 +495,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
         return !hasRequiredFieldsError && Object.keys(validationErrors).length === 0 && hasChanges();
     }, [formData, updateFields, validationErrors, hasChanges]);
 
-    // Check parent name manually
-    const checkParentName = useCallback(async () => {
-        const parentType = formData.parent_type;
-        const parentId = formData.parent_id?.trim();
 
-        if (!parentType || !parentId) {
-            const selectLabel = await systemLanguageUtils.translate('LBL_SELECT_BUTTON_LABEL') || 'Vui lòng chọn';
-            const parentTypeLabel = await systemLanguageUtils.translate('LBL_PARENT_TYPE') || 'loại parent';
-            const importLabel = await systemLanguageUtils.translate('LBL_IMPORT') || 'nhập';
-            const idLabel = await systemLanguageUtils.translate('LBL_ID') || 'ID';
-            setFormData(prev => ({
-                ...prev,
-                parent_name: '',
-                parent_check_error: `${selectLabel} ${parentTypeLabel}, ${importLabel} ${idLabel}`
-            }));
-            return;
-        }
-
-        try {
-            const parentName = await checkParentNameExistsApi(parentType, parentId);
-            if (parentName) {
-                setFormData(prev => ({
-                    ...prev,
-                    parent_name: parentName,
-                    parent_check_error: null
-                }));
-            } else {
-                setFormData(prev => ({
-                    ...prev,
-                    parent_name: '',
-                    parent_check_error: systemLanguageUtils.translate('MSG_LIST_VIEW_NO_RESULTS_BASIC')
-                }));
-            }
-        } catch (err) {
-            console.warn('Check parent name error:', err);
-            setFormData(prev => ({
-                ...prev,
-                parent_name: '',
-                parent_check_error: systemLanguageUtils.translate('MSG_LIST_VIEW_NO_RESULTS_BASIC') || 'Lỗi khi kiểm tra tên mối quan hệ'
-            }));
-        }
-    }, [formData.parent_type, formData.parent_id]);
 
     // Get translated parent type options
     const getParentTypeOptions = useCallback(async () => {
@@ -598,18 +541,12 @@ export const useNoteUpdate = (initialNoteData = null) => {
     const handleDeleteRelationship = useCallback(async () => {
         try {
             const currentParentType = formData.parent_type;
-            const currentParentId = formData.parent_id;
 
             // Check if there's a relationship to delete
-            if (!currentParentType || !currentParentId) {
+            if (!currentParentType) {
                 // Clear the form fields if no relationship exists
                 await updateField('parent_type', '');
-                await updateField('parent_id', '');
-                setFormData(prev => ({
-                    ...prev,
-                    parent_name: '',
-                    parent_check_error: null
-                }));
+                await updateField('parent_name', '');
                 return {
                     success: true,
                     message: 'Parent relationship cleared'
@@ -622,21 +559,20 @@ export const useNoteUpdate = (initialNoteData = null) => {
             }
 
             // Delete the relationship via API
-            await deleteNoteParentRelationApi(currentParentType, currentParentId, formData.id);
+            console.log('Deleting parent relationship for note ID:', formData.id);
+            console.log('Current parent type:', currentParentType);
+            await deleteNoteParentRelationApi(currentParentType, formData.parent_id, formData.id);
 
             // Clear the form fields after successful deletion
             await updateField('parent_type', '');
+            await updateField('parent_name', '');
             await updateField('parent_id', '');
-            setFormData(prev => ({
-                ...prev,
-                parent_name: '',
-                parent_check_error: null
-            }));
 
             // Update original data to reflect the change
             setOriginalData(prev => ({
                 ...prev,
                 parent_type: '',
+                parent_name: '',
                 parent_id: ''
             }));
 
@@ -653,7 +589,7 @@ export const useNoteUpdate = (initialNoteData = null) => {
                 error: errorMessage
             };
         }
-    }, [formData.parent_type, formData.parent_id, formData.id, updateField]);
+    }, [formData.parent_type, formData.id, updateField]);
 
     // Initialize on component mount
     useEffect(() => {
@@ -693,7 +629,6 @@ export const useNoteUpdate = (initialNoteData = null) => {
         isFormValid,
         hasChanges,
         hasParentNameField,
-        checkParentName,
         getParentTypeOptions
     };
 };

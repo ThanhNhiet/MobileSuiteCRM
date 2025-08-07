@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
-import { formatDateTime } from '@/src/utils/FormatDateTime';
+import { formatDateTime } from '@/src/utils/format/FormatDateTime';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
