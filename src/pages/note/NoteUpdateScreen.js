@@ -68,7 +68,8 @@ export default function NoteUpdateScreen() {
           'LBL_EMAIL_LOADING',
           'LBL_LOADING_PAGE',
           'WARN_UNSAVED_CHANGES',
-          'LBL_DELETE'
+          'LBL_DELETE',
+          'LBL_USERS'
         ]);
 
         const translatedLabels_notes = await noteLanguageUtils.translateKeys([
@@ -107,7 +108,8 @@ export default function NoteUpdateScreen() {
           altInfo: translatedLabels.LBL_ALT_INFO || 'Thông tin',
           emailLoading: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
           uploadRequestError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
-          loadingPage: translatedLabels.LBL_LOADING_PAGE || 'Đang tải trang, xin chờ...'
+          loadingPage: translatedLabels.LBL_LOADING_PAGE || 'Đang tải trang, xin chờ...',
+          users: translatedLabels.LBL_USERS || 'Người dùng'
         });
       } catch (error) {
         console.warn('Translation initialization error:', error);
@@ -144,7 +146,8 @@ export default function NoteUpdateScreen() {
           altInfo: 'Thông tin',
           emailLoading: 'Đang tải...',
           uploadRequestError: 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
-          loadingPage: 'Đang tải trang, xin chờ...'
+          loadingPage: 'Đang tải trang, xin chờ...',
+          users: 'Người dùng'
         });
       }
     };
@@ -186,6 +189,12 @@ export default function NoteUpdateScreen() {
   const handleSearchModalSelect = async (selectedItem) => {
     await updateField('parent_name', selectedItem.name);
     await updateField('parent_id', selectedItem.id); // Store the parent ID
+  };
+
+  // Handle assigned user selection
+  const handleAssignedUserSelect = async (selectedItem) => {
+    await updateField('assigned_user_name', selectedItem.name);
+    await updateField('assigned_user_id', selectedItem.id); // Store the assigned user ID
   };
 
   // Load parent type options
@@ -402,6 +411,30 @@ export default function NoteUpdateScreen() {
                         !fieldValue && styles.placeholderText,
                         !getFieldValue('parent_type') && styles.disabledText
                       ]}>
+                        {fieldValue || (translations.selectPlaceholder || '--------')}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+
+              // Handle assigned_user_name as search modal for Users
+              if (field.key === 'assigned_user_name') {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => {
+                        navigation.navigate('SearchModulesScreen', {
+                          parentType: 'Users',
+                          title: translations.users || 'Người dùng',
+                          onSelect: handleAssignedUserSelect
+                        });
+                      }}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
                         {fieldValue || (translations.selectPlaceholder || '--------')}
                       </Text>
                     </TouchableOpacity>

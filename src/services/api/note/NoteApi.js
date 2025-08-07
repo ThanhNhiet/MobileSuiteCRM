@@ -52,8 +52,11 @@ export const getNoteFieldsRequiredApi = async () => {
 
 //For list view
 //GET /Api/V8/module/Notes
-//?filter[assigned_user_id][eq]={id}&filter[deleted][eq]=0
-//&fields[Notes]=name,date_entered,parent_type,parent_name&page[size]=10&page[number]=1&sort=-date_entered
+//?filter[operator]=or
+//?filter[assigned_user_id][eq]={id}
+//&filter[created_by][eq]={id}
+//&filter[deleted][eq]=0
+//&fields[Notes]=nameFields&page[size]=10&page[number]=1&sort=-date_entered
 export const getNotesApi = async (pageSize = 10, pageNumber = 1, nameFields) => {
     try {
         const token = await AsyncStorage.getItem('token');
@@ -61,7 +64,9 @@ export const getNotesApi = async (pageSize = 10, pageNumber = 1, nameFields) => 
 
         const response = await axiosInstance.get(`/Api/V8/module/Notes`, {
             params: {
+                'filter[operator]': 'or',
                 'filter[assigned_user_id][eq]': userId,
+                'filter[created_by][eq]': userId,
                 'filter[deleted][eq]': 0,
                 'fields[Notes]': nameFields,
                 'page[size]': pageSize,
@@ -82,7 +87,7 @@ export const getNoteDetailApi = async (noteId, nameFields) => {
     try {
         const response = await axiosInstance.get(`/Api/V8/module/Notes/${noteId}`, {
             params: {
-                'fields[Notes]': nameFields
+                'fields[Notes]': nameFields + ',created_by'
             }
         });
         return response.data;
