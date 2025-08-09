@@ -213,3 +213,105 @@ export const getParentId_typeByNoteIdApi = async (noteId) => {
         throw error;
     }
 };
+
+//Search by keywords
+//GET /Api/V8/custom/{parent_type}?keyword={keyword}&field={nameField}&page={page}
+export const searchByKeywordApi = async (keyword, page = 1) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/Notes`, {
+            params: {
+                'keyword': keyword,
+                'fields': 'parent_type,description,created_by,created_by,assigned_user_id',
+                'page': page
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn("Search Modules API error:", error);
+        throw error;
+    }
+};
+
+//Filter by parent_type or parent_type or date_entered or parent_type + date_entered
+//GET /Api/V8/module/Notes
+//?filter[operator]=or
+//?filter[assigned_user_id][eq]={id}
+//&filter[created_by][eq]={id}
+//&filter[deleted][eq]=0
+//...
+//&fields[Notes]=nameFields&page[size]=10&page[number]=1&sort=-date_entered
+export const searchByFilterApi = async (pageSize = 10, pageNumber = 1, nameFields, parent_type, date_type) => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const userId = getUserIdFromToken(token);
+        
+        // Base parameters
+        const params = {
+            'filter[operator]': 'and',
+            'filter[assigned_user_id][eq]': userId,
+            'filter[created_by][eq]': userId,
+            'filter[deleted][eq]': 0,
+            'fields[Notes]': nameFields,
+            'page[size]': pageSize,
+            'page[number]': pageNumber,
+            'sort': '-date_entered'
+        };
+
+        // Add parent_type filter if provided
+        if (parent_type && parent_type.trim()) {
+            params['filter[parent_type][eq]'] = parent_type.trim();
+        }
+
+        // Add date filter if provided
+        if (date_type && date_type.trim()) {
+            const today = new Date();
+            let startDate, endDate;
+
+            switch (date_type.toLowerCase()) {
+                case 'today':
+                    startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+                    break;
+                
+                case 'this_week':
+                    const dayOfWeek = today.getDay();
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - dayOfWeek);
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 7);
+                    
+                    startDate = startOfWeek;
+                    endDate = endOfWeek;
+                    break;
+                
+                case 'this_month':
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+                    break;
+                
+                case 'this_year':
+                    startDate = new Date(today.getFullYear(), 0, 1);
+                    endDate = new Date(today.getFullYear() + 1, 0, 1);
+                    break;
+                
+                default:
+                    // Invalid date_type, skip date filtering
+                    break;
+            }
+
+            // Add date range filters if dates were set
+            if (startDate && endDate) {
+                params['filter[date_entered][gte]'] = startDate.toISOString();
+                params['filter[date_entered][lt]'] = endDate.toISOString();
+            }
+        }
+
+        const response = await axiosInstance.get(`/Api/V8/module/Notes`, { params });
+        return response.data;
+    } catch (error) {
+        console.warn("Search By Filter API error:", error);
+        throw error;
+    }
+};

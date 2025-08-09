@@ -155,7 +155,7 @@ export default function NoteListScreen() {
         goToPage(pageNumber);
     };
 
-    // Wrapper function for search with filters
+    // Wrapper function for search with filters (updated for API-based filtering)
     const searchNotes = (searchText, filters = {}) => {
         // Apply search text
         hookHandleSearch(searchText || '');
@@ -164,14 +164,14 @@ export default function NoteListScreen() {
         if (filters.parent_type) {
             handleParentTypeFilter(filters.parent_type);
         } else {
-            handleParentTypeFilter(''); // Clear filter
+            handleParentTypeFilter('');
         }
         
         // Apply time filter  
         if (filters.time_filter) {
             handleTimeFilter(filters.time_filter);
         } else {
-            handleTimeFilter('all'); // Clear filter
+            handleTimeFilter('');
         }
     };
 
