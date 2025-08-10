@@ -10,6 +10,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import ModulesConfig from '../../configs/ModulesConfig';
+import RolesConfig from '../../configs/RolesConfig';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
@@ -19,54 +21,91 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
     const slideAnim = useRef(new Animated.Value(-width * 0.6)).current; // Start off-screen left
     const { handleLogout } = useLogin_out();
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const modulesConfig = ModulesConfig.getInstance();
+    const rolesConfig = RolesConfig.getInstance();
+    
     const [translations, setTranslations] = useState({});
+    const [accessibleModules, setAccessibleModules] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Load translations for modules and logout
+    // Load modules and permissions
     useEffect(() => {
-        const loadTranslations = async () => {
+        const loadModulesAndPermissions = async () => {
             try {
-                // Get translations for each module and logout
-                const [
-                    accounts,
-                    notes,
-                    tasks,
-                    meetings,
-                    calendar,
-                    logout
-                ] = await Promise.all([
-                    systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
-                    systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
-                    systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
-                    systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
-                    systemLanguageUtils.translate('Calendar', 'Lịch của tôi'),
-                    systemLanguageUtils.translate('LBL_LOGOUT', 'Logout')
-                ]);
+                setLoading(true);
                 
-                // Set translations object with dot notation keys
-                setTranslations({
-                    accounts,
-                    notes,
-                    tasks,
-                    meetings,
-                    calendar,
-                    logout
-                });
+                // Load modules and user roles in parallel
+                const [modules, roles] = await Promise.all([
+                    modulesConfig.loadModules(),
+                    rolesConfig.loadUserRoles()
+                ]);
+
+                // Get filtered modules for hamburger menu
+                const filteredModules = modulesConfig.getFilteredModules();
+                
+                // Get only accessible modules based on user permissions
+                const userAccessibleModules = rolesConfig.getAccessibleModules(filteredModules);
+                
+                // Convert to array format for easier rendering
+                const moduleArray = Object.keys(userAccessibleModules).map(key => ({
+                    key,
+                    label: userAccessibleModules[key].label,
+                    screenName: userAccessibleModules[key].screenName
+                }));
+                
+                setAccessibleModules(moduleArray);
+                
+                // Load translations for accessible modules
+                await loadTranslations(moduleArray);
+                
             } catch (error) {
-                console.warn('Error loading HamburgerModal translations:', error);
-                // Set fallback translations
-                setTranslations({
-                    accounts: 'Khách hàng',
-                    notes: 'Ghi chú',
-                    tasks: 'Công việc', 
-                    meetings: 'Cuộc họp',
-                    calendar: 'Lịch của tôi',
-                    logout: 'Logout'
-                });
+                console.error('Error loading modules and permissions:', error);
+                // Set fallback modules if error occurs
+                setAccessibleModules([]);
+            } finally {
+                setLoading(false);
             }
         };
-        
-        loadTranslations();
-    }, []);
+
+        if (visible) {
+            loadModulesAndPermissions();
+        }
+    }, [visible]);
+
+    // Load translations for modules and logout
+    const loadTranslations = async (modules) => {
+        try {
+            // Create translation promises for accessible modules
+            const translationPromises = modules.map(module => 
+                systemLanguageUtils.translate(`${module.key}`, module.label)
+            );
+            
+            // Add logout translation
+            translationPromises.push(
+                systemLanguageUtils.translate('LBL_LOGOUT', 'Logout')
+            );
+            
+            const translationResults = await Promise.all(translationPromises);
+            
+            // Build translations object
+            const translationsObj = {};
+            modules.forEach((module, index) => {
+                translationsObj[module.key] = translationResults[index];
+            });
+            translationsObj.logout = translationResults[translationResults.length - 1];
+            
+            setTranslations(translationsObj);
+        } catch (error) {
+            console.warn('Error loading HamburgerModal translations:', error);
+            // Set fallback translations for accessible modules
+            const fallbackTranslations = {};
+            modules.forEach(module => {
+                fallbackTranslations[module.key] = module.label;
+            });
+            fallbackTranslations.logout = 'Logout';
+            setTranslations(fallbackTranslations);
+        }
+    };
 
 
     useEffect(() => {
@@ -98,10 +137,9 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         });
     };
 
-    const navigateTo = (moduleName) => {
-        console.log(`Navigate to ${moduleName}`);
+    const navigateTo = (screenName) => {
         handleClose();
-        navigation.navigate(moduleName);
+        navigation.navigate(screenName);
     };
 
     return (
@@ -148,40 +186,23 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                         contentContainerStyle={styles.menuContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigateTo('AccountListScreen')}
-                        >
-                            <Text style={styles.menuText}>{translations.accounts || 'Khách hàng'}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigateTo('NoteListScreen')}
-                        >
-                            <Text style={styles.menuText}>{translations.notes || 'Ghi chú'}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigateTo('TaskListScreen')}
-                        >
-                            <Text style={styles.menuText}>{translations.tasks || 'Công việc'}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigateTo('MeetingListScreen')}
-                        >
-                            <Text style={styles.menuText}>{translations.meetings || 'Cuộc họp'}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigateTo('CalendarScreen')}
-                        >
-                            <Text style={styles.menuText}>{translations.calendar || 'Lịch của tôi'}</Text>
-                        </TouchableOpacity>
+                        {loading ? (
+                            <View style={styles.loadingContainer}>
+                                <Text style={styles.loadingText}>Loading modules...</Text>
+                            </View>
+                        ) : (
+                            accessibleModules.map((module) => (
+                                <TouchableOpacity
+                                    key={module.key}
+                                    style={styles.menuItem}
+                                    onPress={() => navigateTo(module.screenName)}
+                                >
+                                    <Text style={styles.menuText}>
+                                        {translations[module.key] || module.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))
+                        )}
                     </ScrollView>
 
                     {/* Logout Button */}
@@ -189,9 +210,12 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                         <TouchableOpacity style={styles.logoutButton}
                             onPress={() => {
                                 handleClose();
+                                // Reset configs before logout
+                                modulesConfig.reset();
+                                rolesConfig.reset();
                                 handleLogout();
-                            }
-                            }>
+                            }}
+                        >
                             <Text style={styles.logoutText}>{translations.logout || 'Logout'}</Text>
                             <Ionicons name="log-out" size={20} color="white" />
                         </TouchableOpacity>
@@ -251,6 +275,15 @@ const styles = StyleSheet.create({
     },
     menuContent: {
         paddingBottom: 10,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    loadingText: {
+        color: '#666',
+        fontSize: 14,
+        fontStyle: 'italic',
     },
     menuItem: {
         backgroundColor: '#BFAAA1',
