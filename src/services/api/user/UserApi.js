@@ -161,3 +161,24 @@ export const getModuleFieldsRequiredApi = async (module) => {
     }
 };
 
+//GET /Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol
+export const getActiveCurrenciesNameApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Active Currencies API error:", error);
+        throw error;
+    }
+};
+
+//GET /Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol,iso4217,conversion_rate
+export const getDetailCurrenciesApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol,iso4217,conversion_rate`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Active Currencies API error:", error);
+        throw error;
+    }
+};

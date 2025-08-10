@@ -310,8 +310,8 @@ export const useNoteCreate = () => {
             }
             // console.log('Creating note with data:', formData);
             
-            // Prepare note data (exclude parent relationship fields and temporary fields)
-            const excludeFields = ['parent_type'];
+            // Prepare note data (exclude only parent_id and assigned_user_id from API call, include parent_type)
+            const excludeFields = ['parent_id', 'assigned_user_id']; // Exclude temporary ID fields
             const noteData = {};
             
             Object.keys(formData).forEach(key => {
@@ -319,6 +319,11 @@ export const useNoteCreate = () => {
                     noteData[key] = formData[key].trim();
                 }
             });
+
+            // Add assigned_user_id if selected
+            if (formData.assigned_user_id?.trim()) {
+                noteData.assigned_user_id = formData.assigned_user_id.trim();
+            }
             
             // Create the note first
             const response = await createNoteApi(noteData);
@@ -352,8 +357,8 @@ export const useNoteCreate = () => {
             }
             
             // Create parent relationship if specified
-            if (formData.parent_type && formData.parent_name?.trim()) {
-                await createNoteParentRelationApi(formData.parent_type, formData.parent_name.trim(), noteId);
+            if (formData.parent_type && formData.parent_id?.trim()) {
+                await createNoteParentRelationApi(formData.parent_type, formData.parent_id.trim(), noteId);
             }
             
             return {
@@ -412,6 +417,46 @@ export const useNoteCreate = () => {
         return createFields.some(field => field.key === 'parent_name');
     }, [createFields]);
 
+    // Get translated parent type options
+    const getParentTypeOptions = useCallback(async () => {
+        const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
+        let languageData = await cacheManager.getModuleLanguage('Notes', selectedLanguage);
+
+        let modStrings = null;
+        let appStrings = null;
+        if (languageData && languageData.data) {
+            modStrings = languageData.data.mod_strings;
+            appStrings = languageData.data.app_strings;
+        }
+
+        const baseOptions = [
+            { value: 'Accounts', labelKeys: ['LBL_ACCOUNTS', 'LBL_ACCOUNT'], fallback: systemLanguageUtils.translate('LBL_ACCOUNTS') },
+            { value: 'Contacts', labelKeys: ['LBL_CONTACTS', 'LBL_CONTACT'], fallback: systemLanguageUtils.translate('LBL_CONTACTS') },
+            { value: 'Tasks', labelKeys: ['LBL_EMAIL_QC_TASKS', 'LBL_TASKS'], fallback: systemLanguageUtils.translate('LBL_TASKS') },
+            { value: 'Meetings', labelKeys: ['LBL_MEETINGS'], fallback: systemLanguageUtils.translate('LBL_MEETINGS') }
+        ];
+
+        return baseOptions.map(option => {
+            let label = option.fallback;
+
+            // Try to find translation in mod_strings first, then app_strings
+            for (const labelKey of option.labelKeys) {
+                if (modStrings && modStrings[labelKey]) {
+                    label = modStrings[labelKey];
+                    break;
+                } else if (appStrings && appStrings[labelKey]) {
+                    label = appStrings[labelKey];
+                    break;
+                }
+            }
+
+            return {
+                value: option.value,
+                label: label
+            };
+        });
+    }, []);
+
     // Initialize on component mount
     useEffect(() => {
         initializeCreateFields();
@@ -436,6 +481,7 @@ export const useNoteCreate = () => {
         getFieldLabel,
         getFieldError,
         isFormValid,
-        hasParentNameField
+        hasParentNameField,
+        getParentTypeOptions
     };
 };

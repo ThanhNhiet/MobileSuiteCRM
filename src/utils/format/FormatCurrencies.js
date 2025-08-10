@@ -1,9 +1,3 @@
-// No external dependencies, no library imports needed
-
-// prefix for iso code 4217: USD, GPB, CAD, AUD, NZD, INR, CNY, JPY, KRW, HKD, SGD, PHP, MXN
-
-// suffix for iso code 4217: EUR, SEK, PLN, HUF, CZK, ILS, VND
-
 // Function to determine symbol position based on currency name or ISO code
 const getSymbolPosition = (currencyData) => {
     const name = currencyData?.name?.toLowerCase() || '';
@@ -53,8 +47,8 @@ const getSymbolPosition = (currencyData) => {
 };
 
 // Default currency format function
-// Currency formatting function with position support
-const formatCurrencyWithPosition = (amount, symbol = '$', position = 'prefix') => {
+// Currency formatting function with position and custom separators support
+const formatCurrencyWithPosition = (amount, symbol = '$', position = 'prefix', thousandsSeparator = ',', decimalSymbol = '.') => {
     if (typeof amount !== 'number') {
         throw new Error('Amount must be a number');
     }
@@ -62,14 +56,22 @@ const formatCurrencyWithPosition = (amount, symbol = '$', position = 'prefix') =
         throw new Error('Currency symbol must be a string');
     }
 
-    // Format the amount to two decimal places
-    const formattedAmount = amount.toFixed(2);
+    // Format the amount to two decimal places with standard separators first
+    const standardFormatted = amount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    
+    // Replace with custom separators
+    const customFormatted = standardFormatted
+        .replace(/,/g, thousandsSeparator)
+        .replace(/\./g, decimalSymbol);
 
     // Return the formatted currency string based on position
     if (position === 'suffix') {
-        return `${formattedAmount}${symbol}`;
+        return `${customFormatted}${symbol}`;
     } else {
-        return `${symbol}${formattedAmount}`;
+        return `${symbol}${customFormatted}`;
     }
 };
 
@@ -78,37 +80,59 @@ const formatCurrency_USD = (amount, symbol = '$') => {
     return formatCurrencyWithPosition(amount, symbol, 'prefix');
 };
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReadCacheView from '../cacheViewManagement/ReadCacheView';
 
 export const formatCurrency = async (amount) => {
     try {
-        const cachedCurrency = await ReadCacheView.getCurrencyData();
+        const [cachedCurrency, thousandsSeparator, decimalSymbol] = await Promise.all([
+            ReadCacheView.getCurrencyData(),
+            AsyncStorage.getItem('thousandsSeparator'),
+            AsyncStorage.getItem('decimalSymbol')
+        ]);
+        
+        // Get custom separators or use defaults
+        const customThousandsSeparator = thousandsSeparator || ',';
+        const customDecimalSymbol = decimalSymbol || '.';
         
         // If no cached currency data, fallback to USD format
         if (!cachedCurrency || !cachedCurrency.data || !Array.isArray(cachedCurrency.data) || cachedCurrency.data.length === 0) {
-            return formatCurrency_USD(amount);
+            return formatCurrencyWithPosition(amount, '$', 'prefix', customThousandsSeparator, customDecimalSymbol);
         }
         
-        // Get the first active currency from the cached data
-        const activeCurrency = cachedCurrency.data.find(currency => 
-            currency.attributes && 
-            currency.attributes.status === 'Active' && 
-            currency.attributes.deleted !== '1'
-        );
-        
-        if (!activeCurrency || !activeCurrency.attributes) {
-            return formatCurrency_USD(amount);
+        // Get the selected currency from AsyncStorage or use the first active currency
+        let selectedCurrency;
+        try {
+            const savedCurrency = await AsyncStorage.getItem('selectedCurrency');
+            if (savedCurrency) {
+                selectedCurrency = JSON.parse(savedCurrency);
+            }
+        } catch (error) {
+            console.warn('Error getting selected currency:', error);
         }
         
-        const currencyAttributes = activeCurrency.attributes;
+        // If no selected currency, get the first active currency from cache
+        if (!selectedCurrency) {
+            selectedCurrency = cachedCurrency.data.find(currency => 
+                currency.attributes && 
+                currency.attributes.status === 'Active' && 
+                currency.attributes.deleted !== '1'
+            );
+        }
+        
+        if (!selectedCurrency || !selectedCurrency.attributes) {
+            return formatCurrencyWithPosition(amount, '$', 'prefix', customThousandsSeparator, customDecimalSymbol);
+        }
+        
+        const currencyAttributes = selectedCurrency.attributes;
         const symbol = currencyAttributes.symbol || '$';
         const position = getSymbolPosition(currencyAttributes);
         
-        return formatCurrencyWithPosition(amount, symbol, position);
+        return formatCurrencyWithPosition(amount, symbol, position, customThousandsSeparator, customDecimalSymbol);
         
     } catch (error) {
         console.warn('Error formatting currency:', error);
         // Fallback to USD format on error
-        return formatCurrency_USD(amount);
+        return formatCurrencyWithPosition(amount, '$', 'prefix', ',', '.');
     }
 };

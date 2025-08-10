@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
@@ -17,12 +18,14 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useNoteDetail } from "../../services/useApi/note/UseNote_Detail";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
+import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
 
 export default function NoteDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { noteId } = route.params;
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -32,8 +35,15 @@ export default function NoteDetailScreen() {
 
     // Initialize translations
     useEffect(() => {
+
         const initTranslations = async () => {
             try {
+
+                // Get current user ID from token
+                const token = await AsyncStorage.getItem('token');
+                const userId = getUserIdFromToken(token);
+                setCurrentUserId(userId);
+
                 // Get all translations at once using SystemLanguageUtils
                 const translatedLabels = await systemLanguageUtils.translateKeys([
                     'LBL_EMAIL_DETAILS',          // "Chi tiết"
@@ -187,9 +197,7 @@ export default function NoteDetailScreen() {
     const canEditNote = () => {
         if (!note) return false;
 
-        // If assigned_user_name is different from created_by_name, disable editing
-        if (note.assigned_user_name && note.created_by_name &&
-            note.assigned_user_name !== note.created_by_name) {
+        if (currentUserId !== note.created_by) {
             return false;
         }
 

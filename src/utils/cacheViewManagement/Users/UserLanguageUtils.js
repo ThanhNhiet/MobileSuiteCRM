@@ -149,11 +149,6 @@ class UserLanguageUtils {
                 }
             }
 
-            // If still not found, log a warning for debugging
-            if (!translation) {
-                console.warn(`[UserLanguageUtils] Key not found: ${key}`);
-            }
-
             // Ensure we always return a string
             const result = translation || defaultValue || key;
             return String(result);

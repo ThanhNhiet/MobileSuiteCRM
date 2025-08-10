@@ -4,14 +4,16 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import {
     getNoteListFieldsApi,
-    getNotesApi
+    getNotesApi,
+    searchByFilterApi,
+    searchByKeywordApi
 } from '../../api/note/NoteApi';
 
 export const useNoteList = () => {
     const [notes, setNotes] = useState([]);
-    const [allNotes, setAllNotes] = useState([]); // Store all notes for client-side filtering
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
@@ -33,28 +35,30 @@ export const useNoteList = () => {
     const [columns, setColumns] = useState([]);
     const [nameFields, setNameFields] = useState('');
     
-    // Filter states
+    // Search and filter states for API calls
     const [searchText, setSearchText] = useState('');
     const [parentTypeFilter, setParentTypeFilter] = useState('');
-    const [timeFilter, setTimeFilter] = useState('all');
+    const [timeFilter, setTimeFilter] = useState('');
     
     // Available filter options
     const [parentTypeOptions, setParentTypeOptions] = useState([]);
     const [timeFilterOptions, setTimeFilterOptions] = useState([]);
     const [filtersInitialized, setFiltersInitialized] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [initialNotesLoaded, setInitialNotesLoaded] = useState(false);
 
-    // Initialize fields and language
+    // Initialize field definitions and language settings
     const initializeFieldsAndLanguage = useCallback(async () => {
         try {
-            // 1. Kiểm tra cache listviewdefs.json có tồn tại không
+            // Check if listviewdefs cache exists
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField('Notes', 'listviewdefs');
             
             if (!cachedFields) {
-                // Nếu chưa có cache, fetch từ API
+                // Fetch from API if no cache exists
                 const fieldsResponse = await getNoteListFieldsApi();
                 
-                // Kiểm tra cấu trúc response và lấy default_fields
+                // Extract default_fields from response
                 if (fieldsResponse && fieldsResponse.default_fields) {
                     fieldsData = fieldsResponse.default_fields;
                 } else {
@@ -62,18 +66,18 @@ export const useNoteList = () => {
                     fieldsData = {};
                 }
                 
-                // Lưu vào cache (chỉ lưu default_fields)
+                // Cache the default_fields
                 await WriteCacheView.saveModuleField('Notes', 'listviewdefs', fieldsData);
             } else {
-                // Nếu có cache, sử dụng cache
+                // Use cached data
                 fieldsData = cachedFields;
             }
             
-            // 2. Lấy ngôn ngữ hiện tại
+            // Get current language settings
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage('Notes', selectedLanguage);
             
-            // Nếu không có language data, thử fetch lại
+            // Fallback if language data is missing
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists('Notes', selectedLanguage);
                 if (!languageExists) {
@@ -81,13 +85,13 @@ export const useNoteList = () => {
                 }
             }
             
-            // Lấy mod_strings từ cấu trúc language data
+            // Extract mod_strings from language data
             let modStrings = null;
             if (languageData && languageData.data && languageData.data.mod_strings) {
                 modStrings = languageData.data.mod_strings;
             }
             
-            // Kiểm tra fieldsData có hợp lệ không
+            // Validate fieldsData or use defaults
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
                 console.warn('fieldsData is empty or invalid, using default structure');
                 fieldsData = {
@@ -106,56 +110,57 @@ export const useNoteList = () => {
                 };
             }
             
-            // Chỉ lấy 2 field đầu tiên
+            // Use only first 2 fields
             const fieldEntries = Object.entries(fieldsData).slice(0, 2);
             
-            // 3. Tạo nameFields string từ fieldsData (chỉ 2 field đầu tiên)
+            // Build nameFields string from field definitions
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
             const requiredFields = [...fieldKeys, 'parent_type', 'parent_name'];
             
-            // Lọc bỏ các trường rỗng hoặc invalid
+            // Filter out invalid fields
             const validFields = requiredFields.filter(field => 
                 field && 
                 typeof field === 'string' && 
                 field.trim() !== '' &&
-                !field.includes(' ') // Không chứa khoảng trắng
+                !field.includes(' ')
             );
             
             const nameFieldsString = validFields.join(',');
             
-            // Kiểm tra nameFields có hợp lệ không
+            // Set final nameFields with fallback
+            let finalNameFields;
             if (!nameFieldsString || nameFieldsString.trim() === '') {
                 console.warn('nameFields is empty, using default fields');
-                setNameFields('name,date_entered,parent_type,parent_name,description');
+                finalNameFields = 'name,date_entered,parent_type,parent_name,description';
             } else {
-                setNameFields(nameFieldsString);
+                finalNameFields = nameFieldsString;
             }
             
-            // 4. Tạo columns với bản dịch (chỉ 2 field đầu tiên)
+            setNameFields(finalNameFields);
+            
+            // Build column definitions with translations
             const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
-                let vietnameseLabel = fieldKey; // Default fallback
+                let vietnameseLabel = fieldKey;
                 const labelValue = fieldInfo?.label;
                 
                 if (modStrings) {
-                    // Kiểm tra labelValue có tồn tại và là string
+                    // Use label from API to find translation
                     if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                        // Sử dụng label từ API để tìm trong modStrings
                         let translation = modStrings[labelValue];
                         
-                        // Nếu không tìm thấy, thử tìm với các pattern khác
+                        // Try alternative pattern if not found
                         if (!translation) {
-                            // Thử tìm với LBL_LIST_ prefix
                             const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
                             translation = modStrings[listKey];
                         }
                         
                         vietnameseLabel = translation || labelValue;
                     } else {
-                        // Nếu không có label, áp dụng phương pháp cũ: chuyển thành định dạng LBL_FIELD
+                        // Use standard LBL_ pattern if no label
                         const lblKey = `LBL_${fieldKey.toUpperCase()}`;
                         let translation = modStrings[lblKey];
                         
-                        // Thử các pattern khác nếu không tìm thấy
+                        // Try list pattern
                         if (!translation) {
                             const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
                             translation = modStrings[listKey];
@@ -164,7 +169,7 @@ export const useNoteList = () => {
                         vietnameseLabel = translation || fieldKey;
                     }
                 } else {
-                    // Nếu không có dữ liệu ngôn ngữ, sử dụng labelValue hoặc fieldKey
+                    // Fallback without language data
                     vietnameseLabel = (labelValue && typeof labelValue === 'string') ? labelValue : fieldKey;
                 }
                 
@@ -179,286 +184,425 @@ export const useNoteList = () => {
             
             setColumns(columnsData);
             
+            return finalNameFields;
+            
         } catch (err) {
             console.warn('Initialize fields and language error:', err);
             const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình hiển thị';
             setError(errorMsg);
-        }
-    }, []);
-
-    // Apply time filter to date
-    const applyTimeFilter = useCallback((notes, timeFilter) => {
-        if (timeFilter === 'all') return notes;
-        
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        return notes.filter(note => {
-            const noteDate = new Date(note.date_entered);
             
-            switch (timeFilter) {
-                case 'today':
-                    return noteDate >= today;
-                case 'this_week':
-                    const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - today.getDay());
-                    return noteDate >= weekStart;
-                case 'this_month':
-                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                    return noteDate >= monthStart;
-                default:
-                    return true;
-            }
-        });
-    }, []);
-
-    // Client-side search function
-    const filterNotesBySearch = useCallback((notes, searchTerm) => {
-        if (!searchTerm.trim()) return notes;
-        
-        const lowercaseSearch = searchTerm.toLowerCase();
-        return notes.filter(note => {
-            return (
-                note.name?.toLowerCase().includes(lowercaseSearch) ||
-                note.parent_name?.toLowerCase().includes(lowercaseSearch) ||
-                note.description?.toLowerCase().includes(lowercaseSearch)
-            );
-        });
-    }, []);
-
-    // Apply all filters to notes
-    const applyAllFilters = useCallback((notes) => {
-        let filteredNotes = [...notes];
-        
-        // Apply search filter
-        filteredNotes = filterNotesBySearch(filteredNotes, searchText);
-        
-        // Apply parent type filter
-        if (parentTypeFilter) {
-            filteredNotes = filteredNotes.filter(note => note.parent_type === parentTypeFilter);
+            return 'name,date_entered,parent_type,parent_name,description';
         }
-        
-        // Apply time filter
-        filteredNotes = applyTimeFilter(filteredNotes, timeFilter);
-        
-        return filteredNotes;
-    }, [searchText, parentTypeFilter, timeFilter, filterNotesBySearch, applyTimeFilter]);
-
-    // Client-side pagination
-    const applyPagination = useCallback((notes, pageNumber, pageSize = 10) => {
-        const startIndex = (pageNumber - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedNotes = notes.slice(startIndex, endIndex);
-        
-        const totalPages = Math.ceil(notes.length / pageSize);
-        const hasNext = pageNumber < totalPages;
-        const hasPrev = pageNumber > 1;
-        
-        return {
-            notes: paginatedNotes,
-            totalPages,
-            hasNext,
-            hasPrev
-        };
     }, []);
 
-    // Load all notes from API (only when needed)
-    const loadAllNotes = useCallback(async () => {
+    // Search notes by keyword using custom API
+    const searchNotes = async (keyword = '', page = 1) => {
         try {
             setLoading(true);
             setError(null);
+            
+            const response = await searchByKeywordApi(keyword, page);
+            
+            if (response && response.data) {
+                // Filter notes by current user permissions
+                const token = await AsyncStorage.getItem('token');
+                const userId = getUserIdFromToken(token);
+                const filteredNotes = response.data.filter(note =>
+                    note.created_by === userId || note.assigned_user_id === userId
+                );
 
-            // Load all notes by requesting a large page size
-            const response = await getNotesApi(10, 1, nameFields);
-            
-            // Process notes data
-            const processedNotes = response.data.map(note => ({
-                id: note.id,
-                name: note.attributes.name,
-                date_entered: note.attributes.date_entered,
-                parent_type: note.attributes.parent_type,
-                parent_name: note.attributes.parent_name,
-                description: note.attributes.description,
-                // Add other fields as needed
-                ...note.attributes
-            }));
-            
-            setAllNotes(processedNotes);
-        
+                const processedNotes = filteredNotes.map(note => ({
+                    id: note.id,
+                    name: note.name,
+                    date_entered: note.date_entered,
+                    parent_type: note.parent_type,
+                    description: note.description,
+                    created_by: note.created_by,
+                    assigned_user_id: note.assigned_user_id
+                }));
+                
+                setNotes(processedNotes);
+                
+                // Handle pagination metadata
+                if (response.meta) {
+                    const totalPages = response.meta['total-pages'] || 1;
+                    
+                    setCurrentPage(page);
+                    setTotalPages(totalPages);
+                    setPagination({
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                        nextLink: page < totalPages ? `page=${page + 1}` : null,
+                        prevLink: page > 1 ? `page=${page - 1}` : null
+                    });
+                } else {
+                    // Fallback pagination
+                    setCurrentPage(page);
+                    setTotalPages(1);
+                    setPagination({
+                        hasNext: false,
+                        hasPrev: false,
+                        nextLink: null,
+                        prevLink: null
+                    });
+                }
+            }
         } catch (err) {
-            const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải danh sách ghi chú';
-            const errorMessage = err.response?.data?.message || err.message || fallbackError;
-            setError(errorMessage);
-            console.warn('Load all notes error:', err);
+            console.error('Error searching notes:', err);
+            setError(err.message || 'Đã xảy ra lỗi khi tìm kiếm');
         } finally {
             setLoading(false);
         }
-    }, [nameFields]);
+    };
+    
+    // Filter notes by parent type and date criteria
+    const filterNotes = async (filters = {}, page = 1) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Ensure nameFields is available with fallback
+            const fieldsToUse = nameFields || 'name,date_entered,parent_type,parent_name,description,assigned_user_name,created_by_name';
+            
+            const response = await searchByFilterApi(10, page, fieldsToUse, filters.parent_type, filters.date_filter);
+            
+            if (response && response.data) {
+                // Process API response structure
+                const processedNotes = response.data.map(note => ({
+                    id: note.id,
+                    name: note.attributes.name,
+                    date_entered: note.attributes.date_entered,
+                    parent_type: note.attributes.parent_type,
+                    parent_name: note.attributes.parent_name,
+                    description: note.attributes.description,
+                    assigned_user_name: note.attributes.assigned_user_name,
+                    created_by_name: note.attributes.created_by_name,
+                    ...note.attributes
+                }));
+                
+                setNotes(processedNotes);
+                
+                // Handle pagination metadata
+                if (response.meta) {
+                    const totalPages = response.meta['total-pages'] || 1;
+                    
+                    setCurrentPage(page);
+                    setTotalPages(totalPages);
+                    setPagination({
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                        nextLink: page < totalPages ? `page=${page + 1}` : null,
+                        prevLink: page > 1 ? `page=${page - 1}` : null
+                    });
+                } else {
+                    // Fallback pagination
+                    setCurrentPage(page);
+                    setTotalPages(1);
+                    setPagination({
+                        hasNext: false,
+                        hasPrev: false,
+                        nextLink: null,
+                        prevLink: null
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error filtering notes:', err);
+            setError(err.message || 'Đã xảy ra lỗi khi lọc dữ liệu');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    // Combined search and filter
+    const applySearchAndFilter = async (page = 1) => {
+        // Build filter object
+        const filters = {};
+        if (parentTypeFilter) {
+            filters.parent_type = parentTypeFilter;
+        }
+        if (timeFilter) {
+            filters.date_filter = timeFilter;
+        }
+        
+        // If there's search text, use search API
+        if (searchText.trim()) {
+            await searchNotes(searchText.trim(), page);
+        } else if (Object.keys(filters).length > 0) {
+            // If there are filters but no search text, use filter API
+            await filterNotes(filters, page);
+        } else {
+            // If no search text and no filters, use regular fetch
+            await fetchNotes(page, true);
+        }
+    };
 
-    // Apply filters and pagination to display notes
-    const updateDisplayedNotes = useCallback((pageNumber = currentPage) => {
-        if (allNotes.length === 0) return;
-        
-        // Apply all filters
-        const filteredNotes = applyAllFilters(allNotes);
-        
-        // Apply pagination
-        const paginationResult = applyPagination(filteredNotes, pageNumber);
-        
-        // Update state
-        setNotes(paginationResult.notes);
-        setCurrentPage(pageNumber);
-        setTotalPages(paginationResult.totalPages);
-        setPagination({
-            hasNext: paginationResult.hasNext,
-            hasPrev: paginationResult.hasPrev,
-            nextLink: paginationResult.hasNext ? 'next' : null,
-            prevLink: paginationResult.hasPrev ? 'prev' : null
-        });
-    }, [allNotes, currentPage, applyAllFilters, applyPagination]);
-
-    // Fetch notes with filters (now uses client-side filtering)
-    const fetchNotes = useCallback(async (isRefresh = false, pageNumber = 1) => {
-        if (!nameFields) return; // Wait for fields to be initialized
-        
-        if (isRefresh) {
-            setRefreshing(true);
-            // Reload all notes from API
-            await loadAllNotes();
+    // Regular fetch notes from API
+    const fetchNotes = async (page = 1, resetData = false) => {
+        try {
+            setLoading(resetData ? true : false);
+            setError(null);
+            
+            // Ensure nameFields is available, use default if not
+            const fieldsToUse = nameFields;
+            
+            const response = await getNotesApi(10, page, fieldsToUse);
+            
+            if (response && response.data) {
+                // Handle getNotesApi response structure (same format as shown in user's example)
+                const processedNotes = response.data.map(note => ({
+                    id: note.id,
+                    name: note.attributes.name,
+                    date_entered: note.attributes.date_entered,
+                    parent_type: note.attributes.parent_type,
+                    parent_name: note.attributes.parent_name,
+                    description: note.attributes.description,
+                    assigned_user_name: note.attributes.assigned_user_name,
+                    created_by_name: note.attributes.created_by_name,
+                    ...note.attributes
+                }));
+                
+                setNotes(processedNotes);
+                
+                // Handle pagination from meta
+                if (response.meta) {
+                    const totalPages = response.meta['total-pages'] || 1;
+                    const recordsOnPage = response.meta['records-on-this-page'] || 0;
+                    
+                    setCurrentPage(page);
+                    setTotalPages(totalPages);
+                    setPagination({
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                        nextLink: page < totalPages ? `page=${page + 1}` : null,
+                        prevLink: page > 1 ? `page=${page - 1}` : null
+                    });
+                } else {
+                    // Fallback pagination if meta is not available
+                    setCurrentPage(page);
+                    setTotalPages(1);
+                    setPagination({
+                        hasNext: false,
+                        hasPrev: false,
+                        nextLink: null,
+                        prevLink: null
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching notes:', err);
+            setError(err.message || 'Đã xảy ra lỗi khi tải dữ liệu');
+        } finally {
+            setLoading(false);
             setRefreshing(false);
         }
-        
-        // Update displayed notes with current filters and pagination
-        updateDisplayedNotes(pageNumber);
-    }, [nameFields, loadAllNotes, updateDisplayedNotes]);
+    };
 
-    // Pagination functions
-    const goToPage = useCallback((pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            updateDisplayedNotes(pageNumber);
+    // Fetch notes with specific nameFields (for initialization)
+    const fetchNotesWithFields = async (page = 1, resetData = false, nameFieldsToUse) => {
+        try {
+            setLoading(resetData ? true : false);
+            setError(null);
+            
+            const fieldsToUse = nameFieldsToUse || 'name,date_entered,parent_type,parent_name,description,assigned_user_name,created_by_name';
+            
+            const response = await getNotesApi(10, page, fieldsToUse);
+            
+            if (response && response.data) {
+                // Handle getNotesApi response structure (same format as shown in user's example)
+                const processedNotes = response.data.map(note => ({
+                    id: note.id,
+                    name: note.attributes.name,
+                    date_entered: note.attributes.date_entered,
+                    parent_type: note.attributes.parent_type,
+                    parent_name: note.attributes.parent_name,
+                    description: note.attributes.description,
+                    assigned_user_name: note.attributes.assigned_user_name,
+                    created_by_name: note.attributes.created_by_name,
+                    ...note.attributes
+                }));
+                
+                setNotes(processedNotes);
+                
+                // Handle pagination from meta
+                if (response.meta) {
+                    const totalPages = response.meta['total-pages'] || 1;
+                    const recordsOnPage = response.meta['records-on-this-page'] || 0;
+                    
+                    setCurrentPage(page);
+                    setTotalPages(totalPages);
+                    setPagination({
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                        nextLink: page < totalPages ? `page=${page + 1}` : null,
+                        prevLink: page > 1 ? `page=${page - 1}` : null
+                    });
+                } else {
+                    // Fallback pagination if meta is not available
+                    setCurrentPage(page);
+                    setTotalPages(1);
+                    setPagination({
+                        hasNext: false,
+                        hasPrev: false,
+                        nextLink: null,
+                        prevLink: null
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching notes with fields:', err);
+            setError(err.message || 'Đã xảy ra lỗi khi tải dữ liệu');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-    }, [updateDisplayedNotes, totalPages]);
+    };
 
-    const goToNextPage = useCallback(() => {
-        if (pagination.hasNext && currentPage < totalPages) {
-            goToPage(currentPage + 1);
+    // Initialize filter options
+    const initializeFilterOptions = async () => {
+        try {
+            // Time filter options
+            const timeOptions = [
+                { value: '', label: await systemLanguageUtils.translate('LBL_DROPDOWN_LIST_ALL') || 'Tất cả' },
+                { value: 'today', label: await systemLanguageUtils.translate('LBL_TODAY') || 'Hôm nay' },
+                { value: 'this_week', label: await systemLanguageUtils.translate('LBL_THIS_WEEK') || 'Tuần này' },
+                { value: 'this_month', label: await systemLanguageUtils.translate('LBL_THIS_MONTH') || 'Tháng này' },
+                { value: 'this_year', label: await systemLanguageUtils.translate('LBL_THIS_YEAR') || 'Năm này' }
+            ];
+            setTimeFilterOptions(timeOptions);
+            
+            // Parent type options
+            setParentTypeOptions([
+                { value: '', label: await systemLanguageUtils.translate('LBL_DROPDOWN_LIST_ALL') || 'Tất cả' },
+                { value: 'Accounts', label: await systemLanguageUtils.translate('LBL_ACCOUNTS') || 'Khách hàng' },
+                { value: 'Contacts', label: await systemLanguageUtils.translate('LBL_CONTACTS') || 'Liên hệ' },
+                { value: 'Tasks', label: await systemLanguageUtils.translate('LBL_TASKS') || 'Công việc' },
+                { value: 'Meetings', label: await systemLanguageUtils.translate('LBL_MEETINGS') || 'Hội họp' }
+            ]);
+            
+            setFiltersInitialized(true);
+        } catch (err) {
+            console.warn('Error initializing filter options:', err);
+            // Set fallback options
+            setParentTypeOptions([
+                { value: '', label: 'Tất cả' },
+                { value: 'Accounts', label: 'Khách hàng' },
+                { value: 'Contacts', label: 'Liên hệ' },
+                { value: 'Tasks', label: 'Công việc' },
+                { value: 'Meetings', label: 'Hội họp' }
+            ]);
+            
+            setTimeFilterOptions([
+                { value: '', label: 'Tất cả' },
+                { value: 'today', label: 'Hôm nay' },
+                { value: 'this_week', label: 'Tuần này' },
+                { value: 'this_month', label: 'Tháng này' },
+                { value: 'this_year', label: 'Năm này' }
+            ]);
+            setFiltersInitialized(true);
         }
-    }, [goToPage, currentPage, totalPages, pagination.hasNext]);
+    };
 
-    const goToPrevPage = useCallback(() => {
-        if (pagination.hasPrev && currentPage > 1) {
-            goToPage(currentPage - 1);
+    // Load more notes for pagination
+    const loadMoreNotes = async () => {
+        if (pagination.hasNext && !loading) {
+            await applySearchAndFilter(currentPage + 1);
         }
-    }, [goToPage, currentPage, pagination.hasPrev]);
+    };
 
-    // Filter functions (now trigger display update instead of API call)
-    const handleSearch = useCallback((text) => {
+    // Navigate to specific page
+    const goToPage = async (pageNumber) => {
+        if (pageNumber > 0 && pageNumber <= totalPages && pageNumber !== currentPage) {
+            await applySearchAndFilter(pageNumber);
+        }
+    };
+
+    // Refresh notes from first page
+    const refreshNotes = async () => {
+        setRefreshing(true);
+        setCurrentPage(1);
+        // Always use fetchNotes (getNotesApi) for refresh, not search/filter
+        await fetchNotes(1, true);
+        setRefreshing(false);
+    };
+
+    // Update search text and trigger search
+    // Update search text and reset pagination
+    const handleSearch = (text) => {
         setSearchText(text);
-        setCurrentPage(1); // Reset to first page
-        // Trigger display update will happen via useEffect
-    }, []);
+        setCurrentPage(1);
+    };
 
-    const handleParentTypeFilter = useCallback((parentType) => {
+    // Update parent type filter and reset pagination
+    const handleParentTypeFilter = (parentType) => {
         setParentTypeFilter(parentType);
-        setCurrentPage(1); // Reset to first page
-        // Trigger display update will happen via useEffect
-    }, []);
+        setCurrentPage(1);
+    };
 
-    const handleTimeFilter = useCallback((timeOption) => {
-        setTimeFilter(timeOption);
-        setCurrentPage(1); // Reset to first page
-        // Trigger display update will happen via useEffect
-    }, []);
+    // Update time filter and reset pagination
+    const handleTimeFilter = (timeFilterValue) => {
+        setTimeFilter(timeFilterValue);
+        setCurrentPage(1);
+    };
 
-    const clearFilters = useCallback(() => {
+    // Clear all filters and reset to base state
+    const clearFilters = () => {
         setSearchText('');
         setParentTypeFilter('');
-        setTimeFilter('all');
+        setTimeFilter('');
         setCurrentPage(1);
-        // Trigger display update will happen via useEffect
-    }, []);
+        setInitialNotesLoaded(false); // Reset to allow reload of base notes
+    };
 
-    // Refresh function
-    const refreshNotes = useCallback(() => {
-        fetchNotes(true, currentPage);
-    }, [fetchNotes, currentPage]);
-
-    // Initialize on component mount - including language data and filter options
+    // Initialize on component mount
     useEffect(() => {
         const initializeData = async () => {
             try {
+                setIsInitializing(true);
+                
                 // Initialize field definitions and language data
-                await initializeFieldsAndLanguage();
+                const initialNameFields = await initializeFieldsAndLanguage();
+                await initializeFilterOptions();
                 
-                // Get all filter translations at once
-                const filterTranslations = await systemLanguageUtils.translateKeys([
-                    'all',  // "Tất cả"
-                    'LBL_ACCOUNTS', // "Khách hàng"
-                    'LBL_CONTACTS', // "Liên hệ"
-                    'LBL_TASKS', // "Công việc"
-                    'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
-                    'LBL_DROPDOWN_LIST_ALL', // "Tất cả"
-                    'today',    // "Hôm nay"
-                    'this_week', // "Tuần này"
-                    'this_month' // "Tháng này"
-                ]);
-                
-                // Set parent type options with translations
-                setParentTypeOptions([
-                    { value: 'all', label: filterTranslations.all || 'Tất cả' },
-                    { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS || 'Khách hàng' },
-                    { value: 'Contacts', label: filterTranslations.LBL_CONTACTS || 'Liên hệ' },
-                    { value: 'Tasks', label: filterTranslations.LBL_TASKS || 'Công việc' },
-                    { value: 'Meetings', label: filterTranslations.LBL_MEETINGS || 'Hội họp' }
-                ]);
-                
-                // Set time filter options with translations
-                setTimeFilterOptions([
-                    { value: 'all', label: filterTranslations.LBL_DROPDOWN_LIST_ALL || 'Tất cả' },
-                    { value: 'today', label: filterTranslations.today || 'Hôm nay' },
-                    { value: 'this_week', label: filterTranslations.this_week || 'Tuần này' },
-                    { value: 'this_month', label: filterTranslations.this_month || 'Tháng này' }
-                ]);
-                
-                setFiltersInitialized(true);
+                // Load initial notes - only if no search/filter is active
+                if (!searchText && !parentTypeFilter && !timeFilter) {
+                    // Use the nameFields directly from initialization to avoid state delay
+                    await fetchNotesWithFields(1, true, initialNameFields);
+                    setInitialNotesLoaded(true);
+                }
             } catch (error) {
-                console.error('UseNote_List: Error initializing filters:', error);
-                // Set fallback options
-                setParentTypeOptions([
-                    { value: '', label: 'Tất cả' },
-                    { value: 'Accounts', label: 'Khách hàng' },
-                    { value: 'Contacts', label: 'Liên hệ' },
-                    { value: 'Tasks', label: 'Công việc' },
-                    { value: 'Meetings', label: 'Cuộc họp' }
-                ]);
-                
-                setTimeFilterOptions([
-                    { value: 'all', label: 'Tất cả' },
-                    { value: 'today', label: 'Hôm nay' },
-                    { value: 'this_week', label: 'Tuần này' },
-                    { value: 'this_month', label: 'Tháng này' }
-                ]);
-                
-                setFiltersInitialized(true);
+                console.error('UseNote_List: Error initializing:', error);
+                setError('Không thể khởi tạo dữ liệu');
+            } finally {
+                setIsInitializing(false);
             }
         };
         
         initializeData();
-    }, []); // Remove dependency to avoid infinite loop
+    }, []);
 
-    // Load all notes when fields are ready
+    // Apply search and filter when filters change
     useEffect(() => {
-        if (nameFields && allNotes.length === 0) {
-            loadAllNotes();
+        // Only run after initialization is complete and filters are initialized
+        if (!isInitializing && filtersInitialized) {
+            if (searchText || parentTypeFilter || timeFilter) {
+                // If there are active filters or search, apply them
+                const delayedSearch = setTimeout(() => {
+                    applySearchAndFilter(1);
+                }, 300); // Debounce search
+                
+                return () => clearTimeout(delayedSearch);
+            } else if (!initialNotesLoaded) {
+                // If no filters are active and initial notes not loaded yet, load regular notes
+                const delayedFetch = setTimeout(() => {
+                    fetchNotes(1, true);
+                    setInitialNotesLoaded(true);
+                }, 300);
+                
+                return () => clearTimeout(delayedFetch);
+            }
         }
-    }, [nameFields, allNotes.length, loadAllNotes]);
-
-    // Update displayed notes when filters change
-    useEffect(() => {
-        if (allNotes.length > 0) {
-            updateDisplayedNotes(1); // Always start from page 1 when filters change
-        }
-    }, [searchText, parentTypeFilter, timeFilter, allNotes, updateDisplayedNotes]);
+    }, [searchText, parentTypeFilter, timeFilter, filtersInitialized, isInitializing, initialNotesLoaded]);
 
     return {
         // Data
@@ -467,6 +611,7 @@ export const useNoteList = () => {
         loading,
         refreshing,
         error,
+        isInitializing,
         
         // Pagination
         currentPage,
@@ -483,13 +628,16 @@ export const useNoteList = () => {
         
         // Actions
         fetchNotes,
+        searchNotes,
+        filterNotes,
+        applySearchAndFilter,
         refreshNotes,
+        loadMoreNotes,
         goToPage,
-        goToNextPage,
-        goToPrevPage,
         handleSearch,
         handleParentTypeFilter,
         handleTimeFilter,
-        clearFilters
+        clearFilters,
+        initializeFieldsAndLanguage
     };
 };

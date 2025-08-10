@@ -87,14 +87,24 @@ let cacheInitialized = false;
 // Initialize cache (call this once during app startup)
 export const initializeLocaleCache = async () => {
     try {
+        // Check for user's custom date format first
+        const dateFormat = await AsyncStorage.getItem('dateFormat');
         const localeConfig = await AsyncStorage.getItem('localeConfig');
         const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'en_us';
         
-        cachedLocaleConfig = localeConfig;
+        // Priority: dateFormat > localeConfig > selectedLanguage
+        const effectiveLocale = dateFormat || localeConfig || selectedLanguage;
+        
+        cachedLocaleConfig = effectiveLocale;
         cachedSelectedLanguage = selectedLanguage;
         cacheInitialized = true;
         
-        console.log('Locale cache initialized:', { localeConfig, selectedLanguage });
+        console.log('Locale cache initialized:', { 
+            dateFormat, 
+            localeConfig, 
+            selectedLanguage, 
+            effectiveLocale 
+        });
     } catch (error) {
         console.warn('Error initializing locale cache:', error);
         // Set defaults
@@ -111,21 +121,49 @@ export const updateLocaleCache = (localeConfig, selectedLanguage) => {
     console.log('Locale cache updated:', { localeConfig, selectedLanguage });
 };
 
-// Helper function to get the effective locale
+// Helper function to get the effective locale (sync version)
 const getEffectiveLocale = () => {
     if (!cacheInitialized) {
         console.warn('Locale cache not initialized, using default');
         return 'en_us';
     }
     
-    // Use localeConfig if available, otherwise use selectedLanguage
+    // Priority: localeConfig (date format from settings) > selectedLanguage
     const locale = cachedLocaleConfig || cachedSelectedLanguage || 'en_us';
-    return locale.toLowerCase();
+    return locale;
 };
 
-// Helper function to format based on locale
+// Helper function to get the effective locale with date format support (async version)
+const getEffectiveLocaleWithDateFormat = async () => {
+    if (!cacheInitialized) {
+        console.warn('Locale cache not initialized, using default');
+        return 'en_us';
+    }
+    
+    try {
+        // Check if user has saved a specific date format
+        const savedDateFormat = await AsyncStorage.getItem('dateFormat');
+        if (savedDateFormat) {
+            return savedDateFormat;
+        }
+        
+        // Use localeConfig if available, otherwise use selectedLanguage
+        const locale = cachedLocaleConfig || cachedSelectedLanguage || 'en_us';
+        return locale.toLowerCase();
+    } catch (error) {
+        console.warn('Error getting effective locale:', error);
+        return 'en_us';
+    }
+};
+
+// Helper function to format based on locale (sync version - for backward compatibility)
 const formatByLocale = (isoString, locale, isDateTime = true) => {
     const formatters = {
+        // Date format strings
+        'dd/MM/yyyy': isDateTime ? formatDateTime : formatDate,
+        'MM/dd/yyyy': isDateTime ? formatDateTime_mmddyyy : formatDate_mmddyyy,
+        'yyyy-MM-dd': isDateTime ? formatDateTime_yyyymmdd : formatDate_yyyymmdd,
+        // Legacy locale codes
         'vi_vn': isDateTime ? formatDateTime : formatDate,
         'en_us': isDateTime ? formatDateTime_mmddyyy : formatDate_mmddyyy,
         'en_gb': isDateTime ? formatDateTime : formatDate,
@@ -137,7 +175,28 @@ const formatByLocale = (isoString, locale, isDateTime = true) => {
     return formatter(isoString);
 };
 
-// Non-async version using cached locale
+// Helper function to format based on locale or date format (async version)
+const formatByLocaleWithDateFormat = async (isoString, isDateTime = true) => {
+    const format = await getEffectiveLocaleWithDateFormat();
+    
+    // Map format strings to formatter functions
+    const formatters = {
+        'dd/MM/yyyy': isDateTime ? formatDateTime : formatDate,
+        'MM/dd/yyyy': isDateTime ? formatDateTime_mmddyyy : formatDate_mmddyyy,
+        'yyyy-MM-dd': isDateTime ? formatDateTime_yyyymmdd : formatDate_yyyymmdd,
+        // Legacy locale support
+        'vi_vn': isDateTime ? formatDateTime : formatDate,
+        'en_us': isDateTime ? formatDateTime_mmddyyy : formatDate_mmddyyy,
+        'en_gb': isDateTime ? formatDateTime : formatDate,
+        'fr_fr': isDateTime ? formatDateTime : formatDate,
+        'de_de': isDateTime ? formatDateTime : formatDate
+    };
+    
+    const formatter = formatters[format] || (isDateTime ? formatDateTime : formatDate);
+    return formatter(isoString);
+};
+
+// Sync versions for existing UI (backward compatibility)
 export const formatDateTimeBySelectedLanguage = (isoString) => {
     if (!isoString) {
         throw new Error('ISO string is required');
@@ -162,7 +221,30 @@ export const formatDateBySelectedLanguage = (isoString) => {
     return formatByLocale(isoString, locale, false);
 };
 
-// Async versions (kept for backward compatibility)
+// New async versions with custom date format support (for ProfileSetting)
+export const formatDateTimeWithCustomFormat = async (isoString) => {
+    if (!isoString) {
+        throw new Error('ISO string is required');
+    }
+    if (typeof isoString !== 'string') {
+        throw new Error('ISO string must be a string');
+    }
+
+    return await formatByLocaleWithDateFormat(isoString, true);
+};
+
+export const formatDateWithCustomFormat = async (isoString) => {
+    if (!isoString) {
+        throw new Error('ISO string is required');
+    }
+    if (typeof isoString !== 'string') {
+        throw new Error('ISO string must be a string');
+    }
+
+    return await formatByLocaleWithDateFormat(isoString, false);
+};
+
+// Legacy async versions (kept for backward compatibility)
 export const formatDateTimeBySelectedLanguageAsync = async (isoString) => {
     if (!isoString) {
         throw new Error('ISO string is required');

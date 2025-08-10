@@ -382,13 +382,18 @@ export const useNoteUpdate = (initialNoteData = null) => {
 
             // Prepare basic update data (exclude parent-related and special fields)
             const updateData = {};
-            const excludeFields = ['id', 'parent_id']; // Remove parent_type from exclude list
+            const excludeFields = ['id', 'parent_id']; // Exclude parent_id but allow assigned_user_id
 
             Object.keys(formData).forEach(key => {
                 if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key]?.trim ? formData[key].trim() : formData[key];
                 }
             });
+
+            // Handle assigned_user_id separately to ensure it's included if changed
+            if (formData.assigned_user_id !== originalData.assigned_user_id) {
+                updateData.assigned_user_id = formData.assigned_user_id;
+            }
 
             // Update basic note data if there are changes
             if (Object.keys(updateData).length > 0) {

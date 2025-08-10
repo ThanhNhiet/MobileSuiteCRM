@@ -153,9 +153,12 @@ const SearchModulesScreen = () => {
     // Handle item select
     const handleItemSelect = (item) => {
         if (onSelect) {
+            // Special handling for Users module - use user_name instead of name
+            const itemName = parentType === 'Users' ? (item.user_name || '') : (item.name || '');
+            
             onSelect({
                 id: item.id,
-                name: item.name || ''
+                name: itemName
             });
         }
         navigation.goBack();
@@ -176,6 +179,12 @@ const SearchModulesScreen = () => {
     // Get field value from item
     const getFieldValue = (item, key) => {
         if (!item) return '';
+        
+        // Special handling for Users module - use user_name instead of name
+        if (key === 'name' && parentType === 'Users') {
+            return item.user_name || '';
+        }
+        
         return item[key] || '';
     };
 

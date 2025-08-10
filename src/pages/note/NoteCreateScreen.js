@@ -49,7 +49,8 @@ export default function NoteCreateScreen({ navigation }) {
           'LBL_TASKS',
           'LBL_MEETINGS',
           'LBL_CHECK_TO_VERIFY',
-          'LBL_PARENT_ID_LABEL'
+          'LBL_PARENT_ID_LABEL',
+          'LBL_NOTIFICATION'
         ]);
         
         const translatedLabels_notes = await noteLanguageUtils.translateKeys([
@@ -75,6 +76,7 @@ export default function NoteCreateScreen({ navigation }) {
           meetings: translatedLabels.LBL_MEETINGS,
           checkToVerify: '',
           parentIdLabel: translatedLabels_notes.LBL_PARENT_ID || 'ID Cha',
+          notification: translatedLabels.LBL_NOTIFICATION || 'Thông báo'
         });
       } catch (error) {
         console.warn('Translation initialization error:', error);
@@ -97,7 +99,8 @@ export default function NoteCreateScreen({ navigation }) {
           tasks: 'Nhiệm vụ',
           meetings: 'Cuộc họp',
           checkToVerify: '',
-          parentIdLabel: 'ID Cha'
+          parentIdLabel: 'ID Cha',
+          notification: 'Thông báo'
         });
       }
     };
@@ -120,24 +123,38 @@ export default function NoteCreateScreen({ navigation }) {
     getFieldError,
     isFormValid,
     hasParentNameField,
-    checkParentName,
-    clearParentRelationship
+    getParentTypeOptions
   } = useNoteCreate();
 
   // Local loading states
   const [saving, setSaving] = useState(false);
-  const [checkingParent, setCheckingParent] = useState(false);
 
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
 
-  // Fixed parent type options
-  const parentTypeOptions = [
-    { value: 'Accounts', label: translations.accounts || 'Khách hàng' },
-    { value: 'Users', label: translations.users || 'Người dùng' },
-    { value: 'Tasks', label: translations.tasks || 'Công việc' },
-    { value: 'Meetings', label: translations.meetings || 'Cuộc họp' }
-  ];
+  // Parent type options with translations
+  const [parentTypeOptions, setParentTypeOptions] = useState([]);
+
+  // Handle search modal item selection
+  const handleSearchModalSelect = async (selectedItem) => {
+    await updateField('parent_name', selectedItem.name);
+    await updateField('parent_id', selectedItem.id); // Store the parent ID
+  };
+
+  // Handle assigned user selection
+  const handleAssignedUserSelect = async (selectedItem) => {
+    await updateField('assigned_user_name', selectedItem.name);
+    await updateField('assigned_user_id', selectedItem.id); // Store the assigned user ID
+  };
+
+  // Load parent type options
+  useEffect(() => {
+    const loadParentTypeOptions = async () => {
+      const options = await getParentTypeOptions();
+      setParentTypeOptions(options);
+    };
+    loadParentTypeOptions();
+  }, [getParentTypeOptions]);
 
   // Handle save
   const handleSave = async () => {
@@ -169,6 +186,9 @@ export default function NoteCreateScreen({ navigation }) {
   // Handle parent type selection
   const handleParentTypeSelect = async (value) => {
     await updateField('parent_type', value);
+    // Clear parent_name and parent_id when parent_type changes
+    await updateField('parent_name', '');
+    await updateField('parent_id', '');
     setShowParentTypeModal(false);
   };
 
@@ -176,18 +196,6 @@ export default function NoteCreateScreen({ navigation }) {
   const getParentTypeLabel = () => {
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
     return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
-  };
-
-  // Handle check parent ID
-  const handleCheckParentId = async () => {
-    try {
-      setCheckingParent(true);
-      await checkParentName();
-    } catch (err) {
-      console.warn('Check parent error:', err);
-    } finally {
-      setCheckingParent(false);
-    }
   };
 
   // Show loading state for initialization
@@ -256,70 +264,77 @@ export default function NoteCreateScreen({ navigation }) {
                 );
               }
 
-              // Special handling for parent_id field with check button
-              if (field.key === 'parent_id') {
+              // Handle parent_name as search modal
+              if (field.key === 'parent_name') {
                 return (
-                  <View key={field.key}>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>
-                        {field.label.replace(' *', '')}
-                        {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                  <View key={field.key} style={styles.row}>
+                    <Text style={styles.label}>
+                      {field.label.replace(' *', '')}
+                      {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.valueBox, 
+                        fieldError && styles.errorInput,
+                        !getFieldValue('parent_type') && styles.disabledValueBox
+                      ]}
+                      onPress={() => {
+                        if (getFieldValue('parent_type')) {
+                          navigation.navigate('SearchModulesScreen', {
+                            parentType: getFieldValue('parent_type'),
+                            title: getParentTypeLabel(),
+                            onSelect: handleSearchModalSelect
+                          });
+                        } else {
+                          Alert.alert(
+                            translations.notification || 'Thông báo',
+                            'Vui lòng chọn loại cấp trên trước'
+                          );
+                        }
+                      }}
+                      disabled={!getFieldValue('parent_type')}
+                    >
+                      <Text style={[
+                        styles.value, 
+                        !fieldValue && styles.placeholderText,
+                        !getFieldValue('parent_type') && styles.disabledText
+                      ]}>
+                        {fieldValue || (translations.selectPlaceholder || '--------')}
                       </Text>
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <TextInput
-                          style={[styles.value]}
-                          value={fieldValue}
-                          onChangeText={async (value) => await updateField(field.key, value)}
-                          autoCapitalize="none"
-                          returnKeyType="done"
-                        />
-                      </View>
-                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                    </View>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
 
-                    {/* Check button as label and result field below */}
-                    <View style={styles.row}>
-                      <View style={styles.checkLabelContainer}>
-                        <TouchableOpacity
-                          style={[styles.checkButton, checkingParent && styles.disabledButton]}
-                          onPress={handleCheckParentId}
-                          disabled={checkingParent}
-                        >
-                          {checkingParent ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                          ) : (
-                            <Text style={styles.checkButtonText}>{translations.checkButton || 'Check'}</Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                      {(getFieldValue('parent_name') || getFieldValue('parent_check_error')) ? (
-                        getFieldValue('parent_name') ? (
-                          <View style={[styles.valueBox, styles.successBox]}>
-                            <Text style={[styles.value, styles.successFieldText]}>
-                              ✓ {getFieldValue('parent_name')}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.valueBox, styles.errorBox]}>
-                            <Text style={[styles.value, styles.errorFieldText]}>
-                              ✗ {getFieldValue('parent_check_error')}
-                            </Text>
-                          </View>
-                        )
-                      ) : (
-                        <View style={[styles.valueBox, styles.placeholderBox]}>
-                          <Text style={[styles.value, styles.placeholderText]}>
-                            {translations.checkPlaceholder}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+              // Handle assigned_user_name as search modal for Users
+              if (field.key === 'assigned_user_name') {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    <Text style={styles.label}>
+                      {field.label.replace(' *', '')}
+                      {field.label.includes(' *') && <Text style={styles.requiredAsterisk}> *</Text>}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => {
+                        navigation.navigate('SearchModulesScreen', {
+                          parentType: 'Users',
+                          title: translations.users || 'Người dùng',
+                          onSelect: handleAssignedUserSelect
+                        });
+                      }}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {fieldValue || (translations.selectPlaceholder || '--------')}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );
               }
 
               // Regular field rendering
-
               return (
                 <View key={field.key} style={styles.row}>
                   <Text style={styles.label}>
@@ -446,6 +461,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
 
+  disabledValueBox: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: '#999',
+  },
+
   /* CHỮ TRONG Ô HỒNG */
   value: {
     fontSize: 16,
@@ -484,6 +507,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingVertical: 20,
     paddingBottom: 40,
+    paddingHorizontal: 20,
   },
   saveButton: {
     backgroundColor: '#007AFF',
@@ -496,7 +520,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    marginHorizontal: 20,
   },
   saveButtonText: {
     color: '#fff',
@@ -564,43 +587,5 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#999',
-  },
-  // Parent check styles
-  checkLabelContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 6,
-    alignItems: 'flex-start',
-  },
-  checkButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 80,
-  },
-  checkButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  successBox: {
-    backgroundColor: '#d4edda',
-    borderColor: '#c3e6cb',
-  },
-  errorBox: {
-    backgroundColor: '#f8d7da',
-    borderColor: '#f5c6cb',
-  },
-  placeholderBox: {
-    backgroundColor: '#f8f9fa',
-    borderColor: '#e9ecef',
-  },
-  successFieldText: {
-    color: '#155724',
-  },
-  errorFieldText: {
-    color: '#721c24',
   },
 });
