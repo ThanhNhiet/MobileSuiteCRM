@@ -22,15 +22,11 @@ export default function ProfileScreen({ navigation }) {
         error, 
         refreshing, 
         refreshProfile, 
-        fieldLabels,
-        refreshLanguageCache,
-        refreshFieldsCache
+        fieldLabels
     } = useUserProfile();
     
     // Language translations
     const [translations, setTranslations] = useState({});
-    const [isRefreshingLanguage, setIsRefreshingLanguage] = useState(false);
-    const [isRefreshingFields, setIsRefreshingFields] = useState(false);
     const userLanguageUtils = UserLanguageUtils.getInstance();
 
     // Load translations
@@ -46,9 +42,7 @@ export default function ProfileScreen({ navigation }) {
                     'LBL_EDIT',
                     'LBL_GENERATE_PASSWORD_BUTTON_LABEL',
                     'LBL_SETTINGS',
-                    'LBL_UPDATE',
-                    'LBL_LANGUAGE',
-                    'Field'
+                    'LBL_EMAIL_SETTINGS'
                 ];
                 
                 const translatedLabels = await userLanguageUtils.translateKeys(keys);
@@ -189,32 +183,8 @@ export default function ProfileScreen({ navigation }) {
         navigation.navigate('ChangePasswordScreen');
     };
 
-    const handleRefreshLanguage = async () => {
-        try {
-            setIsRefreshingLanguage(true);
-            await refreshLanguageCache();
-            // Show success message or toast here if needed
-            console.log('Language cache refreshed successfully');
-        } catch (error) {
-            console.warn('Error refreshing language cache:', error);
-            // Show error message or toast here if needed
-        } finally {
-            setIsRefreshingLanguage(false);
-        }
-    };
-
-    const handleRefreshFields = async () => {
-        try {
-            setIsRefreshingFields(true);
-            await refreshFieldsCache();
-            // Show success message or toast here if needed
-            console.log('Fields cache refreshed successfully');
-        } catch (error) {
-            console.warn('Error refreshing fields cache:', error);
-            // Show error message or toast here if needed
-        } finally {
-            setIsRefreshingFields(false);
-        }
+    const handleSettings = () => {
+        navigation.navigate('ProfileSettingScreen');
     };
 
     const ProfileField = ({ fieldName, label, value, icon }) => (
@@ -312,32 +282,12 @@ export default function ProfileScreen({ navigation }) {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.secondaryButton, isRefreshingLanguage && styles.disabledButton]}
-                            onPress={handleRefreshLanguage}
-                            disabled={isRefreshingLanguage}
+                            style={[styles.secondaryButton, { marginBottom: 12 }]}
+                            onPress={handleSettings}
                         >
-                            {isRefreshingLanguage ? (
-                                <ActivityIndicator size={20} color="#4B84FF" />
-                            ) : (
-                                <Ionicons name="language-outline" size={20} color="#4B84FF" />
-                            )}
+                            <Ionicons name="settings-outline" size={20} color="#4B84FF" />
                             <Text style={styles.secondaryButtonText}>
-                                {`${translations.LBL_UPDATE || 'Update'} ${translations.LBL_LANGUAGE || 'Language'}`}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.secondaryButton, isRefreshingFields && styles.disabledButton]}
-                            onPress={handleRefreshFields}
-                            disabled={isRefreshingFields}
-                        >
-                            {isRefreshingFields ? (
-                                <ActivityIndicator size={20} color="#4B84FF" />
-                            ) : (
-                                <Ionicons name="list-outline" size={20} color="#4B84FF" />
-                            )}
-                            <Text style={styles.secondaryButtonText}>
-                                {`${translations.LBL_UPDATE || 'Update'} ${translations.LBL_FIELD || 'Fields'}`}
+                                {translations.LBL_EMAIL_SETTINGS || 'Settings'}
                             </Text>
                         </TouchableOpacity>
                     </View>

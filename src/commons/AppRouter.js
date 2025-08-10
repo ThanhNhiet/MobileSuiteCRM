@@ -31,6 +31,7 @@ import NoteUpdateScreen from "../pages/note/NoteUpdateScreen";
 //import page profile
 import ChangePasswordScreen from "../pages/profile/ChangePasswordScreen";
 import ProfileScreen from "../pages/profile/ProfileScreen";
+import ProfileSettingScreen from "../pages/profile/ProfileSettingScreen";
 import UpdateProfileScreen from "../pages/profile/UpdateProfileScreen";
 
 //import page task
@@ -85,6 +86,8 @@ export default function AppRouter() {
                 <Stack.Screen name="UpdateProfileScreen" component={UpdateProfileScreen} options={{ headerShown: true, title: "Update Profile" }} />
                 {/*Change Password Screen*/}
                 <Stack.Screen name="ChangePasswordScreen" component={ChangePasswordScreen} options={{ headerShown: true, title: "Change Password" }} />
+                {/*Profile Setting Screen*/}
+                <Stack.Screen name="ProfileSettingScreen" component={ProfileSettingScreen} options={{ headerShown: false}} />
 
                 {/*Calendar Screen*/}
                 <Stack.Screen name="CalendarScreen" component={CalendarScreen} options={{ headerShown: false }} />

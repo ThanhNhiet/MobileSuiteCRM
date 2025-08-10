@@ -88,10 +88,9 @@ WriteCacheView.clearModuleCache = async (module) => {
     }
 };
 
-WriteCacheView.getCurrencyData = async (data) => {
+WriteCacheView.saveCurrencyData = async (data) => {
     try {
         await cacheManager.saveCurrencyData(data);
-        console.log('✅ Currency data written to cache successfully.');
         return true;
     } catch (error) {
         console.error('❌ Error writing currency data:', error);

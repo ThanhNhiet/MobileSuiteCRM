@@ -1,13 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import {
-    getLanguageApi,
-    getSystemLanguageApi,
     getUserDetailFieldsApi,
     getUserProfileApi
 } from '../../api/user/UserApi';
@@ -163,102 +158,6 @@ export const useUserProfile = () => {
         }
     };
 
-    // Function to refresh language cache
-    const refreshLanguageCache = async () => {
-        try {
-            const savedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
-            const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
-            
-            // Delete all language cache files
-            for (const module of modules) {
-                const languageDir = `${FileSystem.documentDirectory}cache/${module}/language/`;
-                const languageFilePath = `${languageDir}${savedLanguage}.json`;
-                
-                try {
-                    const fileInfo = await FileSystem.getInfoAsync(languageFilePath);
-                    if (fileInfo.exists) {
-                        await FileSystem.deleteAsync(languageFilePath);
-                        console.log(`Deleted language cache: ${languageFilePath}`);
-                    }
-                } catch (error) {
-                    console.warn(`Error deleting language cache for ${module}:`, error);
-                }
-            }
-            
-            // Delete system language cache
-            const systemLanguageDir = `${FileSystem.documentDirectory}cache/system/language/`;
-            const systemLanguageFilePath = `${systemLanguageDir}${savedLanguage}.json`;
-            
-            try {
-                const fileInfo = await FileSystem.getInfoAsync(systemLanguageFilePath);
-                if (fileInfo.exists) {
-                    await FileSystem.deleteAsync(systemLanguageFilePath);
-                    console.log(`Deleted system language cache: ${systemLanguageFilePath}`);
-                }
-            } catch (error) {
-                console.warn('Error deleting system language cache:', error);
-            }
-            
-            // Fetch and save new language data
-            try {
-                // Fetch and cache system language
-                const systemLangData = await getSystemLanguageApi(savedLanguage);
-                await cacheManager.saveSystemLanguage(savedLanguage, systemLangData);
-                console.log(`Refreshed system language: ${savedLanguage}`);
-            } catch (error) {
-                console.warn('Error refreshing system language:', error);
-            }
-            
-            // Fetch and cache language for each module
-            for (const module of modules) {
-                try {
-                    const languageData = await getLanguageApi(module, savedLanguage);
-                    await cacheManager.saveModuleLanguage(module, savedLanguage, languageData);
-                    console.log(`Refreshed language for module: ${module} (${savedLanguage})`);
-                } catch (error) {
-                    console.warn(`Error refreshing language for module ${module}:`, error);
-                }
-            }
-            
-            return true;
-        } catch (error) {
-            console.warn('Error refreshing language cache:', error);
-            throw error;
-        }
-    };
-
-    // Function to refresh field metadata cache
-    const refreshFieldsCache = async () => {
-        try {
-            const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
-            
-            // Delete all field metadata cache files
-            for (const module of modules) {
-                const metadataDir = `${FileSystem.documentDirectory}cache/${module}/metadata/`;
-                const fieldFiles = ['listviewdefs.json', 'detailviewdefs.json', 'editviewdefs.json', 'requiredfields.json'];
-                
-                for (const fileName of fieldFiles) {
-                    const filePath = `${metadataDir}${fileName}`;
-                    try {
-                        const fileInfo = await FileSystem.getInfoAsync(filePath);
-                        if (fileInfo.exists) {
-                            await FileSystem.deleteAsync(filePath);
-                            console.log(`Deleted field cache: ${filePath}`);
-                        }
-                    } catch (error) {
-                        console.warn(`Error deleting field cache ${filePath}:`, error);
-                    }
-                }
-            }
-            
-            console.log('Field metadata cache cleared successfully. Cache will be refreshed automatically when navigating to modules.');
-            return true;
-        } catch (error) {
-            console.warn('Error refreshing fields cache:', error);
-            throw error;
-        }
-    };
-
     // Function to fetch profile data
     const fetchProfile = async (isRefresh = false) => {
         try {
@@ -302,8 +201,6 @@ export const useUserProfile = () => {
         refreshProfile,
         fetchProfile,
         fieldLabels,
-        nameFields,
-        refreshLanguageCache,
-        refreshFieldsCache
+        nameFields
     };
 };
