@@ -184,8 +184,8 @@ export default function NoteUpdateScreen() {
 
   // Handle search modal item selection
   const handleSearchModalSelect = async (selectedItem) => {
-    await updateField('parent_name', selectedItem.name);
-    await updateField('parent_id', selectedItem.id); // Store the parent ID
+    updateField('parent_name', selectedItem.name);
+    updateField('parent_id', selectedItem.id); // Store the parent ID
   };
 
   // Load parent type options
@@ -369,7 +369,7 @@ export default function NoteUpdateScreen() {
                   </View>
                 );
               }
-
+  
               // Handle parent_name as search modal
               if (field.key === 'parent_name') {
                 return (

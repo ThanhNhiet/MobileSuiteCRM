@@ -20,7 +20,6 @@ const SearchModulesScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const { parentType, title, onSelect } = route.params || {};
-
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
 

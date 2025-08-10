@@ -176,7 +176,7 @@ export default function AccountDetailScreen() {
             ]}
         >
             <Text style={styles.cardText}>
-                {item.displayName || item.moduleLabel || item.moduleName || item.name}
+                {item.moduleLabel}
             </Text>
         </Pressable>
     );

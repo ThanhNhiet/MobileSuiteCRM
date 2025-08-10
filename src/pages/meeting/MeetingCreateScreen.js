@@ -1,11 +1,12 @@
 import MeetingData from '@/src/services/useApi/meeting/MeetingData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -17,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 const useMeetingCreate = (editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshMeeting) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
@@ -123,7 +124,38 @@ export default function MeetingCreateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { editViews, requiredFields, getFieldLabel: routeGetFieldLabel, getFieldValue: routeGetFieldValue, refreshMeeting: routeRefreshMeeting } = route.params || {};
-
+  const [showParentTypeModal, setShowParentTypeModal] = useState(false);
+  const [selectedParentType, setSelectedParentType] = useState('');
+  const [getParentTypeLabel, setGetParentTypeLabel] = useState('');
+   const systemLanguageUtils = new SystemLanguageUtils.getInstance();
+     const [parentTypeOptions, setParentTypeOptions] = useState([]);
+    useEffect(() => {
+      const initialize = async () => {
+        try {
+           const [
+                      accounts,
+                      notes,
+                      tasks,
+                      meetings,
+                  ] = await Promise.all([
+                      systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
+                      systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
+                      systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
+                      systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
+                  ]);
+                  setParentTypeOptions([
+                    { value: 'Accounts', label: accounts }, 
+                    { value: 'Notes', label: notes },
+                    { value: 'Tasks', label: tasks },
+                    { value: 'Meetings', label: meetings }
+                  ]);
+  
+        } catch (error) {
+          console.error('Error initializing account update screen:', error);
+        }
+      }
+      initialize();
+    }, []);
   // Sử dụng custom hook
   const {
     formData,
@@ -173,6 +205,22 @@ export default function MeetingCreateScreen() {
       setSaving(false);
     }
   };
+  // Handle search modal select
+  const handleParentTypeSelect = (option) => {
+      setSelectedParentType(option.label); // Set label vào TextInput
+      //setFieldValue('parent_type', option.value); // Nếu bạn đang lưu value
+      if (!getFieldValue('parent_type')) {
+      setGetParentTypeLabel(option.value);
+      } else {
+        setGetParentTypeLabel(getFieldLabel('parent_type'));
+      }
+      setShowParentTypeModal(false); // Đóng modal
+  };
+const handleSearchModalSelect = async (selectedItem) => {
+     updateField('parent_name', selectedItem.name);
+     // updateField('parent_id', selectedItem.id); // Store the parent ID
+  };
+
 
   // Show loading state for initialization
   if (!editViews || editViews.length === 0) {
@@ -251,6 +299,60 @@ export default function MeetingCreateScreen() {
                 );
               }
 
+               if (field.key === 'parent_name') {
+                return (
+                  <>
+                    <View key={field.key} style={styles.row}>
+                      <Text style={styles.label}>Parent Type</Text>
+                      <TouchableOpacity
+                        style={[styles.valueBox, fieldError && styles.errorInput]}
+                        onPress={() => setShowParentTypeModal(true)}
+                      >
+                        <Text style={[styles.value, !selectedParentType && styles.placeholderText]}>
+                          {selectedParentType || getFieldValue('parent_type') || '--------'}
+                        </Text>
+                      </TouchableOpacity>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{field.label}</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.valueBox,
+                          fieldError && styles.errorInput,
+                          !selectedParentType && styles.disabledValueBox
+                        ]}
+                        onPress={() => {
+                          if (selectedParentType) {
+                            navigation.navigate('SearchModulesScreen', {
+                              parentType:getParentTypeLabel,
+                              title: selectedParentType,
+                              onSelect: handleSearchModalSelect
+                            });
+                          } else {
+                            Alert.alert(
+                              'Thông báo',
+                              'Vui lòng chọn loại cấp trên trước'
+                            );
+                          }
+                        }}
+                        disabled={!selectedParentType}
+                      >
+                        <Text style={[
+                          styles.value,
+                          !fieldValue && styles.placeholderText,
+                          !selectedParentType && styles.disabledText
+                        ]}>
+                          {fieldValue || '--------'}
+                        </Text>
+                      </TouchableOpacity>
+                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                  </>
+                );
+              }
+              
               return (
                 <View key={field.key} style={styles.row}>
                   <Text style={styles.label}>{field.label} {checkRequired ? '(*)' : ''}</Text>
@@ -294,6 +396,35 @@ export default function MeetingCreateScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+        {/* Modal cho Parent Type */}
+      <Modal
+        visible={showParentTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowParentTypeModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowParentTypeModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContainer}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {parentTypeOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.modalOption}
+                onPress={() => handleParentTypeSelect(option)}
+              >
+                <Text style={styles.modalOptionText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -410,5 +541,48 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    minWidth: 280,
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  placeholderText: {
+    color: '#999',
   },
 });

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -22,7 +23,6 @@ const useAccountUpdate = (account, editViews, listViews, requiredFields, routeGe
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
 
-    const systemLanguageUtils = new SystemLanguageUtils.getInstance();
     
     // Tạo updateAccount từ account và detailFields
     const initializeUpdateAccount = useCallback(() => {
@@ -110,6 +110,7 @@ const useAccountUpdate = (account, editViews, listViews, requiredFields, routeGe
         },
         updateAccount: async () => {
             try {
+
                 setLoading(true);
                 const token = await AsyncStorage.getItem('token');
                 if (!token) {
@@ -179,13 +180,60 @@ const useAccountUpdate = (account, editViews, listViews, requiredFields, routeGe
         },
         resetForm: () => setUpdateAccountData(initializeUpdateAccount()),
         shouldDisplayField: (key) => true,
+        getStyledFieldLabel: useCallback((fieldKey) => {
+            const field = editViews.find(f => f.key === fieldKey);
+            if (!field) return fieldKey;
+
+        if (field.required) {
+            // Tách label và dấu * để có thể style riêng
+            const labelText = field.label.replace(' *', '');
+            return {
+                text: labelText,
+                required: true
+            };
+        }
+
+        return {
+            text: field.label,
+            required: false
+        };
+    }, [editViews]),
     };
 };
 
 export default function AccountUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  
+   const systemLanguageUtils = new SystemLanguageUtils.getInstance();
+   const [parentTypeOptions, setParentTypeOptions] = useState([]);
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+         const [
+                    accounts,
+                    notes,
+                    tasks,
+                    meetings,
+                ] = await Promise.all([
+                    systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
+                    systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
+                    systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
+                    systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
+                ]);
+                setParentTypeOptions([
+                  { value: 'Accounts', label: accounts }, 
+                  { value: 'Notes', label: notes },
+                  { value: 'Tasks', label: tasks },
+                  { value: 'Meetings', label: meetings }
+                ]);
+
+      } catch (error) {
+        console.error('Error initializing account update screen:', error);
+      }
+    }
+    initialize();
+  }, []);
+
   // Safely extract route parameters with fallbacks
   const routeParams = route.params || {};
   const { 
@@ -198,7 +246,6 @@ export default function AccountUpdateScreen() {
     refreshAccount,
     refreshAccountList // Thêm callback để refresh AccountListScreen
   } = routeParams;
-
 
   // Early return if essential data is missing
   if (!routeAccount || !routeEditViews || !routeListViews || !routeRequiredFields) {
@@ -245,18 +292,16 @@ export default function AccountUpdateScreen() {
     getFieldValue,
     getFieldLabel,
     getFieldError,
-    validateForm
+    validateForm,
+    getStyledFieldLabel,
   } = useAccountUpdate( account,routeEditViews, routeListViews, routeRequiredFields,routeGetFieldValueFunc, routeGetFieldLabelFunc, navigation, refreshAccount);
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
-
-
-
+ const [showParentTypeModal, setShowParentTypeModal] = useState(false);
+ const [selectedParentType, setSelectedParentType] = useState('');
+ const [getParentTypeLabel, setGetParentTypeLabel] = useState('');
   
-  
-  
-
   
   // Handle save
   const handleSave = async () => {
@@ -321,6 +366,24 @@ export default function AccountUpdateScreen() {
     }
     return true;
   };
+  // Handle search modal select
+  const handleParentTypeSelect = (option) => {
+  setSelectedParentType(option.label); // Set label vào TextInput
+  //setFieldValue('parent_type', option.value); // Nếu bạn đang lưu value
+  if (!getFieldValue('parent_type')) {
+  setGetParentTypeLabel(option.value);
+  } else {
+    setGetParentTypeLabel(getFieldLabel('parent_type'));
+  }
+  setShowParentTypeModal(false); // Đóng modal
+};
+const handleSearchModalSelect = async (selectedItem) => {
+     updateField('parent_name', selectedItem.name);
+     // updateField('parent_id', selectedItem.id); // Store the parent ID
+  };
+
+
+
 
   // Show loading state for initialization
   if (!editViews || editViews.length === 0 || !account) {
@@ -348,7 +411,6 @@ export default function AccountUpdateScreen() {
       </SafeAreaView>
     );
   }
-  
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -378,35 +440,70 @@ export default function AccountUpdateScreen() {
                 .map((field) => {
                   const fieldError = getFieldError(field.key);
                   const fieldValue = getFieldValue(field.key);
+                
 
-                // Handle account_type as dropdown (simplified for now)
-                if (field.key === 'account_type') {
-                  return (
-                    <View key={field.key} style={styles.row}>
-                      <Text style={styles.label}>{field.label}</Text>
-                      <View style={[styles.valueBox, fieldError && styles.errorInput]}>
-                        <TextInput
-                          style={styles.value}
-                          value={fieldValue}
-                          onChangeText={(value) => updateField(field.key, value)}
-                          placeholder={`Chọn ${field.label.toLowerCase()}`}
-                          autoCapitalize="none"
-                          returnKeyType="done"
-                        />
-                      </View>
-                      {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
-                    </View>
-                  );
-                }
                 if (field.key === 'date_entered' || field.key === 'date_modified') {
                   return null;
                 }
-                if (field.key === 'parent_name' || 
+                if (
                   field.key === 'assigned_user_name'|| 
                   field.key === 'created_by_name'|| 
                   field.key === 'campaign_name'|| 
                   field.key === 'account_type') {
                 return null;
+                }
+               if (field.key === 'parent_name') {
+                  return (
+                    <>
+                      <View style={styles.row}>
+                        <Text style={styles.label}>Parent Type</Text>
+                        <TouchableOpacity
+                          style={[styles.valueBox, fieldError && styles.errorInput]}
+                          onPress={() => setShowParentTypeModal(true)}
+                        >
+                          <Text style={[styles.value, !selectedParentType && styles.placeholderText]}>
+                            {selectedParentType || getFieldValue('parent_type') || '--------'}
+                          </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                      </View>
+
+                      <View style={styles.row}>
+                        <Text style={styles.label}>{field.label}</Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.valueBox,
+                            fieldError && styles.errorInput,
+                            !selectedParentType && styles.disabledValueBox
+                          ]}
+                          onPress={() => {
+                            if (selectedParentType) {
+                              navigation.navigate('SearchModulesScreen', {
+                                parentType:getParentTypeLabel,
+                                title: selectedParentType,
+                                onSelect: handleSearchModalSelect
+                              });
+                            } else {
+                              Alert.alert(
+                                'Thông báo',
+                                'Vui lòng chọn loại cấp trên trước'
+                              );
+                            }
+                          }}
+                          disabled={!selectedParentType}
+                        >
+                          <Text style={[
+                            styles.value,
+                            !fieldValue && styles.placeholderText,
+                            !selectedParentType && styles.disabledText
+                          ]}>
+                            {fieldValue || '--------'}
+                          </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                      </View>
+                    </>
+                  );
                 }
 
                 return (
@@ -460,6 +557,36 @@ export default function AccountUpdateScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+        {/* Modal cho Parent Type */}
+        <Modal
+          visible={showParentTypeModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowParentTypeModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowParentTypeModal(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              {parentTypeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.modalOption}
+                  onPress={() => handleParentTypeSelect(option)}
+                >
+                  <Text style={styles.modalOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -490,21 +617,18 @@ const styles = StyleSheet.create({
   },
 
   /* Ô HỒNG */
-  valueBox: {
-    backgroundColor: '#e07c7c',     // hồng nhạt
-    borderRadius: 6,
+valueBox: {
+    backgroundColor: '#e1e5e9',
+    borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    width: '90%',
-    alignSelf: 'center',
-    justifyContent: 'center',
-
-    // bóng nhẹ (Android sẽ dùng elevation, iOS dùng shadow…)
-    elevation: 2,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d0d5dd',
     shadowColor: '#000',
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
+    elevation: 1,
   },
 
   /* CHỮ TRONG Ô HỒNG */
@@ -568,5 +692,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
     elevation: 0,
     shadowOpacity: 0,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    minWidth: 280,
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  placeholderText: {
+    color: '#999',
   },
 });

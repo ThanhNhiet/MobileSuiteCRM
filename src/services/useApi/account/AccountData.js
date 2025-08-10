@@ -1,8 +1,7 @@
 import ReadCacheView from '../../../utils/cacheViewManagement/Accounts/ReadCacheView';
 import WriteCacheView from '../../../utils/cacheViewManagement/Accounts/WriteCacheView';
-import { getUserIdFromToken } from '../../../utils/DecodeToken';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import AccountApi from '../../api/account/AccountApi';
-
 
 const AccountData = {};
 
@@ -202,7 +201,7 @@ AccountData.useListData = async (token, page, pageSize, language) => {
       AccountData.getLanguageModule(token, language),
       AccountData.getDataByPage(token, page, pageSize)
     ]);
-    console.log('✅ Tất cả dữ liệu đã được tải thành công', getUserIdFromToken(token));
+   
 
 
     // console.log('📊 Data loaded:', {
@@ -402,6 +401,20 @@ AccountData.CreateAccount = async (accountData, token) => {
 AccountData.getRelationships = async (token, accountId) => {
   try {
     const relationshipsResponse = await AccountApi.getRelationships(token, accountId);
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const importantModules = ['Notes', 'Accounts', 'Tasks', 'Meetings'];
+    const filterTranslations = await systemLanguageUtils.translateKeys([
+                'LBL_ACCOUNTS', // "Khách hàng"
+                'LBL_NOTES', // "Ghi chú"
+                'LBL_TASKS', // "Công việc"
+                'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
+            ]);
+    const language = [
+        {value:'Accounts',label:filterTranslations.LBL_ACCOUNTS || 'Khách hàng'},
+        {value:'Notes',label:filterTranslations.LBL_NOTES || 'Ghi chú'},
+        {value:'Tasks',label:filterTranslations.LBL_TASKS || 'Công việc'},
+        {value:'Meetings',label:filterTranslations.LBL_MEETINGS || 'Hội họp'}
+    ];
     if (!relationshipsResponse?.data) {
       return null;
     }
@@ -412,11 +425,14 @@ AccountData.getRelationships = async (token, accountId) => {
     }
 
     const relationshipsArray = Object.entries(relationshipsData).map(([moduleName, relationData]) => {
+      const labelItem = language.find(
+        (item) => item.value.toLowerCase() === moduleName.toLowerCase()
+      );
       return {
         id: moduleName.toLowerCase(),
         moduleName,
-        displayName: moduleName, // hoặc có thể dùng hàm khác nếu bạn có getModuleDisplayName
-        moduleLabel: moduleName,
+        displayName: moduleName,
+        moduleLabel: labelItem?.label || moduleName,
         moduleLabelSingular: moduleName,
         moduleTable: moduleName.toLowerCase(),
         relatedLink: relationData.links?.related || '',
@@ -424,7 +440,6 @@ AccountData.getRelationships = async (token, accountId) => {
       };
     });
 
-    const importantModules = ['Notes', 'Accounts', 'Tasks', 'Calls'];
     const sortedRelationships = relationshipsArray
       .filter(rel => importantModules.includes(rel.moduleName))
       .sort((a, b) => {
@@ -434,8 +449,7 @@ AccountData.getRelationships = async (token, accountId) => {
 
     return {
       relationships: sortedRelationships,
-      allRelationships: relationshipsArray,
-      moduleMetadata: null // vì không còn metaResponse
+      allRelationships: relationshipsArray
     };
   } catch (error) {
     console.error('getRelationships error:', error);

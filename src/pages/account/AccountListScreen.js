@@ -1,3 +1,5 @@
+import { formatDateTime } from '@/src/utils/format/FormatDateTime';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
@@ -11,18 +13,14 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-
-import { formatDateTime } from '@/src/utils/format/FormatDateTime';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import AccountData from '../../services/useApi/account/AccountData';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 export default function AccountListScreen() {
     const navigation = useNavigation();
     const mdName = 'Khách hàng';
-
     const [page, setPage] = useState(1);
     const totalPages = 10;
 
@@ -32,8 +30,8 @@ export default function AccountListScreen() {
     const [loading, setLoading] = useState(true);
 
     // State cho dropdown
-    const [selectedType1, setSelectedType1] = useState('All');
-    const [selectedType2, setSelectedType2] = useState('All');
+    const [selectedType1, setSelectedType1] = useState('Tất cả người dùng');
+    const [selectedType2, setSelectedType2] = useState('Tất cả');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
@@ -43,9 +41,40 @@ export default function AccountListScreen() {
 
     // Options cho dropdown
    // const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
     const [typeOptions1, setTypeOptions1] = useState([]);
-    const typeOptions2 = ['All', 'Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month'];
-     
+    const [typeOptions2, setTypeOptions2] = useState([]);
+    useEffect(() => {
+        const setFilterTranslations = async () => {
+            const filterTranslations = await systemLanguageUtils.translateKeys([
+                'all',  // "Tất cả"
+                'LBL_ACCOUNTS', // "Khách hàng"
+                'LBL_CONTACTS', // "Liên hệ"
+                'LBL_TASKS', // "Công việc"
+                'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
+                'LBL_DROPDOWN_LIST_ALL', // "Tất cả"
+                'today',    // "Hôm nay"
+                'this_week', // "Tuần này"
+                'this_month' // "Tháng này"
+            ]);
+            setTypeOptions1([
+                { value: 'all', label: filterTranslations.all || 'Tất cả' },
+                { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS || 'Khách hàng' },
+                { value: 'Contacts', label: filterTranslations.LBL_CONTACTS || 'Liên hệ' },
+                { value: 'Tasks', label: filterTranslations.LBL_TASKS || 'Công việc' },
+                { value: 'Meetings', label: filterTranslations.LBL_MEETINGS || 'Hội họp' }
+                ]);
+                // Set time filter options with translations
+                setTypeOptions2([
+                    { value: 'all', label: filterTranslations.LBL_DROPDOWN_LIST_ALL || 'Tất cả' },
+                    { value: 'today', label: filterTranslations.today || 'Hôm nay' },
+                    { value: 'this_week', label: filterTranslations.this_week || 'Tuần này' },
+                    { value: 'this_month', label: filterTranslations.this_month || 'Tháng này' }
+                ]);
+            };
+        setFilterTranslations();
+    }, []);
+
     // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
     const visiblePages = [page];
 
@@ -104,16 +133,16 @@ export default function AccountListScreen() {
     }, []);
     useEffect(() => {
         if (!apiData) return;
-        const editViews = apiData?.editViews || {};
-        setTypeOptions1(['All', ...Object.entries(editViews).map(([_, view]) => view.label)]);
+        // const editViews = apiData?.editViews || {};
+        // setTypeOptions1(['All', ...Object.entries(editViews).map(([_, view]) => view.label)]);
         setFilteredData(apiData?.accounts || []); // Khởi tạo filtered data
     }, [apiData]);
 
     // Function để tìm kiếm và lọc dữ liệu
-    const filterData = (searchQuery, fieldFilter, dateFilter) => {
-        if (!apiData?.accounts) return [];
+     const filterData = (searchQuery, fieldFilter, dateFilter) => {
+         if (!apiData?.accounts) return [];
 
-        let filtered = apiData.accounts;
+         let filtered = apiData.accounts;
 
         // Filter theo search text
         if (searchQuery && searchQuery.trim() !== '') {
@@ -128,19 +157,21 @@ export default function AccountListScreen() {
         }
 
         // Filter theo field (dropdown 1)
-        if (fieldFilter && fieldFilter !== 'All') {
+        if (fieldFilter && fieldFilter !== typeOptions1[0].label) {
             // Tìm field tương ứng với label được chọn
-            const selectedField = apiData.detailFields?.find(field => field.label === fieldFilter);
-            if (selectedField) {
+            const valueField = typeOptions1.find(option => option.label === fieldFilter);
+            if (valueField) {
                 filtered = filtered.filter(account => {
-                    const value = apiData.getFieldValue(account, selectedField.key);
+                    // Lấy giá trị của field tương ứng
+                    const fieldKey = account[valueField];
+                    const value = apiData.getFieldValue(account, fieldKey);
                     return value && value.toString().trim() !== '';
                 });
             }
         }
 
         // Filter theo date created (dropdown 2)
-        if (dateFilter && dateFilter !== 'All') {
+        if (dateFilter && dateFilter !== typeOptions2[0].label) {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -160,33 +191,16 @@ export default function AccountListScreen() {
                     case 'Today':
                         return accountDateOnly.getTime() === today.getTime();
                     
-                    case 'Yesterday':
-                        const yesterday = new Date(today);
-                        yesterday.setDate(today.getDate() - 1);
-                        return accountDateOnly.getTime() === yesterday.getTime();
-                    
                     case 'This Week':
                         const startOfWeek = new Date(today);
                         startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
                         const endOfWeek = new Date(startOfWeek);
                         endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
                         return accountDateOnly >= startOfWeek && accountDateOnly <= endOfWeek;
-                    
-                    case 'Last Week':
-                        const lastWeekStart = new Date(today);
-                        lastWeekStart.setDate(today.getDate() - today.getDay() - 7); // Sunday of last week
-                        const lastWeekEnd = new Date(lastWeekStart);
-                        lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Saturday of last week
-                        return accountDateOnly >= lastWeekStart && accountDateOnly <= lastWeekEnd;
-                    
+                      
                     case 'This Month':
                         return accountDate.getMonth() === now.getMonth() && 
                                accountDate.getFullYear() === now.getFullYear();
-                    
-                    case 'Last Month':
-                        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                        return accountDate.getMonth() === lastMonth.getMonth() && 
-                               accountDate.getFullYear() === lastMonth.getFullYear();
                     
                     default:
                         return true;
@@ -204,9 +218,10 @@ export default function AccountListScreen() {
 
     // Function để reset search
     const handleReset = () => {
+        
         setSearchText('');
-        setSelectedType1('All');
-        setSelectedType2('All');
+        setSelectedType1(typeOptions1[0].label);
+        setSelectedType2(typeOptions2[0].label);
         setFilteredData(apiData?.accounts || []);
     };
 
@@ -270,18 +285,18 @@ export default function AccountListScreen() {
                             key={index}
                             style={[
                                 styles.dropdownItem,
-                                option === selectedValue && styles.selectedItem
+                                option.label === selectedValue && styles.selectedItem
                             ]}
                             onPress={() => {
-                                onSelect(option);
+                                onSelect(option.label);
                                 onClose();
                             }}
                         >
                             <Text style={[
                                 styles.dropdownText,
-                                option === selectedValue && styles.selectedText
+                                option.label === selectedValue && styles.selectedText
                             ]}>
-                                {option}
+                                {option.label}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -317,7 +332,7 @@ export default function AccountListScreen() {
                                     style={styles.select} 
                                     onPress={() => setShowDropdown1(true)}
                                 >
-                                    <Text numberOfLines={1} style={{ flex: 1 }}>{selectedType1}</Text>
+                                    <Text numberOfLines={1} style={{}}>{selectedType1}</Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
