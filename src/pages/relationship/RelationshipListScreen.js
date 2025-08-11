@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RelationshipsData from '../../services/useApi/relationship/RelationshipData';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 export default function RelationshipListScreen() {
     const navigation = useNavigation();
     const route = useRoute();
@@ -28,23 +29,61 @@ export default function RelationshipListScreen() {
     const [apiData, setApiData] = useState(null);
     // loading state
     const [loading, setLoading] = useState(true);
+    // State cho tìm kiếm
+    const [searchText, setSearchText] = useState('');
+    const [filteredData, setFilteredData] = useState([]);
 
     // State cho dropdown
-    const [selectedType1, setSelectedType1] = useState('All');
-    const [selectedType2, setSelectedType2] = useState('All');
+    const [selectedType1, setSelectedType1] = useState('');
+    const [selectedType2, setSelectedType2] = useState('');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
     // Options cho dropdown
-    const typeOptions1 = ['All', 'Personal', 'Business', 'Important'];
-    const typeOptions2 = ['All', 'Today', 'This Week', 'This Month'];
-
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    // Options cho dropdown
+    const [typeOptions1, setTypeOptions1] = useState([]);
+    const [typeOptions2, setTypeOptions2] = useState([]);
+     useEffect(() => {
+        const setFilterTranslations = async () => {
+            const filterTranslations = await systemLanguageUtils.translateKeys([
+                'all',  // "Tất cả"
+                'LBL_ACCOUNTS', // "Khách hàng"
+                'LBL_CONTACTS', // "Liên hệ"
+                'LBL_TASKS', // "Công việc"
+                'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
+                'LBL_DROPDOWN_LIST_ALL', // "Tất cả"
+                'today',    // "Hôm nay"
+                'this_week', // "Tuần này"
+                'this_month' // "Tháng này"
+            ]);
+            setTypeOptions1([
+                { value: 'all', label: filterTranslations.all || 'Tất cả' },
+                { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS || 'Khách hàng' },
+                { value: 'Contacts', label: filterTranslations.LBL_CONTACTS || 'Liên hệ' },
+                { value: 'Tasks', label: filterTranslations.LBL_TASKS || 'Công việc' },
+                { value: 'Meetings', label: filterTranslations.LBL_MEETINGS || 'Hội họp' }
+                ]);
+                // Set time filter options with translations
+                setTypeOptions2([
+                    { value: 'all', label: filterTranslations.LBL_DROPDOWN_LIST_ALL || 'Tất cả' },
+                    { value: 'today', label: filterTranslations.today || 'Hôm nay' },
+                    { value: 'this_week', label: filterTranslations.this_week || 'Tuần này' },
+                    { value: 'this_month', label: filterTranslations.this_month || 'Tháng này' }
+                ]);
+            };
+        setFilterTranslations();
+    }, []);
+    useEffect(() => {
+        setSelectedType1(typeOptions1[0]?.label); // Mặc định chọn "Tất cả"
+        setSelectedType2(typeOptions2[0]?.label); // Mặc định chọn "Tất cả"
+    },[typeOptions1, typeOptions2]);
     // Tính danh sách trang hiển thị (tối đa 3 trang)
-    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+    const visiblePages = [page];
 
     // Vô hiệu hóa khi ở đầu/cuối
     const isPrevDisabled = startPage === 1;
-    const isNextDisabled = startPage + 2 >= totalPages;
+    const isNextDisabled = startPage >= totalPages;
 
     const handlePrev = () => {
         if (!isPrevDisabled) {
@@ -94,6 +133,7 @@ export default function RelationshipListScreen() {
                 relationship.relatedLink
             );
             setApiData(result);
+            setFilteredData(result?.relationships || []);
         } catch (error) {
             console.error('💥 Lỗi lấy dữ liệu trang', pageNumber, ':', error);
         } finally {
@@ -105,9 +145,94 @@ export default function RelationshipListScreen() {
     }, [page]);
 
 
-    const handleSearch = () => {
-        // Xử lý tìm kiếm
-    };
+   
+       // Function để tìm kiếm và lọc dữ liệu
+       const searchData = async (searchQuery, fieldFilter) => {
+              let filtered = apiData?.meetings || [];
+              console.log(searchQuery, fieldFilter);
+              if (
+                  fieldFilter &&
+                  fieldFilter !== typeOptions1[0].label &&
+                  searchQuery &&
+                  searchQuery.trim() !== ''
+              ) {
+                  const valueFilter = typeOptions1.find(option => option.label === fieldFilter)?.value;
+      
+                  const searchResult = await MeetingData.getSearchKeyWords(valueFilter, searchQuery, page);
+   
+                  filtered = filtered.filter(meeting => {
+                      return searchResult.some(result => result.id === meeting.id);
+                  });
+              }
+              return filtered;
+              };
+      
+          // Function để tìm kiếm và lọc dữ liệu
+           const filterData = async (searchQuery, dateFilter) => {
+               if (!apiData?.meetings) return [];
+              let filtered = apiData?.meetings;
+              // Filter theo date created (dropdown 2)
+              if (dateFilter && dateFilter !== typeOptions2[0].label) {
+                  const now = new Date();
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+   
+                  filtered = filtered.filter(meeting => {
+                      const dateCreated = apiData.getFieldValue(meeting, 'date_entered') || 
+                                        apiData.getFieldValue(meeting, 'date_created') ||
+                                        apiData.getFieldValue(meeting, 'created_date');
+   
+                      if (!dateCreated) return false;
+   
+                      const meetingDate = new Date(dateCreated);
+                      if (isNaN(meetingDate.getTime())) return false;
+   
+                      const meetingDateOnly = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
+   
+                      switch (dateFilter) {
+                          case 'Today':
+                              return meetingDateOnly.getTime() === today.getTime();
+   
+                          case 'This Week':
+                              const startOfWeek = new Date(today);
+                              startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+                              const endOfWeek = new Date(startOfWeek);
+                              endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+                              return meetingDateOnly >= startOfWeek && meetingDateOnly <= endOfWeek;
+   
+                          case 'This Month':
+                              return meetingDate.getMonth() === now.getMonth() && 
+                                     meetingDate.getFullYear() === now.getFullYear();
+   
+                          default:
+                              return true;
+                      }
+                  });
+              }
+      
+              return filtered;
+          };
+      
+   
+       const handleSearch =async () => {
+           if (!searchText.trim() && selectedType1 !== typeOptions1[0].label ) {
+               console.log('Search text is empty, using selected type:', selectedType1);
+               console.log('Selected type:', searchText);
+               const filtered = await searchData(searchText, selectedType1);
+               setFilteredData(filtered);
+           } else {
+               const filtered =  filterData(searchText, selectedType2);
+               setFilteredData(filtered);
+           }
+       };
+   
+       // Function để reset search
+       const handleReset = () => {
+           setSearchText('');
+           setSelectedType1(typeOptions1[0].label);
+           setSelectedType2(typeOptions2[0].label);
+           setFilteredData(apiData?.meetings || []);
+       };
+   
 
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
@@ -213,18 +338,18 @@ export default function RelationshipListScreen() {
                             key={index}
                             style={[
                                 styles.dropdownItem,
-                                option === selectedValue && styles.selectedItem
+                                option.label === selectedValue && styles.selectedItem
                             ]}
                             onPress={() => {
-                                onSelect(option);
+                                onSelect(option.label);
                                 onClose();
                             }}
                         >
                             <Text style={[
                                 styles.dropdownText,
-                                option === selectedValue && styles.selectedText
+                                option.label === selectedValue && styles.selectedText
                             ]}>
-                                {option}
+                                {option.label}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -268,6 +393,9 @@ export default function RelationshipListScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
                                 <Text style={{ color: '#fff' }}>Tìm</Text>
+                            </TouchableOpacity>
+                             <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+                                <Text style={{ color: '#666' }}>Reset</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -339,7 +467,7 @@ export default function RelationshipListScreen() {
                     </View>
                 ) : (
                     <FlatList
-                        data={apiData?.relationships || []}
+                        data={filteredData}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id}
                         style={styles.list}
@@ -540,7 +668,6 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         backgroundColor: 'white',
         minWidth: 150,
-        maxHeight: 200,
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: {

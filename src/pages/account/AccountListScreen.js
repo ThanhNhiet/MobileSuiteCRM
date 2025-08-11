@@ -18,6 +18,7 @@ import TopNavigation from '../../components/navigations/TopNavigation';
 import AccountData from '../../services/useApi/account/AccountData';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
+
 export default function AccountListScreen() {
     const navigation = useNavigation();
     const mdName = 'Khách hàng';
@@ -30,8 +31,8 @@ export default function AccountListScreen() {
     const [loading, setLoading] = useState(true);
 
     // State cho dropdown
-    const [selectedType1, setSelectedType1] = useState('Tất cả người dùng');
-    const [selectedType2, setSelectedType2] = useState('Tất cả');
+    const [selectedType1, setSelectedType1] = useState('');
+    const [selectedType2, setSelectedType2] = useState('');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
@@ -74,6 +75,11 @@ export default function AccountListScreen() {
             };
         setFilterTranslations();
     }, []);
+    useEffect(() => {
+        setSelectedType1(typeOptions1[0]?.label); // Mặc định chọn "Tất cả"
+        setSelectedType2(typeOptions2[0]?.label); // Mặc định chọn "Tất cả"
+    },[typeOptions1, typeOptions2]);
+
 
     // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
     const visiblePages = [page];
@@ -120,7 +126,7 @@ export default function AccountListScreen() {
             //token, page, pageSize, language
             const result = await AccountData.useListData(token, pageNumber, 20, language);
             setApiData(result);
-           
+           //console.log('Dữ liệu trang', pageNumber, ':', result.accounts);
            // console.log('Dữ liệu trang', pageNumber, ':', result.listViews);
         } catch (error) {
             console.error('Lỗi lấy dữ liệu trang', pageNumber, ':', error);
@@ -133,43 +139,32 @@ export default function AccountListScreen() {
     }, []);
     useEffect(() => {
         if (!apiData) return;
-        // const editViews = apiData?.editViews || {};
-        // setTypeOptions1(['All', ...Object.entries(editViews).map(([_, view]) => view.label)]);
         setFilteredData(apiData?.accounts || []); // Khởi tạo filtered data
     }, [apiData]);
 
-    // Function để tìm kiếm và lọc dữ liệu
-     const filterData = (searchQuery, fieldFilter, dateFilter) => {
-         if (!apiData?.accounts) return [];
+    const searchData = async (searchQuery, fieldFilter) => {
+        let filtered = apiData?.accounts || [];
+        if (
+            fieldFilter &&
+            fieldFilter !== typeOptions1[0].label &&
+            searchQuery &&
+            searchQuery.trim() !== ''
+        ) {
+            const valueFilter = typeOptions1.find(option => option.label === fieldFilter)?.value;
 
-         let filtered = apiData.accounts;
+            const searchResult = await AccountData.getSearchKeyWords(valueFilter, searchQuery, page);
 
-        // Filter theo search text
-        if (searchQuery && searchQuery.trim() !== '') {
-            const searchLower = searchQuery.toLowerCase();
             filtered = filtered.filter(account => {
-                // Tìm kiếm trong tất cả các fields
-                return apiData.detailFields?.some(field => {
-                    const value = apiData.getFieldValue(account, field.key);
-                    return value && value.toString().toLowerCase().includes(searchLower);
-                });
+                return searchResult.some(result => result.id === account.id);
             });
         }
+        return filtered;
+        };
 
-        // Filter theo field (dropdown 1)
-        if (fieldFilter && fieldFilter !== typeOptions1[0].label) {
-            // Tìm field tương ứng với label được chọn
-            const valueField = typeOptions1.find(option => option.label === fieldFilter);
-            if (valueField) {
-                filtered = filtered.filter(account => {
-                    // Lấy giá trị của field tương ứng
-                    const fieldKey = account[valueField];
-                    const value = apiData.getFieldValue(account, fieldKey);
-                    return value && value.toString().trim() !== '';
-                });
-            }
-        }
-
+    // Function để tìm kiếm và lọc dữ liệu
+     const filterData = async (searchQuery, dateFilter) => {
+         if (!apiData?.accounts) return [];
+        let filtered = apiData?.accounts;
         // Filter theo date created (dropdown 2)
         if (dateFilter && dateFilter !== typeOptions2[0].label) {
             const now = new Date();
@@ -211,27 +206,24 @@ export default function AccountListScreen() {
         return filtered;
     };
 
-    const handleSearch = () => {
-        const filtered = filterData(searchText, selectedType1, selectedType2);
-        setFilteredData(filtered);
+    const handleSearch =async () => {
+        if (!searchText.trim() && selectedType1 !== typeOptions1[0].label ) {
+            const filtered = await searchData(searchText, selectedType1);
+            console.log('Search text is empty, using selected type:', selectedType1);
+            setFilteredData(filtered);
+        } else {
+            const filtered =  filterData(searchText, selectedType2);
+            setFilteredData(filtered);
+        }
     };
 
     // Function để reset search
     const handleReset = () => {
-        
         setSearchText('');
         setSelectedType1(typeOptions1[0].label);
         setSelectedType2(typeOptions2[0].label);
         setFilteredData(apiData?.accounts || []);
     };
-
-    // Auto search khi thay đổi filters
-    useEffect(() => {
-        if (apiData?.accounts) {
-            const filtered = filterData(searchText, selectedType1, selectedType2);
-            setFilteredData(filtered);
-        }
-    }, [searchText, selectedType1, selectedType2, apiData]);
 
     const renderItem = ({ item }) => {
         // Lấy 3 fields đầu tiên (không bao gồm id) để hiển thị
@@ -322,7 +314,6 @@ export default function AccountListScreen() {
                                     placeholder="Tìm kiếm..." 
                                     value={searchText}
                                     onChangeText={setSearchText}
-                                    onSubmitEditing={handleSearch}
                                     returnKeyType="search"
                                 />
                             </View>

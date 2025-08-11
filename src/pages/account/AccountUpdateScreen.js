@@ -586,7 +586,6 @@ const handleSearchModalSelect = async (selectedItem) => {
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
-
       </SafeAreaView>
     </SafeAreaProvider>
   );

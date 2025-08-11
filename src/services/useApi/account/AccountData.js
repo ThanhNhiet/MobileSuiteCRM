@@ -1,3 +1,4 @@
+import { searchModulesApi } from '../../../services/api/external/ExternalApi';
 import ReadCacheView from '../../../utils/cacheViewManagement/Accounts/ReadCacheView';
 import WriteCacheView from '../../../utils/cacheViewManagement/Accounts/WriteCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
@@ -397,6 +398,22 @@ AccountData.CreateAccount = async (accountData, token) => {
     return null;
   }
 };
+
+AccountData.getSearchKeyWords = async (parent_type, keyword, page) => {
+  try {
+    const response = await searchModulesApi(parent_type, keyword, page);
+    if (!response || !response.data) {
+      return null;
+    }
+    const searchResults = response.data.map(item => ({
+      name:item.name,
+      id:item.id
+    }));
+    return searchResults;
+  } catch (error) {
+    console.error('💥 Error in getSearchKeyWords:', error);
+  }
+}
 
 AccountData.getRelationships = async (token, accountId) => {
   try {

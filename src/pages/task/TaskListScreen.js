@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import TaskData from '../../services/useApi/task/TaskData';
-
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 export default function TaskListScreen() {
     const navigation = useNavigation();
     const mdName = 'Công việc';
@@ -32,8 +32,8 @@ export default function TaskListScreen() {
     const [loading, setLoading] = useState(true);
 
     // State cho dropdown
-    const [selectedType1, setSelectedType1] = useState('All');
-    const [selectedType2, setSelectedType2] = useState('All');
+    const [selectedType1, setSelectedType1] = useState('');
+    const [selectedType2, setSelectedType2] = useState('');
     const [showDropdown1, setShowDropdown1] = useState(false);
     const [showDropdown2, setShowDropdown2] = useState(false);
 
@@ -42,9 +42,45 @@ export default function TaskListScreen() {
     const [filteredData, setFilteredData] = useState([]);
 
     // Options cho dropdown
+   const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    // Options cho dropdown
     const [typeOptions1, setTypeOptions1] = useState([]);
-    const typeOptions2 = ['All', 'Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month'];
-
+    const [typeOptions2, setTypeOptions2] = useState([]);
+     useEffect(() => {
+        const setFilterTranslations = async () => {
+            const filterTranslations = await systemLanguageUtils.translateKeys([
+                'all',  // "Tất cả"
+                'LBL_ACCOUNTS', // "Khách hàng"
+                'LBL_CONTACTS', // "Liên hệ"
+                'LBL_TASKS', // "Khách hàng tiềm năng"
+                'LBL_TASKS', // "Công việc"
+                'LBL_MEETINGS', // "Hội họp" -> tương đương meetings
+                'LBL_DROPDOWN_LIST_ALL', // "Tất cả"
+                'today',    // "Hôm nay"
+                'this_week', // "Tuần này"
+                'this_month' // "Tháng này"
+            ]);
+            setTypeOptions1([
+                { value: 'all', label: filterTranslations.all || 'Tất cả' },
+                { value: 'Accounts', label: filterTranslations.LBL_ACCOUNTS || 'Khách hàng' },
+                { value: 'Contacts', label: filterTranslations.LBL_CONTACTS || 'Liên hệ' },
+                { value: 'Tasks', label: filterTranslations.LBL_TASKS || 'Công việc' },
+                { value: 'Meetings', label: filterTranslations.LBL_MEETINGS || 'Hội họp' }
+                ]);
+                // Set time filter options with translations
+                setTypeOptions2([
+                    { value: 'all', label: filterTranslations.LBL_DROPDOWN_LIST_ALL || 'Tất cả' },
+                    { value: 'today', label: filterTranslations.today || 'Hôm nay' },
+                    { value: 'this_week', label: filterTranslations.this_week || 'Tuần này' },
+                    { value: 'this_month', label: filterTranslations.this_month || 'Tháng này' }
+                ]);
+            };
+        setFilterTranslations();
+    }, []);
+    useEffect(() => {
+        setSelectedType1(typeOptions1[0]?.label); // Mặc định chọn "Tất cả"
+        setSelectedType2(typeOptions2[0]?.label); // Mặc định chọn "Tất cả"
+    },[typeOptions1, typeOptions2]);
     // Tính danh sách trang hiển thị (chỉ hiển thị 1 trang hiện tại)
     const visiblePages = [page];
 
@@ -89,7 +125,6 @@ export default function TaskListScreen() {
             
             // Lấy dữ liệu với 20 dòng mỗi trang
             const result = await TaskData.useListData(token, pageNumber, 20, language);
-            setTypeOptions1(['All', ...result.editViews.map(field => field.label)]);
             setApiData(result);
             setFilteredData(result.tasks || []); // Khởi tạo filtered data
             
@@ -101,114 +136,89 @@ export default function TaskListScreen() {
     };
 
     // Function để tìm kiếm và lọc dữ liệu
-    const filterData = (searchQuery, fieldFilter, dateFilter) => {
-        if (!apiData?.tasks) return [];
+    const searchData = async (searchQuery, fieldFilter) => {
+               let filtered = apiData?.tasks || [];
+               if (
+                   fieldFilter &&
+                   fieldFilter !== typeOptions1[0].label &&
+                   searchQuery &&
+                   searchQuery.trim() !== ''
+               ) {
+                   const valueFilter = typeOptions1.find(option => option.label === fieldFilter)?.value;
+       
+                   const searchResult = await TaskData.getSearchKeyWords(valueFilter, searchQuery, page);
 
-        let filtered = apiData.tasks;
+                   filtered = filtered.filter(task => {
+                       return searchResult.some(result => result.id === task.id);
+                   });
+               }
+               return filtered;
+               };
+       
+           // Function để tìm kiếm và lọc dữ liệu
+            const filterData = async (searchQuery, dateFilter) => {
+                if (!apiData?.tasks) return [];
+               let filtered = apiData?.tasks;
+               // Filter theo date created (dropdown 2)
+               if (dateFilter && dateFilter !== typeOptions2[0].label) {
+                   const now = new Date();
+                   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        // Filter theo search text
-        if (searchQuery && searchQuery.trim() !== '') {
-            const searchLower = searchQuery.toLowerCase();
-            filtered = filtered.filter(task => {
-                // Tìm kiếm trong tất cả các fields
-                return apiData.editViews?.some(field => {
-                    const value = apiData.getFieldValue(task, field.key);
-                    return value && value.toString().toLowerCase().includes(searchLower);
-                });
-            });
-        }
+                   filtered = filtered.filter(task => {
+                       const dateCreated = apiData.getFieldValue(task, 'date_entered') ||
+                                         apiData.getFieldValue(task, 'date_created') ||
+                                         apiData.getFieldValue(task, 'created_date');
 
-        // Filter theo field (dropdown 1)
-        if (fieldFilter && fieldFilter !== 'All') {
-            // Tìm field tương ứng với label được chọn
-            const selectedField = apiData.editViews?.find(field => field.label === fieldFilter);
-            if (selectedField) {
-                filtered = filtered.filter(task => {
-                    const value = apiData.getFieldValue(task, selectedField.key);
-                    return value && value.toString().trim() !== '';
-                });
+                       if (!dateCreated) return false;
+
+                       const taskDate = new Date(dateCreated);
+                       if (isNaN(taskDate.getTime())) return false;
+
+                       const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+
+                       switch (dateFilter) {
+                           case 'Today':
+                               return taskDateOnly.getTime() === today.getTime();
+
+                           case 'This Week':
+                               const startOfWeek = new Date(today);
+                               startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+                               const endOfWeek = new Date(startOfWeek);
+                               endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+                               return taskDateOnly >= startOfWeek && taskDateOnly <= endOfWeek;
+
+                           case 'This Month':
+                               return taskDate.getMonth() === now.getMonth() && 
+                                      taskDate.getFullYear() === now.getFullYear();
+
+                           default:
+                               return true;
+                       }
+                   });
+               }
+       
+               return filtered;
+           };
+       
+    
+        const handleSearch =async () => {
+            if (!searchText.trim() && selectedType1 !== typeOptions1[0].label ) {
+                const filtered = await searchData(searchText, selectedType1);
+                setFilteredData(filtered);
+            } else {
+                const filtered =  filterData(searchText, selectedType2);
+                setFilteredData(filtered);
             }
-        }
-
-        // Filter theo date created (dropdown 2)
-        if (dateFilter && dateFilter !== 'All') {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-            filtered = filtered.filter(task => {
-                const dateCreated = apiData.getFieldValue(task, 'date_entered') || 
-                                  apiData.getFieldValue(task, 'date_created') ||
-                                  apiData.getFieldValue(task, 'created_date');
-                
-                if (!dateCreated) return false;
-
-                const taskDate = new Date(dateCreated);
-                if (isNaN(taskDate.getTime())) return false;
-
-                const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
-
-                switch (dateFilter) {
-                    case 'Today':
-                        return taskDateOnly.getTime() === today.getTime();
-                    
-                    case 'Yesterday':
-                        const yesterday = new Date(today);
-                        yesterday.setDate(today.getDate() - 1);
-                        return taskDateOnly.getTime() === yesterday.getTime();
-                    
-                    case 'This Week':
-                        const startOfWeek = new Date(today);
-                        startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
-                        const endOfWeek = new Date(startOfWeek);
-                        endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
-                        return taskDateOnly >= startOfWeek && taskDateOnly <= endOfWeek;
-                    
-                    case 'Last Week':
-                        const lastWeekStart = new Date(today);
-                        lastWeekStart.setDate(today.getDate() - today.getDay() - 7); // Sunday of last week
-                        const lastWeekEnd = new Date(lastWeekStart);
-                        lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Saturday of last week
-                        return taskDateOnly >= lastWeekStart && taskDateOnly <= lastWeekEnd;
-                    
-                    case 'This Month':
-                        return taskDate.getMonth() === now.getMonth() && 
-                               taskDate.getFullYear() === now.getFullYear();
-                    
-                    case 'Last Month':
-                        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                        return taskDate.getMonth() === lastMonth.getMonth() && 
-                               taskDate.getFullYear() === lastMonth.getFullYear();
-                    
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        return filtered;
-    };
-
-    const handleSearch = () => {
-        const filtered = filterData(searchText, selectedType1, selectedType2);
-        setFilteredData(filtered);
-    };
-
-    // Function để reset search
-    const handleReset = () => {
-        setSearchText('');
-        setSelectedType1('All');
-        setSelectedType2('All');
-        setFilteredData(apiData?.tasks || []);
-    };
-
-    // Auto search khi thay đổi filters
-    useEffect(() => {
-        if (apiData?.tasks) {
-            const filtered = filterData(searchText, selectedType1, selectedType2);
-            setFilteredData(filtered);
-        }
-    }, [searchText, selectedType1, selectedType2, apiData]);
-
+        };
+    
+        // Function để reset search
+        const handleReset = () => {
+            setSearchText('');
+            setSelectedType1(typeOptions1[0].label);
+            setSelectedType2(typeOptions2[0].label);
+            setFilteredData(apiData?.tasks || []);
+        };
+    
     // Load dữ liệu khi component mount
     useEffect(() => {
         fetchDataByPage(1);
@@ -269,18 +279,18 @@ export default function TaskListScreen() {
                             key={index}
                             style={[
                                 styles.dropdownItem,
-                                option === selectedValue && styles.selectedItem
+                                option.label === selectedValue && styles.selectedItem
                             ]}
                             onPress={() => {
-                                onSelect(option);
+                                onSelect(option.label);
                                 onClose();
                             }}
                         >
                             <Text style={[
                                 styles.dropdownText,
-                                option === selectedValue && styles.selectedText
+                                option.label === selectedValue && styles.selectedText
                             ]}>
-                                {option}
+                                {option.label}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -305,21 +315,16 @@ export default function TaskListScreen() {
                                     placeholder="Tìm kiếm..." 
                                     value={searchText}
                                     onChangeText={setSearchText}
-                                    onSubmitEditing={handleSearch}
                                     returnKeyType="search"
                                 />
                             </View>
                             {/* Filter Labels */}
-                            <View style={styles.filterLabels}>
-                                <Text style={styles.filterLabel}>Trường:</Text>
-                                <Text style={styles.filterLabel}>Ngày tạo:</Text>
-                            </View>
                             <View style={styles.searchFormOptions}>
                                 <TouchableOpacity 
                                     style={styles.select} 
                                     onPress={() => setShowDropdown1(true)}
                                 >
-                                    <Text numberOfLines={1} style={{ flex: 1 }}>{selectedType1}</Text>
+                                    <Text numberOfLines={1} style={{  }}>{selectedType1}</Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
@@ -607,7 +612,6 @@ const styles = StyleSheet.create({
     dropdownContainer: {
         backgroundColor: 'white',
         minWidth: 150,
-        maxHeight: 200,
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: {

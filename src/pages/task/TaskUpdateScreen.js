@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -15,10 +16,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
-
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 const useTaskUpdate = (task, editViews, requiredFields, getFieldValue, getFieldLabel, navigation, refreshTask) => {
     const [loading, setLoading] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
@@ -196,6 +196,35 @@ const useTaskUpdate = (task, editViews, requiredFields, getFieldValue, getFieldL
 export default function TaskUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+    const systemLanguageUtils = new SystemLanguageUtils.getInstance();
+   const [parentTypeOptions, setParentTypeOptions] = useState([]);
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+         const [
+                    accounts,
+                    notes,
+                    tasks,
+                    meetings,
+                ] = await Promise.all([
+                    systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
+                    systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
+                    systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
+                    systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
+                ]);
+                setParentTypeOptions([
+                  { value: 'Accounts', label: accounts }, 
+                  { value: 'Notes', label: notes },
+                  { value: 'Tasks', label: tasks },
+                  { value: 'Meetings', label: meetings }
+                ]);
+
+      } catch (error) {
+        console.error('Error initializing account update screen:', error);
+      }
+    }
+    initialize();
+  }, []);
   const { 
     task, 
     editViews,
@@ -226,85 +255,25 @@ export default function TaskUpdateScreen() {
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
+  const [showParentTypeModal, setShowParentTypeModal] = useState(false);
+  const [selectedParentType, setSelectedParentType] = useState('');
+  const [getParentTypeLabel, setGetParentTypeLabel] = useState('');
 
-  // Date picker states
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [currentDateField, setCurrentDateField] = useState(null);
-
-  // Date picker functions
-  const showDatePicker = (fieldKey) => {
-    setCurrentDateField(fieldKey);
-    setDatePickerVisibility(true);
+  const handleParentTypeSelect = (option) => {
+  setSelectedParentType(option.label); // Set label vào TextInput
+  //setFieldValue('parent_type', option.value); // Nếu bạn đang lưu value
+  if (!getFieldValue('parent_type')) {
+  setGetParentTypeLabel(option.value);
+  } else {
+    setGetParentTypeLabel(getFieldLabel('parent_type'));
+  }
+  setShowParentTypeModal(false); // Đóng modal
+};
+const handleSearchModalSelect = async (selectedItem) => {
+     updateField('parent_name', selectedItem.name);
+     // updateField('parent_id', selectedItem.id); // Store the parent ID
   };
   
-  const hideDatePicker = () => {
-    setDatePickerVisibility(false);
-    setCurrentDateField(null);
-  };
-
-  const handleConfirm = (selectedDate) => {
-    if (currentDateField && selectedDate) {
-      // Format date to ISO 8601 format with local timezone
-      const year = selectedDate.getFullYear();
-      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const day = String(selectedDate.getDate()).padStart(2, '0');
-      const hours = String(selectedDate.getHours()).padStart(2, '0');
-      const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
-      const seconds = String(selectedDate.getSeconds()).padStart(2, '0');
-      
-      // Get timezone offset
-      const timezoneOffset = selectedDate.getTimezoneOffset();
-      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-      const offsetMinutes = Math.abs(timezoneOffset) % 60;
-      const offsetSign = timezoneOffset <= 0 ? '+' : '-';
-      const timezone = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-      
-      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezone}`;
-      updateField(currentDateField, formattedDate);
-    }
-    hideDatePicker();
-  };
-
-  // Function to check if field is date type
-  const isDateField = (fieldKey) => {
-    // Kiểm tra chi tiết hơn để tránh lỗi
-    if (!fieldKey || typeof fieldKey !== 'string' || fieldKey.trim() === '') {
-      return false;
-    }
-    
-    const keyLower = fieldKey.toLowerCase(); // Convert về lowercase để so sánh
-    return (
-      keyLower.includes('date') ||
-      keyLower.includes('time') ||
-      keyLower === 'date_start' ||
-      keyLower === 'date_end' ||
-      keyLower === 'date_due' ||
-      keyLower === 'date_entered' ||
-      keyLower === 'date_modified'
-    );
-  };
-
-
-
-  // Function to format date for display
-  const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
-    
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
-    } catch (error) {
-      return dateString;
-    }
-  };
 
   // Handle save
   const handleSave = async () => {
@@ -397,12 +366,62 @@ export default function TaskUpdateScreen() {
               .map((field) => {
                 const fieldError = getFieldError(field.key);
                 const fieldValue = getFieldValue(field.key);
-                const isDate = isDateField(field.key);
+                if (field.key === 'date_start' || field.key === 'date_end') {
+                  return null;
+                }
+                if (field.key === 'parent_name') {
+                  return (
+                    <>
+                      <View key={field.key} style={styles.row}>
+                        <Text style={styles.label}>Parent Type</Text>
+                        <TouchableOpacity
+                          style={[styles.valueBox, fieldError && styles.errorInput]}
+                          onPress={() => setShowParentTypeModal(true)}
+                        >
+                          <Text style={[styles.value, !selectedParentType && styles.placeholderText]}>
+                            {selectedParentType || getFieldValue('parent_type') || '--------'}
+                          </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                      </View>
 
-
-                if (isDate){
-                     return null;
-                   }
+                      <View style={styles.row}>
+                        <Text style={styles.label}>{field.label}</Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.valueBox,
+                            fieldError && styles.errorInput,
+                            !selectedParentType && styles.disabledValueBox
+                          ]}
+                          onPress={() => {
+                            if (selectedParentType) {
+                              navigation.navigate('SearchModulesScreen', {
+                                parentType:getParentTypeLabel,
+                                title: selectedParentType,
+                                onSelect: handleSearchModalSelect
+                              });
+                            } else {
+                              Alert.alert(
+                                'Thông báo',
+                                'Vui lòng chọn loại cấp trên trước'
+                              );
+                            }
+                          }}
+                          disabled={!selectedParentType}
+                        >
+                          <Text style={[
+                            styles.value,
+                            !fieldValue && styles.placeholderText,
+                            !selectedParentType && styles.disabledText
+                          ]}>
+                            {fieldValue || '--------'}
+                          </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                      </View>
+                    </>
+                  );
+                }
 
                 return (
                   <View key={field.key} style={styles.row}>
@@ -430,36 +449,8 @@ export default function TaskUpdateScreen() {
                 );
               })}
 
-            {/* Date Time Picker Modal */}
-            <DateTimePickerModal
-              isVisible={isDatePickerVisible}
-              mode="datetime"
-              onConfirm={handleConfirm}
-              onCancel={hideDatePicker}
-              date={currentDateField ? (getFieldValue(currentDateField) ? new Date(getFieldValue(currentDateField)) : new Date()) : new Date()}
-            />
-
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
-              {/* Reset Button
-              {isDataChanged && (
-                <TouchableOpacity
-                  style={[styles.resetButton]}
-                  onPress={() => {
-                    Alert.alert(
-                      'Xác nhận',
-                      'Bạn có chắc chắn muốn khôi phục dữ liệu gốc?',
-                      [
-                        { text: 'Hủy', style: 'cancel' },
-                        { text: 'Khôi phục', onPress: resetForm }
-                      ]
-                    );
-                  }}
-                >
-                  <Text style={styles.resetButtonText}>Khôi phục</Text>
-                </TouchableOpacity>
-              )} */}
-
               {/* Save Button */}
               <TouchableOpacity
                 style={[
@@ -480,6 +471,35 @@ export default function TaskUpdateScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+         {/* Modal cho Parent Type */}
+                  <Modal
+                    visible={showParentTypeModal}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowParentTypeModal(false)}
+                  >
+                    <TouchableOpacity
+                      style={styles.modalOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowParentTypeModal(false)}
+                    >
+                      <TouchableOpacity
+                        style={styles.modalContainer}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                      >
+                        {parentTypeOptions.map((option) => (
+                          <TouchableOpacity
+                            key={option.value}
+                            style={styles.modalOption}
+                            onPress={() => handleParentTypeSelect(option)}
+                          >
+                            <Text style={styles.modalOptionText}>{option.label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -581,21 +601,47 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  resetButton: {
-    backgroundColor: '#6b7280',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 2,
+    alignItems: 'center',
   },
-  resetButtonText: {
-    color: '#ffffff',
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    minWidth: 280,
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalOptionText: {
     fontSize: 16,
-    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
+  },
+  placeholderText: {
+    color: '#999',
   },
 });

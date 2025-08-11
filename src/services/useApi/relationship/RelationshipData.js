@@ -1,5 +1,6 @@
 import ReadCacheView from '@/src/utils/cacheViewManagement/Relationships/ReadCacheView';
 import WriteCacheView from '@/src/utils/cacheViewManagement/Relationships/WriteCacheView';
+import { searchModulesApi } from '../../../services/api/external/ExternalApi';
 import RelationshipsApi from '../../api/relationship/RelationshipApi';
 const RelationshipsData = {};
 
@@ -347,6 +348,21 @@ RelationshipsData.useListData = async (token, page, pageSize, language,moduleNam
   } catch (error) {
     console.error('💥 Error in useListData:', error);
     return null;   
+  }
+};
+RelationshipsData.getSearchKeyWords = async (parent_type, keyword, page) => {
+  try {
+    const response = await searchModulesApi(parent_type, keyword, page);
+    if (!response || !response.data) {
+      return null;
+    }
+    const searchResults = response.data.map(item => ({
+      name:item.name,
+      id:item.id
+    }));
+    return searchResults;
+  } catch (error) {
+    console.error('💥 Error in getSearchKeyWords:', error);
   }
 };
 

@@ -1,5 +1,6 @@
 import ReadCacheView from '@/src/utils/cacheViewManagement/Tasks/ReadCacheView';
 import WriteCacheView from '@/src/utils/cacheViewManagement/Tasks/WriteCacheView';
+import { searchModulesApi } from '../../../services/api/external/ExternalApi';
 import TaskApi from '../../api/task/TaskApi';
 const TaskData = {};
 
@@ -347,6 +348,21 @@ TaskData.useListData = async (token, page, pageSize, language) => {
   }
 };
 
+TaskData.getSearchKeyWords = async (parent_type, keyword, page) => {
+  try {
+    const response = await searchModulesApi(parent_type, keyword, page);
+    if (!response || !response.data) {
+      return null;
+    }
+    const searchResults = response.data.map(item => ({
+      name:item.name,
+      id:item.id
+    }));
+    return searchResults;
+  } catch (error) {
+    console.error('💥 Error in getSearchKeyWords:', error);
+  }
+};
 
 
 // lấy mối quan hệ của task với metadata từ V8/meta/modules

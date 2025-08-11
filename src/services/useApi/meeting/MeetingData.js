@@ -1,7 +1,7 @@
 import WriteCacheView from '@/src/utils/cacheViewManagement/Meetings/WriteCacheView';
+import { searchModulesApi } from '../../../services/api/external/ExternalApi';
 import ReadCacheView from '../../../utils/cacheViewManagement/Meetings/ReadCacheView';
 import MeetingApi from '../../api/meeting/MeetingApi';
-
 const MeetingData = {};
 
 
@@ -336,6 +336,21 @@ MeetingData.useListData = async (token, page, pageSize, language) => {
   }
 };
 
+MeetingData.getSearchKeyWords = async (parent_type, keyword, page) => {
+  try {
+    const response = await searchModulesApi(parent_type, keyword, page);
+    if (!response || !response.data) {
+      return null;
+    }
+    const searchResults = response.data.map(item => ({
+      name:item.name,
+      id:item.id
+    }));
+    return searchResults;
+  } catch (error) {
+    console.error('💥 Error in getSearchKeyWords:', error);
+  }
+}
 
 // lấy mối quan hệ của meeting với metadata từ V8/meta/modules
 MeetingData.getRelationships = async (token, meetingId) => {
