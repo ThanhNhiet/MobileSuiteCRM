@@ -221,7 +221,7 @@ export const searchByKeywordApi = async (keyword, page = 1) => {
         const response = await axiosInstance.get(`/Api/V8/custom/Notes`, {
             params: {
                 'keyword': keyword,
-                'fields': 'parent_type,description,created_by,created_by,assigned_user_id',
+                'fields': 'parent_type,description,created_by,created_by,assigned_user_id,date_entered',
                 'page': page
             }
         });
