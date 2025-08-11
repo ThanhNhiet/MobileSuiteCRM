@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   RefreshControl,
   ScrollView,
@@ -12,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
+import { hasNavigationAccess } from '../../services/api/home/CountModulesApi';
 import { useCountModules } from '../../services/useApi/home/UseCountModules';
 
 const boxWidth = (Dimensions.get('window').width - 32 - 12) / 2;
@@ -21,24 +23,47 @@ export default function HomeScreen() {
   const homeTitle = 'Home';
   const { data: DATA, loading, error, refresh } = useCountModules();
 
-  const handleNavigation = (module) => {
+  const handleNavigation = async (item) => {
+    try {
+      // Use navigationTarget from the item if available (new permission-based approach)
+      const targetScreen = item.navigationTarget || getScreenNameFromModule(item.module);
+      
+      // Check if user has permission to navigate to this screen
+      const hasAccess = await hasNavigationAccess(targetScreen);
+      
+      if (!hasAccess) {
+        console.warn(`User doesn't have access to ${targetScreen}`);
+        // You could show an alert or toast here
+        return;
+      }
+      
+      navigation.navigate(targetScreen);
+    } catch (error) {
+      console.error('Error checking navigation access:', error);
+      // Fallback to original navigation on error
+      const targetScreen = getScreenNameFromModule(item.module);
+      navigation.navigate(targetScreen);
+    }
+  };
+
+  // Legacy function for mapping modules to screen names
+  const getScreenNameFromModule = (module) => {
     switch (module) {
       case 'Accounts':
-        navigation.navigate('AccountListScreen');
-        break;
+        return 'AccountListScreen';
       case 'Notes':
-        navigation.navigate('NoteListScreen');
-        break;
+        return 'NoteListScreen';
       case 'Tasks':
-        navigation.navigate('TaskListScreen');
-        break;
+        return 'TaskListScreen';
       case 'Meetings':
-        navigation.navigate('MeetingListScreen');
-        break;
+        return 'MeetingListScreen';
+      case 'Calendar':
+        return 'CalendarScreen';
       default:
-        console.warn('No navigation defined for:', title);
+        console.warn('No navigation defined for module:', module);
+        return 'HomeScreen';
     }
-  }
+  };
 
   return (
     <SafeAreaProvider>
@@ -57,31 +82,76 @@ export default function HomeScreen() {
             />
           }
         >
-          {DATA.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.box}
-              onPress={() => {
-                handleNavigation(item.module);
-              }}
-            >
-              <Text style={styles.title}>{item.title}</Text>
+          {loading && DATA.length === 0 ? (
+            // Show loading state when no data and loading
+            <View style={styles.initialLoadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+            </View>
+          ) : (
+            DATA.map((item, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[
+                  styles.box,
+                  loading && styles.disabledBox
+                ]}
+                onPress={() => {
+                  if (!loading) {
+                    handleNavigation(item);
+                  }
+                }}
+                disabled={loading}
+                activeOpacity={loading ? 1 : 0.7}
+              >
+                <Text style={[
+                  styles.title,
+                  loading && styles.disabledText
+                ]}>{item.title}</Text>
 
-              <View style={styles.row}>
-                {item.my !== undefined && (
-                  <View style={styles.statCol}>
-                    <Text style={styles.number}>{item.my}</Text>
-                    <Text style={styles.label}>My</Text>
-                  </View>
-                )}
+                <View style={styles.row}>
+                  {item.my !== undefined && (
+                    <View style={styles.statCol}>
+                      <Text style={[
+                        styles.number,
+                        loading && styles.disabledText
+                      ]}>{item.my}</Text>
+                      <Text style={[
+                        styles.label,
+                        loading && styles.disabledText
+                      ]}>My</Text>
+                    </View>
+                  )}
 
-                {item.all !== undefined && (
-                  <View style={styles.statCol}>
-                    <Text style={styles.number}>{item.all}</Text>
-                    <Text style={styles.label}>All</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+                  {item.all !== undefined && (
+                    <View style={styles.statCol}>
+                      <Text style={[
+                        styles.number,
+                        loading && styles.disabledText
+                      ]}>{item.all}</Text>
+                      <Text style={[
+                        styles.label,
+                        loading && styles.disabledText
+                      ]}>All</Text>
+                    </View>
+                  )}
+
+                  {item.calendar && (
+                    <View style={styles.statCol}>
+                      <Text style={[
+                        styles.calendarIcon,
+                        loading && styles.disabledText
+                      ]}>📅</Text>
+                      <Text style={[
+                        styles.label,
+                        loading && styles.disabledText
+                      ]}>View</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
 
         <BottomNavigation navigation={navigation} />
@@ -127,6 +197,25 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  disabledBox: {
+    opacity: 0.5,
+    backgroundColor: '#f8f8f8',
+  },
+  disabledText: {
+    color: '#ccc',
+  },
+  initialLoadingContainer: {
+    width: '100%',
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 12,
+  },
   title: {
     fontSize: 14,
     fontWeight: '600',
@@ -145,6 +234,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2a2a2a',
+  },
+  calendarIcon: {
+    fontSize: 20,
+    marginBottom: 2,
   },
   label: {
     fontSize: 12,

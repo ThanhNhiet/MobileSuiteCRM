@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import ModulesConfig from '../../../configs/ModulesConfig';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import {
+  getAccessibleModuleCounts,
   getCountAllAccounts,
   getCountMyMeetings,
   getCountMyNotes,
@@ -25,18 +27,20 @@ export const useCountModules = () => {
   // Load translations
   const loadTranslations = useCallback(async () => {
     try {
-      const [accounts, notes, tasks, meetings] = await Promise.all([
+      const [accounts, notes, tasks, meetings, calendar] = await Promise.all([
         systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
         systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
         systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
-        systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp')
+        systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
+        systemLanguageUtils.translate('LBL_CALENDAR', 'Lịch')
       ]);
       
       const newTranslations = {
         accounts,
         notes,
         tasks,
-        meetings
+        meetings,
+        calendar
       };
       
       setTranslations(newTranslations);
@@ -47,7 +51,8 @@ export const useCountModules = () => {
         accounts: 'Khách hàng',
         notes: 'Ghi chú',
         tasks: 'Công việc',
-        meetings: 'Cuộc họp'
+        meetings: 'Cuộc họp',
+        calendar: 'Lịch'
       };
       setTranslations(fallbackTranslations);
       return fallbackTranslations;
@@ -72,6 +77,73 @@ export const useCountModules = () => {
         currentTranslations = await loadTranslations();
       }
 
+      // Get dynamic module list from ModulesConfig
+      const modulesConfig = ModulesConfig.getInstance();
+      await modulesConfig.loadModules();
+      const availableModules = modulesConfig.getRequiredModules();
+
+      // Use new permission-based API
+      const result = await getAccessibleModuleCounts();
+      
+      if (result.success) {
+        const { moduleCounts } = result;
+        const newData = [];
+        
+        // Process accessible modules based on ModulesConfig order
+        const moduleOrder = Object.keys(availableModules);
+        
+        moduleOrder.forEach(moduleName => {
+          if (moduleCounts[moduleName]) {
+            const module = moduleCounts[moduleName];
+            
+            // Create data object based on module type
+            let dataItem = {
+              title: getModuleTitle(moduleName, currentTranslations),
+              module: moduleName,
+              icon: module.icon,
+              navigationTarget: module.navigationTarget || availableModules[moduleName],
+              hasAccess: module.hasAccess
+            };
+            
+            // Add count fields based on module showType
+            if (module.showType === 'all') {
+              dataItem.all = module.count;
+            } else if (module.showType === 'calendar') {
+              dataItem.calendar = true;
+            } else {
+              // 'my' type - Notes, Tasks, Meetings
+              dataItem.my = module.count;
+            }
+            
+            newData.push(dataItem);
+          }
+        });
+        
+        setData(newData);
+      } else {
+        throw new Error('Failed to get accessible module counts');
+      }
+      
+    } catch (err) {
+      console.error('Error fetching count modules:', err);
+      
+      // If it's a 401 error, don't set error state as token refresh might be in progress
+      if (err.response?.status === 401) {
+        console.log('Authentication error, will retry automatically');
+        return;
+      }
+      
+      // For other errors, fallback to original method without permissions
+      await fetchCountModulesLegacy(currentTranslations);
+      setError(err.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  }, [translations, loadTranslations]);
+
+  // Legacy fallback method (original implementation)
+  const fetchCountModulesLegacy = async (currentTranslations) => {
+    try {
       // Gọi các API song song để tăng hiệu suất
       const results = await Promise.allSettled([
         getCountAllAccounts(),
@@ -94,44 +166,36 @@ export const useCountModules = () => {
         }
       });
 
-      // Log if any count is invalid (for debugging)
-      if (accountsCount < 0 || meetingsCount < 0 || tasksCount < 0 || notesCount < 0) {
-        console.warn('Invalid count values detected:', { accountsCount, meetingsCount, tasksCount, notesCount });
-      }
-
       setData([
         { title: currentTranslations.accounts, module: 'Accounts', all: Math.max(0, accountsCount) },
         { title: currentTranslations.notes, module: 'Notes', my: Math.max(0, notesCount) },
         { title: currentTranslations.tasks, module: 'Tasks', my: Math.max(0, tasksCount) },
         { title: currentTranslations.meetings, module: 'Meetings', my: Math.max(0, meetingsCount) }
       ]);
-    } catch (err) {
-      console.error('Error fetching count modules:', err);
+    } catch (legacyError) {
+      console.error('Legacy fetch also failed:', legacyError);
       
-      // If it's a 401 error, don't set error state as token refresh might be in progress
-      if (err.response?.status === 401) {
-        console.log('Authentication error, will retry automatically');
-        return;
-      }
-      
-      // For other errors, set fallback data to prevent UI crash
-      let currentTranslations = translations;
-      if (Object.keys(currentTranslations).length === 0) {
-        currentTranslations = await loadTranslations();
-      }
-      
+      // Final fallback - show empty data
       setData([
         { title: currentTranslations.accounts, module: 'Accounts', all: 0 },
         { title: currentTranslations.notes, module: 'Notes', my: 0 },
         { title: currentTranslations.tasks, module: 'Tasks', my: 0 },
         { title: currentTranslations.meetings, module: 'Meetings', my: 0 }
       ]);
-      
-      setError(err.message || 'Failed to fetch data');
-    } finally {
-      setLoading(false);
     }
-  }, [translations, loadTranslations]);
+  };
+
+  // Helper function to get module title
+  const getModuleTitle = (moduleName, currentTranslations) => {
+    const titleMap = {
+      'Accounts': currentTranslations.accounts || 'Khách hàng',
+      'Notes': currentTranslations.notes || 'Ghi chú',
+      'Tasks': currentTranslations.tasks || 'Công việc',
+      'Meetings': currentTranslations.meetings || 'Cuộc họp',
+      'Calendar': currentTranslations.calendar || 'Lịch'
+    };
+    return titleMap[moduleName] || moduleName;
+  };
 
   const refresh = () => {
     fetchCountModules();
