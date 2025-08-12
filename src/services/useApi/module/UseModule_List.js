@@ -1,10 +1,452 @@
-export const useModule_List = () =>  {
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
+import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
+import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
+import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
+import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import {
+    buildDateFilter,
+    getModuleListFieldsApi,
+    getModuleRecordsApi,
+    searchModuleByFilterApi,
+    searchModuleByKeywordApi
+} from '../../api/module/ModuleApi';
+
+/**
+ * Generic hook for module list functionality
+ * Based on useNoteList but made generic with moduleName parameter
+ */
+export const useModule_List = (moduleName) => {
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState(null);
+    
+    // Language utils
+    const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
+    
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pagination, setPagination] = useState({
+        hasNext: false,
+        hasPrev: false,
+        nextLink: null,
+        prevLink: null
+    });
+    
+    // Fields and language states
+    const [columns, setColumns] = useState([]);
+    const [nameFields, setNameFields] = useState('');
+    
+    // Search and filter states for API calls
+    const [searchText, setSearchText] = useState('');
+    const [additionalFilters, setAdditionalFilters] = useState({});
+    const [timeFilter, setTimeFilter] = useState('');
+    
+    // Available filter options
+    const [filterOptions, setFilterOptions] = useState({});
+    const [timeFilterOptions, setTimeFilterOptions] = useState([]);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [initialRecordsLoaded, setInitialRecordsLoaded] = useState(false);
+
+    // Validation
+    if (!moduleName) {
+        throw new Error('moduleName is required for useModule_List hook');
+    }
+
+    // Initialize field definitions and language settings
+    const initializeFieldsAndLanguage = useCallback(async () => {
+        try {
+            // Check if listviewdefs cache exists
+            let fieldsData;
+            const cachedFields = await ReadCacheView.getModuleField(moduleName, 'listviewdefs');
+            
+            if (!cachedFields) {
+                // Fetch from API if no cache exists
+                const fieldsResponse = await getModuleListFieldsApi(moduleName);
+                
+                // Extract default_fields from response
+                if (fieldsResponse && fieldsResponse.default_fields) {
+                    fieldsData = fieldsResponse.default_fields;
+                } else {
+                    console.warn(`Unexpected API response structure for ${moduleName}`);
+                    fieldsData = {};
+                }
+                
+                // Cache the default_fields
+                await WriteCacheView.saveModuleField(moduleName, 'listviewdefs', fieldsData);
+            } else {
+                // Use cached data
+                fieldsData = cachedFields;
+            }
+            
+            // Get current language settings
+            const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
+            let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
+            
+            // Fallback if language data is missing
+            if (!languageData) {
+                const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
+                if (!languageExists) {
+                    console.warn(`Language cache does not exist for ${moduleName}. Please login to fetch language data.`);
+                }
+            }
+            
+            // Extract mod_strings from language data
+            let modStrings = null;
+            if (languageData && languageData.data && languageData.data.mod_strings) {
+                modStrings = languageData.data.mod_strings;
+            }
+            
+            // Validate fieldsData or use defaults
+            if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
+                console.warn(`fieldsData is empty or invalid for ${moduleName}, using default structure`);
+                fieldsData = {
+                    "NAME": {
+                        "label": "LBL_LIST_NAME",
+                        "width": "40%",
+                        "type": "varchar",
+                        "link": true
+                    },
+                    "DATE_ENTERED": {
+                        "label": "LBL_DATE_ENTERED",
+                        "width": "10%",
+                        "type": "datetime",
+                        "link": false
+                    }
+                };
+            }
+            
+            // Use only first 2 fields
+            const fieldEntries = Object.entries(fieldsData).slice(0, 2);
+            
+            // Build nameFields string from field definitions
+            const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
+            const requiredFields = [...fieldKeys, 'assigned_user_id', 'created_by'];
+            
+            // Filter out invalid fields
+            const validFields = requiredFields.filter(field => 
+                field && 
+                typeof field === 'string' && 
+                field.trim() !== '' &&
+                !field.includes(' ')
+            );
+            
+            const nameFieldsString = validFields.join(',');
+            
+            // Set final nameFields with fallback
+            let finalNameFields;
+            if (!nameFieldsString || nameFieldsString.trim() === '') {
+                console.warn(`nameFields is empty for ${moduleName}, using default fields`);
+                finalNameFields = 'name,date_entered,assigned_user_id,created_by,description';
+            } else {
+                finalNameFields = nameFieldsString;
+            }
+            
+            setNameFields(finalNameFields);
+            
+            // Build column definitions with translations
+            const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
+                let translatedLabel = fieldKey;
+                const labelValue = fieldInfo?.label;
+                
+                if (modStrings) {
+                    // Use label from API to find translation
+                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                        let translation = modStrings[labelValue];
+                        
+                        // Try alternative pattern if not found
+                        if (!translation) {
+                            const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
+                            translation = modStrings[listKey];
+                        }
+                        
+                        translatedLabel = translation || labelValue;
+                    } else {
+                        // Use standard LBL_ pattern if no label
+                        const lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                        translatedLabel = modStrings[lblKey] || fieldKey;
+                    }
+                } else {
+                    // Use ModuleLanguageUtils as fallback (sync call)
+                    try {
+                        const fallbackTranslation = moduleLanguageUtils.translate(
+                            labelValue || `LBL_${fieldKey.toUpperCase()}`, 
+                            fieldKey,
+                            moduleName
+                        );
+                        translatedLabel = fallbackTranslation;
+                    } catch (error) {
+                        console.warn(`Translation fallback failed for ${fieldKey}:`, error);
+                        translatedLabel = fieldKey;
+                    }
+                }
+                
+                return {
+                    key: fieldKey.toLowerCase(),
+                    label: translatedLabel,
+                    width: fieldInfo?.width || '50%',
+                    type: fieldInfo?.type || 'varchar',
+                    link: fieldInfo?.link || false
+                };
+            });
+            
+            setColumns(columnsData);
+            
+        } catch (error) {
+            console.error(`Error initializing fields and language for ${moduleName}:`, error);
+            
+            // Fallback to basic structure
+            setNameFields('name,date_entered,assigned_user_id,created_by');
+            setColumns([
+                { key: 'name', label: 'Name', width: '70%', type: 'varchar', link: true },
+                { key: 'date_entered', label: 'Date Created', width: '30%', type: 'datetime', link: false }
+            ]);
+        }
+    }, [moduleName, moduleLanguageUtils]);
+
+    // Initialize filter options
+    const initializeFilters = useCallback(async () => {
+        try {
+            // Common time filter options
+            const timeOptions = [
+                { label: 'All Time', value: '' },
+                { label: 'Today', value: 'today' },
+                { label: 'This Week', value: 'this_week' },
+                { label: 'This Month', value: 'this_month' },
+                { label: 'This Year', value: 'this_year' }
+            ];
+            
+            // Translate time filter options
+            const translatedTimeOptions = await Promise.all(
+                timeOptions.map(async (option) => {
+                    try {
+                        const translatedLabel = await systemLanguageUtils.translate(
+                            `LBL_${option.label.toUpperCase().replace(/ /g, '_')}`, 
+                            option.label
+                        );
+                        return { ...option, label: translatedLabel };
+                    } catch (error) {
+                        return option; // Use original if translation fails
+                    }
+                })
+            );
+            
+            setTimeFilterOptions(translatedTimeOptions);
+            setFiltersInitialized(true);
+        } catch (error) {
+            console.error(`Error initializing filters for ${moduleName}:`, error);
+            setFiltersInitialized(true);
+        }
+    }, [moduleName, systemLanguageUtils]);
+
+    // Fetch records from API
+    const fetchRecords = useCallback(async (page = 1, isRefresh = false, searchMode = false, overrideTimeFilter = null, overrideSearchText = null) => {
+        const activeTimeFilter = overrideTimeFilter !== null ? overrideTimeFilter : timeFilter;
+        const activeSearchText = overrideSearchText !== null ? overrideSearchText : searchText;
+        try {
+            if (isRefresh) {
+                setRefreshing(true);
+            } else if (!isRefresh && page === 1) {
+                setLoading(true);
+            }
+            
+            setError(null);
+            
+            let response;
+            
+            if (activeSearchText.trim() && searchMode) {
+                // Use keyword search
+                response = await searchModuleByKeywordApi(moduleName, activeSearchText.trim(), page);
+            } else if (Object.keys(additionalFilters).length > 0 || activeTimeFilter) {
+                // Use filter search
+                const filters = { ...additionalFilters };
+                
+                // Add date filter if specified
+                if (activeTimeFilter) {
+                    const dateFilters = buildDateFilter(activeTimeFilter);
+                    Object.assign(filters, dateFilters);
+                }
+                response = await searchModuleByFilterApi(moduleName, 10, page, nameFields, filters);
+            } else {
+                // Regular fetch
+                response = await getModuleRecordsApi(moduleName, 10, page, nameFields);
+            }
+            
+            if (response && response.data) {
+                const newRecords = response.data.map(item => {
+                    // Handle different API response formats
+                    if (item.attributes) {
+                        // Standard API format: {id, type, attributes}
+                        return {
+                            id: item.id,
+                            type: item.type,
+                            ...item.attributes
+                        };
+                    } else {
+                        // Search API format: {id, name, date_entered, ...} (flat structure)
+                        return {
+                            id: item.id,
+                            type: moduleName, // Use moduleName as type for search results
+                            ...item
+                        };
+                    }
+                });
+                
+                if (page === 1) {
+                    setRecords(newRecords);
+                } else {
+                    setRecords(prev => [...prev, ...newRecords]);
+                }
+                
+                // Update pagination info - handle different meta formats
+                if (response.meta) {
+                    const totalPages = response.meta['total-pages'] || response.meta.total_pages || response.pagination?.total_pages || 1;
+                    setTotalPages(totalPages);
+                    setCurrentPage(page);
+                    
+                    setPagination({
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                        nextLink: response.links?.next || null,
+                        prevLink: response.links?.prev || null
+                    });
+                }
+            } else {
+                if (page === 1) {
+                    setRecords([]);
+                }
+            }
+            
+            if (!initialRecordsLoaded) {
+                setInitialRecordsLoaded(true);
+            }
+            
+        } catch (err) {
+            console.error(`Error fetching ${moduleName} records:`, err);
+            setError(`Failed to load ${moduleName} records`);
+            
+            if (page === 1) {
+                setRecords([]);
+            }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+            setIsInitializing(false);
+        }
+    }, [moduleName, nameFields, searchText, additionalFilters, timeFilter, initialRecordsLoaded]);
+
+    // Search functionality
+    const handleSearch = useCallback((query) => {
+        setSearchText(query);
+        setCurrentPage(1);
+        // Pass query directly to fetchRecords instead of relying on state
+        fetchRecords(1, false, true, null, query);
+    }, [fetchRecords]);
+
+    // Filter functionality
+    const handleFilter = useCallback((filters, timeFilterValue) => {
+        setAdditionalFilters(filters || {});
+        setTimeFilter(timeFilterValue || '');
+        setCurrentPage(1);
+        // Pass timeFilterValue directly to fetchRecords instead of relying on state
+        fetchRecords(1, false, false, timeFilterValue);
+    }, [fetchRecords]);
+
+    // Refresh functionality
+    const handleRefresh = useCallback(() => {
+        setCurrentPage(1);
+        fetchRecords(1, true, searchText.trim() !== '');
+    }, [fetchRecords, searchText]);
+
+    // Load more (pagination)
+    const loadMore = useCallback(() => {
+        if (pagination.hasNext && !loading) {
+            fetchRecords(currentPage + 1, false, searchText.trim() !== '');
+        }
+    }, [pagination.hasNext, loading, currentPage, fetchRecords, searchText]);
+
+    // Clear search and filters
+    const clearSearchAndFilters = useCallback(() => {
+        setSearchText('');
+        setAdditionalFilters({});
+        setTimeFilter('');
+        setCurrentPage(1);
+        fetchRecords(1, false, false);
+    }, [fetchRecords]);
+
+    // Reset and re-initialize when moduleName changes
+    useEffect(() => {
+        // Reset all states when moduleName changes
+        setRecords([]);
+        setLoading(true);
+        setError(null);
+        setCurrentPage(1);
+        setTotalPages(1);
+        setColumns([]);
+        setNameFields('');
+        setSearchText('');
+        setAdditionalFilters({});
+        setTimeFilter('');
+        setFilterOptions({});
+        setTimeFilterOptions([]);
+        setFiltersInitialized(false);
+        setIsInitializing(true);
+        setInitialRecordsLoaded(false);
+        
+        // Re-initialize everything for the new module
+        const initialize = async () => {
+            await Promise.all([
+                initializeFieldsAndLanguage(),
+                initializeFilters()
+            ]);
+        };
+        
+        initialize();
+    }, [moduleName, initializeFieldsAndLanguage, initializeFilters]);
+
+    // Fetch records after initialization
+    useEffect(() => {
+        if (filtersInitialized && nameFields && !initialRecordsLoaded) {
+            fetchRecords(1);
+        }
+    }, [filtersInitialized, nameFields, initialRecordsLoaded, fetchRecords]);
 
     return {
-        //data
-
-        //actions
-
-        //helpers
+        // Data
+        records,
+        columns,
+        
+        // States
+        loading,
+        refreshing,
+        error,
+        isInitializing,
+        
+        // Pagination
+        currentPage,
+        totalPages,
+        pagination,
+        
+        // Search and Filter
+        searchText,
+        timeFilter,
+        timeFilterOptions,
+        filtersInitialized,
+        
+        // Actions
+        handleSearch,
+        handleFilter,
+        handleRefresh,
+        loadMore,
+        clearSearchAndFilters,
+        
+        // Metadata
+        moduleName,
+        nameFields
     };
 };
