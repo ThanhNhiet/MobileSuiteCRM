@@ -18,42 +18,115 @@ export const useCountModules = () => {
   const [error, setError] = useState(null);
   const [translations, setTranslations] = useState({});
   const [data, setData] = useState([
-    { title: 'Khách hàng', module: 'Accounts', all: 0 },
+    { title: 'Khách hàng', module: 'Accounts', my: 0 },
     { title: 'Ghi chú', module: 'Notes', my: 0 },
     { title: 'Công việc', module: 'Tasks', my: 0 },
     { title: 'Cuộc họp', module: 'Meetings', my: 0 }
   ]);
 
-  // Load translations
-  const loadTranslations = useCallback(async () => {
+  // Load translations dynamically for all available modules
+  const loadTranslations = useCallback(async (moduleData = null) => {
     try {
-      const [accounts, notes, tasks, meetings, calendar] = await Promise.all([
-        systemLanguageUtils.translate('LBL_ACCOUNTS', 'Khách hàng'),
-        systemLanguageUtils.translate('LBL_NOTES', 'Ghi chú'),
-        systemLanguageUtils.translate('LBL_TASKS', 'Công việc'),
-        systemLanguageUtils.translate('LBL_MEETINGS', 'Cuộc họp'),
-        systemLanguageUtils.translate('LBL_CALENDAR', 'Lịch')
-      ]);
+      let modulesToTranslate = [];
       
-      const newTranslations = {
-        accounts,
-        notes,
-        tasks,
-        meetings,
-        calendar
-      };
+      if (moduleData && typeof moduleData === 'object') {
+        // Use provided module data with labels from API
+        modulesToTranslate = Object.entries(moduleData).map(([moduleName, moduleInfo]) => ({
+          moduleName,
+          labelKey: moduleInfo.label || moduleName // Use label from API as translation key
+        }));
+      } else if (Array.isArray(moduleData)) {
+        // Legacy: array of module names
+        modulesToTranslate = moduleData.map(moduleName => ({
+          moduleName,
+          labelKey: moduleName
+        }));
+      } else {
+        // Get modules from ModulesConfig if available
+        try {
+          const modulesConfig = ModulesConfig.getInstance();
+          await modulesConfig.loadModules();
+          const availableModules = modulesConfig.getRequiredModules();
+          const filteredModules = modulesConfig.getFilteredModules();
+          
+          modulesToTranslate = Object.keys(availableModules).map(moduleName => ({
+            moduleName,
+            labelKey: filteredModules[moduleName]?.label || moduleName
+          }));
+        } catch (error) {
+          console.warn('Could not load modules from ModulesConfig, using fallback:', error);
+          // Fallback to common modules
+          const fallbackModules = ['Accounts', 'Notes', 'Tasks', 'Meetings', 'Calendar', 'Contacts', 'Calls', 'Leads', 'Opportunities'];
+          modulesToTranslate = fallbackModules.map(moduleName => ({
+            moduleName,
+            labelKey: moduleName
+          }));
+        }
+      }
+      
+      // Create translation promises for all modules
+      const translationPromises = modulesToTranslate.map(async ({ moduleName, labelKey }) => {
+        // Use label value from API response as translation key
+        try {
+          // Try to translate the label using SystemLanguageUtils
+          const translation = await systemLanguageUtils.translate(labelKey);
+          return { moduleName, translation, labelKey };
+        } catch (error) {
+          console.warn(`Failed to translate "${labelKey}", using original label as fallback`);
+          return { moduleName, translation: labelKey, labelKey }; // Use original label as fallback
+        }
+      });
+      
+      // Wait for all translations
+      const translationResults = await Promise.all(translationPromises);
+      
+      // Build translations object
+      const newTranslations = {};
+      translationResults.forEach(({ moduleName, translation, labelKey }) => {
+        const key = moduleName.toLowerCase();
+        // Use the label value directly from API response
+        newTranslations[key] = translation || labelKey || moduleName;
+      });
       
       setTranslations(newTranslations);
       return newTranslations;
+      
     } catch (error) {
       console.warn('Error loading UseCountModules translations:', error);
+      
+      // Simple fallback with direct label values from API structure
       const fallbackTranslations = {
-        accounts: 'Khách hàng',
-        notes: 'Ghi chú',
-        tasks: 'Công việc',
-        meetings: 'Cuộc họp',
-        calendar: 'Lịch'
+        accounts: 'Accounts',
+        calls: 'Calls', 
+        campaigns: 'Campaigns',
+        cases: 'Cases',
+        contacts: 'Contacts',
+        aos_contracts: 'Contracts',
+        documents: 'Documents',
+        emailtemplates: 'Email - Templates',
+        emails: 'Emails',
+        fp_events: 'Events',
+        aos_invoices: 'Invoices',
+        aok_knowledge_base_categories: 'KB - Categories',
+        aok_knowledgebase: 'Knowledge Base',
+        leads: 'Leads',
+        fp_event_locations: 'Locations',
+        meetings: 'Meetings',
+        notes: 'Notes',
+        opportunities: 'Opportunities',
+        aos_pdf_templates: 'PDF - Templates',
+        aos_products: 'Products',
+        aos_product_categories: 'Products - Categories',
+        project: 'Projects',
+        am_projecttemplates: 'Projects - Templates',
+        aos_quotes: 'Quotes',
+        aor_reports: 'Reports',
+        spots: 'Spots',
+        surveys: 'Surveys',
+        tasks: 'Tasks',
+        calendar: 'Calendar'
       };
+      
       setTranslations(fallbackTranslations);
       return fallbackTranslations;
     }
@@ -71,16 +144,19 @@ export const useCountModules = () => {
         return;
       }
 
-      // Load translations first if not loaded
-      let currentTranslations = translations;
-      if (Object.keys(currentTranslations).length === 0) {
-        currentTranslations = await loadTranslations();
-      }
-
       // Get dynamic module list from ModulesConfig
       const modulesConfig = ModulesConfig.getInstance();
       await modulesConfig.loadModules();
       const availableModules = modulesConfig.getRequiredModules();
+      const filteredModules = modulesConfig.getFilteredModules();
+      
+      // Load translations for available modules with label keys from API
+      const moduleList = Object.keys(availableModules);
+      let currentTranslations = translations;
+      if (Object.keys(currentTranslations).length === 0 || 
+          !moduleList.every(module => currentTranslations.hasOwnProperty(module.toLowerCase()))) {
+        currentTranslations = await loadTranslations(filteredModules);
+      }
 
       // Use new permission-based API
       const result = await getAccessibleModuleCounts();
@@ -105,13 +181,11 @@ export const useCountModules = () => {
               hasAccess: module.hasAccess
             };
             
-            // Add count fields based on module showType
-            if (module.showType === 'all') {
-              dataItem.all = module.count;
-            } else if (module.showType === 'calendar') {
+            // Add count fields based on module showType (only 'my' and 'calendar')
+            if (module.showType === 'calendar') {
               dataItem.calendar = true;
             } else {
-              // 'my' type - Notes, Tasks, Meetings
+              // All other modules show 'my' records count
               dataItem.my = module.count;
             }
             
@@ -167,34 +241,39 @@ export const useCountModules = () => {
       });
 
       setData([
-        { title: currentTranslations.accounts, module: 'Accounts', all: Math.max(0, accountsCount) },
-        { title: currentTranslations.notes, module: 'Notes', my: Math.max(0, notesCount) },
-        { title: currentTranslations.tasks, module: 'Tasks', my: Math.max(0, tasksCount) },
-        { title: currentTranslations.meetings, module: 'Meetings', my: Math.max(0, meetingsCount) }
+        { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: Math.max(0, accountsCount) },
+        { title: currentTranslations.notes || 'Notes', module: 'Notes', my: Math.max(0, notesCount) },
+        { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: Math.max(0, tasksCount) },
+        { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: Math.max(0, meetingsCount) }
       ]);
     } catch (legacyError) {
       console.error('Legacy fetch also failed:', legacyError);
       
-      // Final fallback - show empty data
+      // Final fallback - show empty data with English names (all using 'my')
       setData([
-        { title: currentTranslations.accounts, module: 'Accounts', all: 0 },
-        { title: currentTranslations.notes, module: 'Notes', my: 0 },
-        { title: currentTranslations.tasks, module: 'Tasks', my: 0 },
-        { title: currentTranslations.meetings, module: 'Meetings', my: 0 }
+        { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: 0 },
+        { title: currentTranslations.notes || 'Notes', module: 'Notes', my: 0 },
+        { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: 0 },
+        { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: 0 }
       ]);
     }
   };
 
   // Helper function to get module title
   const getModuleTitle = (moduleName, currentTranslations) => {
-    const titleMap = {
-      'Accounts': currentTranslations.accounts || 'Khách hàng',
-      'Notes': currentTranslations.notes || 'Ghi chú',
-      'Tasks': currentTranslations.tasks || 'Công việc',
-      'Meetings': currentTranslations.meetings || 'Cuộc họp',
-      'Calendar': currentTranslations.calendar || 'Lịch'
-    };
-    return titleMap[moduleName] || moduleName;
+    if (!moduleName) return 'Unknown Module';
+    
+    // Look up translation by lowercase module name
+    const key = moduleName.toLowerCase();
+    const translation = currentTranslations[key];
+    
+    if (translation) {
+      return translation;
+    }
+    
+    // If no translation found, return the module name in English
+    console.warn(`No translation found for module: ${moduleName}, using English fallback`);
+    return moduleName;
   };
 
   const refresh = () => {
@@ -209,11 +288,12 @@ export const useCountModules = () => {
       currentTranslations = await loadTranslations();
     }
     
+    // Clear data with English fallback for core modules (all using 'my')
     setData([
-      { title: currentTranslations.accounts, module: 'Accounts', all: 0 },
-      { title: currentTranslations.notes, module: 'Notes', my: 0 },
-      { title: currentTranslations.tasks, module: 'Tasks', my: 0 },
-      { title: currentTranslations.meetings, module: 'Meetings', my: 0 }
+      { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: 0 },
+      { title: currentTranslations.notes || 'Notes', module: 'Notes', my: 0 },
+      { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: 0 },
+      { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: 0 }
     ]);
     setLoading(false);
     setError(null);

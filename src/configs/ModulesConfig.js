@@ -15,15 +15,40 @@ class ModulesConfig {
         return ModulesConfig.instance;
     }
 
-    // Define the modules we want to display in the hamburger menu
+    //Convert module to screen name. ex: Accounts -> AccountListScreen
+    getScreenName(moduleName) {
+        if (!moduleName) return '';
+        moduleName = moduleName.trim();
+        let singularName = moduleName;
+        if (moduleName.endsWith('s') && moduleName.length > 1) {
+            singularName = moduleName.slice(0, -1);
+        }
+        return `${singularName}ListScreen`;
+    }
+
+    // Get all available modules with their screen names
     getRequiredModules() {
-        return {
-            'Accounts': 'AccountListScreen',
-            'Notes': 'NoteListScreen', 
-            'Tasks': 'TaskListScreen',
-            'Meetings': 'MeetingListScreen',
-            'Calendar': 'CalendarScreen' // Special case for calendar
-        };
+        if (!this.modules) {
+            // Return fallback if modules not loaded yet
+            return {
+                'Accounts': 'AccountListScreen',
+                'Notes': 'NoteListScreen',
+                'Tasks': 'TaskListScreen',
+                'Meetings': 'MeetingListScreen',
+                'Calendar': 'CalendarScreen'
+            };
+        }
+        
+        // Generate screen names for all loaded modules
+        const allModules = {};
+        Object.keys(this.modules).forEach(moduleName => {
+            allModules[moduleName] = this.getScreenName(moduleName);
+        });
+        
+        // Always include Calendar as special case
+        allModules['Calendar'] = 'CalendarScreen';
+        
+        return allModules;
     }
 
     // Load all modules from API (only once)
@@ -51,20 +76,18 @@ class ModulesConfig {
         }
     }
 
-    // Filter only the modules we need for the hamburger menu
+    // Include all modules (no filtering by specific requirements)
     filterRequiredModules() {
         if (!this.modules) return;
 
-        const requiredModules = this.getRequiredModules();
         const filtered = {};
 
-        Object.keys(requiredModules).forEach(moduleKey => {
-            if (this.modules[moduleKey]) {
-                filtered[moduleKey] = {
-                    ...this.modules[moduleKey],
-                    screenName: requiredModules[moduleKey]
-                };
-            }
+        // Include all modules from API
+        Object.keys(this.modules).forEach(moduleKey => {
+            filtered[moduleKey] = {
+                ...this.modules[moduleKey],
+                screenName: this.getScreenName(moduleKey)
+            };
         });
 
         // Add Calendar as special case (not from API)
@@ -75,6 +98,7 @@ class ModulesConfig {
         };
 
         this.filteredModules = filtered;
+        console.log(`ModulesConfig: Loaded ${Object.keys(filtered).length} modules`, Object.keys(filtered));
     }
 
     // Get filtered modules for hamburger menu
@@ -85,7 +109,7 @@ class ModulesConfig {
         return this.filteredModules || {};
     }
 
-    // Get fallback modules in case API fails
+    // Get fallback modules in case API fails - can be extended
     getFallbackModules() {
         return {
             'Accounts': {
@@ -93,7 +117,7 @@ class ModulesConfig {
                 access: ['access', 'view', 'list']
             },
             'Notes': {
-                label: 'Notes', 
+                label: 'Notes',
                 access: ['access', 'view', 'list']
             },
             'Tasks': {
@@ -102,6 +126,22 @@ class ModulesConfig {
             },
             'Meetings': {
                 label: 'Meetings',
+                access: ['access', 'view', 'list']
+            },
+            'Contacts': {
+                label: 'Contacts',
+                access: ['access', 'view', 'list']
+            },
+            'Calls': {
+                label: 'Calls',
+                access: ['access', 'view', 'list']
+            },
+            'Leads': {
+                label: 'Leads',
+                access: ['access', 'view', 'list']
+            },
+            'Opportunities': {
+                label: 'Opportunities',
                 access: ['access', 'view', 'list']
             }
         };

@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
@@ -148,6 +148,19 @@ export default function HomeScreen() {
                       ]}>View</Text>
                     </View>
                   )}
+
+                  {item.noCount && (
+                    <View style={styles.statCol}>
+                      <Text style={[
+                        styles.moduleIcon,
+                        loading && styles.disabledText
+                      ]}>📋</Text>
+                      <Text style={[
+                        styles.label,
+                        loading && styles.disabledText
+                      ]}>Access</Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             ))
@@ -236,6 +249,10 @@ const styles = StyleSheet.create({
     color: '#2a2a2a',
   },
   calendarIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  moduleIcon: {
     fontSize: 20,
     marginBottom: 2,
   },
