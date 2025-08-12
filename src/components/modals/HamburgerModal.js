@@ -53,7 +53,8 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                 const moduleArray = Object.keys(userAccessibleModules).map(key => ({
                     key,
                     label: userAccessibleModules[key].label,
-                    screenName: userAccessibleModules[key].screenName
+                    screenName: userAccessibleModules[key].screenName,
+                    moduleName: userAccessibleModules[key].moduleName || key // Store moduleName for navigation
                 }));
                 
                 setAccessibleModules(moduleArray);
@@ -159,9 +160,15 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         });
     };
 
-    const navigateTo = (screenName) => {
+    const navigateTo = (screenName, moduleName = null) => {
         handleClose();
-        navigation.navigate(screenName);
+        if (screenName === 'ModuleListScreen' && moduleName) {
+            // For generic modules, pass moduleName as parameter
+            navigation.navigate(screenName, { moduleName: moduleName });
+        } else {
+            // For special screens like Calendar, navigate directly
+            navigation.navigate(screenName);
+        }
     };
 
     return (
@@ -251,7 +258,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                                 <TouchableOpacity
                                     key={module.key}
                                     style={styles.menuItem}
-                                    onPress={() => navigateTo(module.screenName)}
+                                    onPress={() => navigateTo(module.screenName, module.moduleName)}
                                 >
                                     <Text style={styles.menuText}>
                                         {translations[module.key] || module.label}

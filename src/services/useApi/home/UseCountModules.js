@@ -3,11 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ModulesConfig from '../../../configs/ModulesConfig';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import {
-  getAccessibleModuleCounts,
-  getCountAllAccounts,
-  getCountMyMeetings,
-  getCountMyNotes,
-  getCountMyTasks
+  getAccessibleModuleCounts
 } from '../../api/home/CountModulesApi';
 import { eventEmitter } from '../../EventEmitter';
 
@@ -207,57 +203,59 @@ export const useCountModules = () => {
         return;
       }
       
-      // For other errors, fallback to original method without permissions
-      await fetchCountModulesLegacy(currentTranslations);
+      // For other errors, use fallback data instead of legacy API calls
+      console.warn('Using fallback data due to API error:', err.message);
+      await setFallbackData(currentTranslations);
       setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
-  }, [translations, loadTranslations]);
+  }, [translations, loadTranslations, setFallbackData]);
 
-  // Legacy fallback method (original implementation)
-  const fetchCountModulesLegacy = async (currentTranslations) => {
+  // Fallback data function (replaces legacy API calls)
+  const setFallbackData = useCallback(async (currentTranslations) => {
     try {
-      // Gọi các API song song để tăng hiệu suất
-      const results = await Promise.allSettled([
-        getCountAllAccounts(),
-        getCountMyMeetings(),
-        getCountMyTasks(),
-        getCountMyNotes()
-      ]);
-
-      // Extract results with fallback values and validation
-      const accountsCount = results[0].status === 'fulfilled' && typeof results[0].value === 'number' ? results[0].value : 0;
-      const meetingsCount = results[1].status === 'fulfilled' && typeof results[1].value === 'number' ? results[1].value : 0;
-      const tasksCount = results[2].status === 'fulfilled' && typeof results[2].value === 'number' ? results[2].value : 0;
-      const notesCount = results[3].status === 'fulfilled' && typeof results[3].value === 'number' ? results[3].value : 0;
-
-      // Log any rejected promises
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const modules = ['Accounts', 'Meetings', 'Tasks', 'Notes'];
-          console.warn(`Failed to fetch ${modules[index]} count:`, result.reason);
-        }
-      });
-
-      setData([
-        { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: Math.max(0, accountsCount) },
-        { title: currentTranslations.notes || 'Notes', module: 'Notes', my: Math.max(0, notesCount) },
-        { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: Math.max(0, tasksCount) },
-        { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: Math.max(0, meetingsCount) }
-      ]);
-    } catch (legacyError) {
-      console.error('Legacy fetch also failed:', legacyError);
+      // Get dynamic module list from ModulesConfig
+      const modulesConfig = ModulesConfig.getInstance();
+      await modulesConfig.loadModules();
+      const availableModules = modulesConfig.getRequiredModules();
       
-      // Final fallback - show empty data with English names (all using 'my')
+      const fallbackData = [];
+      const moduleOrder = Object.keys(availableModules);
+      
+      moduleOrder.forEach(moduleName => {
+        let dataItem = {
+          title: getModuleTitle(moduleName, currentTranslations),
+          module: moduleName,
+          navigationTarget: availableModules[moduleName],
+          hasAccess: true
+        };
+        
+        // Special case for Calendar
+        if (moduleName === 'Calendar') {
+          dataItem.calendar = true;
+        } else {
+          // All other modules show 'my' records count (0 as fallback)
+          dataItem.my = 0;
+        }
+        
+        fallbackData.push(dataItem);
+      });
+      
+      setData(fallbackData);
+    } catch (error) {
+      console.error('Error setting fallback data:', error);
+      
+      // Final fallback - core modules only
       setData([
         { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: 0 },
         { title: currentTranslations.notes || 'Notes', module: 'Notes', my: 0 },
         { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: 0 },
-        { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: 0 }
+        { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: 0 },
+        { title: currentTranslations.calendar || 'Calendar', module: 'Calendar', calendar: true }
       ]);
     }
-  };
+  }, []);
 
   // Helper function to get module title
   const getModuleTitle = (moduleName, currentTranslations) => {
@@ -288,16 +286,11 @@ export const useCountModules = () => {
       currentTranslations = await loadTranslations();
     }
     
-    // Clear data with English fallback for core modules (all using 'my')
-    setData([
-      { title: currentTranslations.accounts || 'Accounts', module: 'Accounts', my: 0 },
-      { title: currentTranslations.notes || 'Notes', module: 'Notes', my: 0 },
-      { title: currentTranslations.tasks || 'Tasks', module: 'Tasks', my: 0 },
-      { title: currentTranslations.meetings || 'Meetings', module: 'Meetings', my: 0 }
-    ]);
+    // Use setFallbackData for consistent data structure
+    await setFallbackData(currentTranslations);
     setLoading(false);
     setError(null);
-  }, [translations, loadTranslations]);
+  }, [translations, loadTranslations, setFallbackData]);
 
   useEffect(() => {
     // Initialize data only once with delay to allow auth check to complete

@@ -15,7 +15,7 @@ class ModulesConfig {
         return ModulesConfig.instance;
     }
 
-    //Convert module to screen name. ex: Accounts -> AccountListScreen
+    //Convert module to screen name. ex: Accounts -> AccountListScreen  
     getScreenName(moduleName) {
         if (!moduleName) return '';
         moduleName = moduleName.trim();
@@ -26,15 +26,28 @@ class ModulesConfig {
         return `${singularName}ListScreen`;
     }
 
+    //Get generic screen name for navigation - uses ModuleListScreen for all modules except special cases
+    getGenericScreenName(moduleName) {
+        if (!moduleName) return '';
+        
+        // Special cases that have their own dedicated screens
+        if (moduleName === 'Calendar') {
+            return 'CalendarScreen';
+        }
+        
+        // All other modules use the generic ModuleListScreen
+        return 'ModuleListScreen';
+    }
+
     // Get all available modules with their screen names
     getRequiredModules() {
         if (!this.modules) {
             // Return fallback if modules not loaded yet
             return {
-                'Accounts': 'AccountListScreen',
-                'Notes': 'NoteListScreen',
-                'Tasks': 'TaskListScreen',
-                'Meetings': 'MeetingListScreen',
+                'Accounts': 'ModuleListScreen',
+                'Notes': 'ModuleListScreen',
+                'Tasks': 'ModuleListScreen',
+                'Meetings': 'ModuleListScreen',
                 'Calendar': 'CalendarScreen'
             };
         }
@@ -42,7 +55,7 @@ class ModulesConfig {
         // Generate screen names for all loaded modules
         const allModules = {};
         Object.keys(this.modules).forEach(moduleName => {
-            allModules[moduleName] = this.getScreenName(moduleName);
+            allModules[moduleName] = this.getGenericScreenName(moduleName);
         });
         
         // Always include Calendar as special case
@@ -86,7 +99,9 @@ class ModulesConfig {
         Object.keys(this.modules).forEach(moduleKey => {
             filtered[moduleKey] = {
                 ...this.modules[moduleKey],
-                screenName: this.getScreenName(moduleKey)
+                screenName: this.getGenericScreenName(moduleKey),
+                originalScreenName: this.getScreenName(moduleKey),
+                moduleName: moduleKey // Store module name for navigation params
             };
         });
 
@@ -94,11 +109,12 @@ class ModulesConfig {
         filtered['Calendar'] = {
             label: 'Calendar',
             screenName: 'CalendarScreen',
+            originalScreenName: 'CalendarScreen',
+            moduleName: 'Calendar',
             access: ['access', 'view'] // Default permissions
         };
 
         this.filteredModules = filtered;
-        console.log(`ModulesConfig: Loaded ${Object.keys(filtered).length} modules`, Object.keys(filtered));
     }
 
     // Get filtered modules for hamburger menu
