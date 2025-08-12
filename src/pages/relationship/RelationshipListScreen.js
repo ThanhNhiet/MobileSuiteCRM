@@ -149,7 +149,6 @@ export default function RelationshipListScreen() {
        // Function để tìm kiếm và lọc dữ liệu
        const searchData = async (searchQuery, fieldFilter) => {
               let filtered = apiData?.meetings || [];
-              console.log(searchQuery, fieldFilter);
               if (
                   fieldFilter &&
                   fieldFilter !== typeOptions1[0].label &&
@@ -213,17 +212,15 @@ export default function RelationshipListScreen() {
           };
       
    
-       const handleSearch =async () => {
-           if (!searchText.trim() && selectedType1 !== typeOptions1[0].label ) {
-               console.log('Search text is empty, using selected type:', selectedType1);
-               console.log('Selected type:', searchText);
-               const filtered = await searchData(searchText, selectedType1);
-               setFilteredData(filtered);
-           } else {
-               const filtered =  filterData(searchText, selectedType2);
-               setFilteredData(filtered);
-           }
-       };
+        const handleSearch =async () => {
+            if (searchText.trim() !== '' && selectedType1 !== typeOptions1[0].label ) {
+                const filtered = await searchData(searchText, selectedType1);
+                setFilteredData(filtered);
+            } else if (searchText.trim() === '' && selectedType2 !== typeOptions2[0].label) {
+                const filtered =  filterData(searchText, selectedType2);
+                setFilteredData(filtered);
+            }
+        };
    
        // Function để reset search
        const handleReset = () => {

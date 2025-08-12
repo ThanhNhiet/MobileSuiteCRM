@@ -136,7 +136,6 @@ export default function MeetingListScreen() {
     // Function để tìm kiếm và lọc dữ liệu
     const searchData = async (searchQuery, fieldFilter) => {
            let filtered = apiData?.meetings || [];
-           console.log(searchQuery, fieldFilter);
            if (
                fieldFilter &&
                fieldFilter !== typeOptions1[0].label &&
@@ -200,11 +199,11 @@ export default function MeetingListScreen() {
        };
    
 
-    const handleSearch =async () => {
-        if (!searchText.trim() && selectedType1 !== typeOptions1[0].label ) {
+     const handleSearch =async () => {
+        if (searchText.trim() !== '' && selectedType1 !== typeOptions1[0].label ) {
             const filtered = await searchData(searchText, selectedType1);
             setFilteredData(filtered);
-        } else {
+        } else if (searchText.trim() === '' && selectedType2 !== typeOptions2[0].label) {
             const filtered =  filterData(searchText, selectedType2);
             setFilteredData(filtered);
         }
