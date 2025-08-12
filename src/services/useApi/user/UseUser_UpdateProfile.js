@@ -24,7 +24,7 @@ export const useUpdateProfile = () => {
 
     // Messenger type options
     const messengerOptions = [
-        { label: 'Không chọn', value: '' },
+        { label: '---', value: '---' },
         { label: 'Yahho!', value: 'Yahho!' },
         { label: 'AOL', value: 'AOL' },
         { label: 'MSN', value: 'MSN' }
@@ -53,17 +53,17 @@ export const useUpdateProfile = () => {
             const nameFieldsString = visibleFields.join(',');
             setNameFields(nameFieldsString);
 
-            // Generate field labels with fallback system
+            // Generate field labels with fallback system - always translate keys to values
             const fieldLabelFallbacks = {
                 "user_name": "LBL_USER_NAME",
-                "first_name": "LBL_FIRST_NAME",
+                "first_name": "LBL_FIRST_NAME", 
                 "last_name": "LBL_LAST_NAME",
                 "photo": "LBL_PHOTO",
                 "title": "LBL_TITLE",
                 "phone_work": "LBL_WORK_PHONE",
                 "department": "LBL_DEPARTMENT",
                 "phone_mobile": "LBL_MOBILE_PHONE",
-                "phone_other": "LBL_OTHER_PHONE",
+                "phone_other": "LBL_OTHER_PHONE", 
                 "phone_fax": "LBL_FAX_PHONE",
                 "phone_home": "LBL_HOME_PHONE",
                 "messenger_type": "LBL_MESSENGER_TYPE",
@@ -78,38 +78,44 @@ export const useUpdateProfile = () => {
 
             const labels = {};
             for (const fieldName of visibleFields) {
-                const fieldValue = editFields[fieldName];
+                // Try multiple translation strategies
+                let translatedLabel = null;
                 
-                if (fieldValue && fieldValue.trim() !== '') {
-                    // Field has value, translate directly
-                    labels[fieldName] = await userLanguageUtils.translate(fieldValue, fieldValue);
-                } else {
-                    // Field empty, use fallback priority
-                    let translatedLabel = null;
-                    
-                    const primaryLblKey = `LBL_${fieldName.toUpperCase()}`;
-                    const primaryResult = await userLanguageUtils.translate(primaryLblKey, null);
-                    
-                    if (primaryResult && primaryResult !== primaryLblKey) {
-                        translatedLabel = primaryResult;
-                    }
-                    
-                    if (!translatedLabel) {
-                        const fallbackKey = fieldLabelFallbacks[fieldName];
-                        if (fallbackKey) {
-                            const fallbackResult = await userLanguageUtils.translate(fallbackKey, null);
-                            if (fallbackResult && fallbackResult !== fallbackKey) {
-                                translatedLabel = fallbackResult;
-                            }
+                // 1. Try primary LBL_FIELDNAME pattern
+                const primaryLblKey = `LBL_${fieldName.toUpperCase()}`;
+                const primaryResult = await userLanguageUtils.translate(primaryLblKey, null);
+                if (primaryResult && primaryResult !== primaryLblKey) {
+                    translatedLabel = primaryResult;
+                }
+                
+                // 2. Try fallback key if primary failed
+                if (!translatedLabel) {
+                    const fallbackKey = fieldLabelFallbacks[fieldName];
+                    if (fallbackKey) {
+                        const fallbackResult = await userLanguageUtils.translate(fallbackKey, null);
+                        if (fallbackResult && fallbackResult !== fallbackKey) {
+                            translatedLabel = fallbackResult;
                         }
                     }
-                    
-                    if (!translatedLabel) {
-                        translatedLabel = await userLanguageUtils.translateFieldName(fieldName);
-                    }
-                    
-                    labels[fieldName] = translatedLabel;
                 }
+                
+                // 3. Try direct field value from API (if it's a translation key)
+                if (!translatedLabel) {
+                    const fieldValue = editFields[fieldName];
+                    if (fieldValue && fieldValue.trim() !== '' && fieldValue.startsWith('LBL_')) {
+                        const directResult = await userLanguageUtils.translate(fieldValue, null);
+                        if (directResult && directResult !== fieldValue) {
+                            translatedLabel = directResult;
+                        }
+                    }
+                }
+                
+                // 4. Final fallback - use formatted field name
+                if (!translatedLabel) {
+                    translatedLabel = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                }
+                
+                labels[fieldName] = translatedLabel;
             }
             
             setFieldLabels(labels);

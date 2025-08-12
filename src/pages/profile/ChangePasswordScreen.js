@@ -60,16 +60,16 @@ const ChangePasswordScreen = () => {
                     newPasswordLabel,
                     confirmPasswordLabel
                 ] = await Promise.all([
-                    userLanguageUtils.translate('LBL_EMAIL_SUCCESS', 'Thành công'),
-                    userLanguageUtils.translate('LBL_PASSWORD_SENT', 'Mật khẩu đã được đổi'),
-                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST', 'Đang xử lý...'),
-                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST', 'Đang cập nhật...'),
-                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD', 'Đổi mật khẩu'),
-                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD', 'Cập nhật mật khẩu'),
-                    userLanguageUtils.translate('LBL_IMPORT', 'Nhập'),
-                    userLanguageUtils.translate('LBL_OLD_PASSWORD', 'Mật khẩu hiện tại'),
-                    userLanguageUtils.translate('LBL_NEW_PASSWORD', 'Mật khẩu mới'),
-                    userLanguageUtils.translate('LBL_NEW_PASSWORD2', 'Xác nhận mật khẩu')
+                    userLanguageUtils.translate('LBL_EMAIL_SUCCESS'),
+                    userLanguageUtils.translate('LBL_PASSWORD_SENT'),
+                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST'),
+                    userLanguageUtils.translate('LBL_PROCESSING_REQUEST'),
+                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD'),
+                    userLanguageUtils.translate('LBL_CHANGE_PASSWORD'),
+                    userLanguageUtils.translate('LBL_IMPORT'),
+                    userLanguageUtils.translate('LBL_OLD_PASSWORD'),
+                    userLanguageUtils.translate('LBL_NEW_PASSWORD'),
+                    userLanguageUtils.translate('LBL_NEW_PASSWORD2')
                 ]);
 
                 setLabels({
