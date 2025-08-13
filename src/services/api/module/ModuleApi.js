@@ -329,3 +329,18 @@ export const buildDateFilter = (dateType, fieldName = 'date_entered') => {
         [`filter[${fieldName}][lt]`]: endDate.toISOString()
     };
 };
+
+//Get parent_id by moduleId
+export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/${moduleName}/${id}`, {
+            params: {
+                [`fields[${moduleName}]`]: 'parent_id,parent_type'
+            }
+        });
+        return response.data.data.attributes;
+    } catch (error) {
+        console.warn("Get Parent ID by ID API error:", error);
+        throw error;
+    }
+};

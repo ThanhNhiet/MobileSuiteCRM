@@ -20,7 +20,6 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useModule_Detail } from "../../services/useApi/module/UseModule_Detail";
-import RelationshipsData from "../../services/useApi/relationship/RelationshipData";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
@@ -33,8 +32,6 @@ export default function ModuleDetailScreen() {
     const route = useRoute();
     const { moduleName, recordId } = route.params || {};
     const [currentUserId, setCurrentUserId] = useState(null);
-    const [relationships, setRelationships] = useState([]);
-    const [getDataRelationship, setGetDataRelationship] = useState([]);
 
     // Check if navigation is available
     const isNavigationReady = navigation && typeof navigation.goBack === 'function';
@@ -56,30 +53,30 @@ export default function ModuleDetailScreen() {
 
                 // Get all translations at once using SystemLanguageUtils
                 const translatedLabels = await systemLanguageUtils.translateKeys([
-                    'LBL_EMAIL_DETAILS',          // "Chi tiết"
-                    'LBL_NOTES',                // "Ghi chú"
-                    'LBL_EMAIL_LOADING',          // "Đang tải..."
-                    'LBL_EMAIL_ERROR_GENERAL_TITLE', // "Một lỗi đã xảy ra"
-                    'UPLOAD_REQUEST_ERROR',     // "Thử lại"
-                    'LBL_EMAIL_FROM',             // "Từ" -> related prefix
-                    'LBL_EDIT_BUTTON',            // "Sửa" -> update button
-                    'LBL_DELETE_BUTTON',          // "Xóa" -> delete button
-                    'LBL_DELETE',                 // "Xóa"
-                    'LBL_EMAIL_CANCEL',           // "Hủy"
-                    'LBL_EMAIL_SUCCESS',          // "Thành công"
-                    'LBL_EMAIL_OK',               // "Ok"
-                    'LBL_DELETED',                 // "Đã xóa",
-                    'LBL_PROCESSING_REQUEST', // "Đang xử lý"
-                    'LBL_EMAIL_DELETE_ERROR_DESC', // Không có quyền truy cập
-                    'LBL_DELETE_DASHBOARD1', //"Bạn có chắc chắn muốn xóa"
-                    'Bugs' //Lỗi
+                    'LBL_EMAIL_DETAILS',
+                    'LBL_NOTES',
+                    'LBL_EMAIL_LOADING',
+                    'LBL_EMAIL_ERROR_GENERAL_TITLE',
+                    'UPLOAD_REQUEST_ERROR',
+                    'LBL_EMAIL_FROM',
+                    'LBL_EDIT_BUTTON',
+                    'LBL_DELETE_BUTTON',
+                    'LBL_DELETE',
+                    'LBL_EMAIL_CANCEL',
+                    'LBL_EMAIL_SUCCESS',
+                    'LBL_EMAIL_OK',
+                    'LBL_DELETED',
+                    'LBL_PROCESSING_REQUEST',
+                    'LBL_EMAIL_DELETE_ERROR_DESC',
+                    'LBL_DELETE_DASHBOARD1',
+                    'Bugs'
                 ]);
 
                 setTranslations({
                     mdName: translatedLabels.LBL_EMAIL_DETAILS + ' ' + (await systemLanguageUtils.translate(moduleName)),
                     loadingText: translatedLabels.LBL_EMAIL_LOADING,
                     errorTitle: translatedLabels.LBL_EMAIL_ERROR_GENERAL_TITLE,
-                    retryText: translatedLabels.UPLOAD_REQUEST_ERROR ,
+                    retryText: translatedLabels.UPLOAD_REQUEST_ERROR,
                     refreshPull: 'Pull to refresh...',
                     relatedPrefix: translatedLabels.LBL_EMAIL_FROM,
                     updateButton: translatedLabels.LBL_EDIT_BUTTON,
@@ -108,10 +105,10 @@ export default function ModuleDetailScreen() {
         initTranslations();
     }, [moduleName]);
 
-    // Sử dụng custom hook
     const {
         record,
         detailFields,
+        relationships, // relationships had been processed
         loading,
         refreshing,
         error,
@@ -123,76 +120,6 @@ export default function ModuleDetailScreen() {
         shouldDisplayField
     } = useModule_Detail(moduleName, recordId);
 
-    // Fetch relationships
-    useEffect(() => {
-        const fetchRelationships = async () => {
-            if (!record?.id) return;
-            
-            try {
-                const token = await AsyncStorage.getItem('token');
-                if (!token) {
-                    navigation.navigate('LoginScreen');
-                    return;
-                }
-
-                // Use specific API method based on module
-                let response;
-                switch (moduleName?.toLowerCase()) {
-                    case 'accounts':
-                        // Import AccountData dynamically if needed
-                        const AccountData = require('../../services/useApi/account/AccountData').default;
-                        response = await AccountData.getRelationships(token, record.id);
-                        break;
-                    default:
-                        // Generic relationship fetching - you might need to implement this
-                        response = { relationships: [] };
-                        break;
-                }
-            
-                // Kiểm tra và xử lý response
-                if (response && response.relationships && Array.isArray(response.relationships)) {
-                    setRelationships(response.relationships);
-                } else if (response && Array.isArray(response)) {
-                    setRelationships(response);
-                } else {
-                    console.log('⚠️ Invalid relationships format, using empty array');
-                    setRelationships([]);
-                }
-            } catch (error) {
-                console.error('Error fetching relationships:', error);
-                setRelationships([]); // Set empty array on error
-            }
-        };
-        
-        fetchRelationships();
-    }, [record?.id, moduleName]);
-
-    useEffect(() => {
-        // Xử lý khi relationships thay đổi
-        if(!relationships) return;
-        const relatedLinks = relationships.map( (item) => {
-                return {
-                    relatedLink: item.relatedLink,
-                    moduleName : item.moduleName,
-                };
-        });
-        // Xử lý relatedLinks ở đây nếu cần
-        const fetchRelatedData = async () => {
-            try{
-                 const token = await AsyncStorage.getItem('token');
-                if (!token) {
-                    navigation.navigate('LoginScreen');
-                    return;
-                }
-                const results = await RelationshipsData.getDataRelationship(token, relatedLinks);
-                setGetDataRelationship(results);
-            } catch (error) {
-                console.error('Lỗi khi xử lý relationships:', error);
-            }
-        };
-        fetchRelatedData();
-    }, [relationships]);
-
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
         let lastRowCount = raw.length - fullRows * cols;
@@ -203,9 +130,7 @@ export default function ModuleDetailScreen() {
         return raw;
     };
 
-    // trong component - với safety check
     const paddedData = useMemo(() => {
-        // Đảm bảo relationships luôn là array trước khi spread
         const safeRelationships = Array.isArray(relationships) ? relationships : [];
         return padData([...safeRelationships], 3);
     }, [relationships]);
@@ -215,19 +140,12 @@ export default function ModuleDetailScreen() {
             return <View style={styles.cardInvisible} />;
         }
 
-        let checked = false;
-        getDataRelationship.map((data) => {
-            if (data.moduleName === item.displayName) {
-                if (data.length > 0) {
-                    checked = true;
-                }
-            }
-        });
+        const hasData = item.count && item.count > 0;
 
         return (
             <Pressable
                 onPress={() => {
-                    navigation.navigate('RelationshipListScreen_New', { 
+                    navigation.navigate('RelationshipListScreen_New', {
                         relationship: item,
                         sourceModule: moduleName,
                         sourceRecordId: record?.id
@@ -235,8 +153,8 @@ export default function ModuleDetailScreen() {
                 }}
                 style={({ pressed }) => [
                     styles.card,
-                    !checked && styles.cardNoData,       // màu khác nếu không có data
-                    pressed && styles.cardPressed,       // hiệu ứng khi nhấn
+                    !hasData && styles.cardNoData,
+                    pressed && styles.cardPressed,
                 ]}
             >
                 <Text style={styles.cardText}>
@@ -271,8 +189,8 @@ export default function ModuleDetailScreen() {
                             Alert.alert(
                                 translations.success || 'Thành công',
                                 translations.deleteSuccess || 'Đã xóa bản ghi thành công',
-                                [{ 
-                                    text: translations.ok || 'OK', 
+                                [{
+                                    text: translations.ok || 'OK',
                                     onPress: () => {
                                         if (isNavigationReady && navigation.canGoBack()) {
                                             navigation.goBack();
@@ -308,9 +226,9 @@ export default function ModuleDetailScreen() {
             );
             return;
         }
-        navigation.navigate('ModuleUpdateScreen', { 
+        navigation.navigate('ModuleUpdateScreen', {
             moduleName,
-            recordData: record 
+            recordData: record
         });
     };
 
@@ -348,7 +266,7 @@ export default function ModuleDetailScreen() {
         }
     };
 
-    // Render field item - GIỐNG Y CHANG NoteDetailScreen
+    // Render field item
     const renderFieldItem = (field) => {
         const value = getFieldValue(field.key);
 
@@ -386,7 +304,7 @@ export default function ModuleDetailScreen() {
         );
     };
 
-    // Loading state - GIỐNG Y CHANG NoteDetailScreen
+    // Loading state 
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -404,7 +322,7 @@ export default function ModuleDetailScreen() {
         );
     }
 
-    // Error state - GIỐNG Y CHANG NoteDetailScreen
+    // Error state 
     if (error && !record) {
         return (
             <SafeAreaView style={styles.container}>
@@ -448,7 +366,7 @@ export default function ModuleDetailScreen() {
                         />
                     }
                 >
-                    {/* Error Display - GIỐNG Y CHANG NoteDetailScreen */}
+                    {/* Error Display */}
                     {error && (
                         <View style={styles.warningContainer}>
                             <Ionicons name="warning-outline" size={20} color="#FF8C00" />
@@ -456,7 +374,7 @@ export default function ModuleDetailScreen() {
                         </View>
                     )}
 
-                    {/* Record Details - GIỐNG Y CHANG NoteDetailScreen */}
+                    {/* Record Details */}
                     {record && (
                         <View style={styles.detailsContainer}>
                             <Text style={styles.recordTitle}>{record.name || record.subject || 'Untitled'}</Text>
@@ -480,7 +398,7 @@ export default function ModuleDetailScreen() {
                     {/* ===== RELATIONSHIP ===== */}
                     {/* Section Header for Relationships */}
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Mối quan hệ</Text>
+                        <Text style={styles.sectionTitle}>Relationships</Text>
                     </View>
 
                     <View style={styles.infoCard}>
@@ -497,7 +415,7 @@ export default function ModuleDetailScreen() {
                     </View>
                 </ScrollView>
 
-                {/* Action Buttons - GIỐNG Y CHANG NoteDetailScreen */}
+                {/* Action Buttons */}
                 {record && (
                     <View style={styles.actionContainer}>
                         <TouchableOpacity
@@ -553,7 +471,6 @@ export default function ModuleDetailScreen() {
     );
 }
 
-// STYLES Y CHANG NoteDetailScreen + AccountDetailScreen
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -563,16 +480,15 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
     },
-    /* Header mini cho section - TỪ AccountDetailScreen */
     sectionHeader: {
-        marginTop: 6, 
-        marginBottom: 6, 
-        paddingHorizontal: 0 // Remove padding để align với content
+        marginTop: 6,
+        marginBottom: 6,
+        paddingHorizontal: 0
     },
-    sectionTitle: { 
-        fontSize: 16, 
-        fontWeight: '600', 
-        color: '#4B84FF' 
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#4B84FF'
     },
     loadingContainer: {
         flex: 1,
@@ -795,7 +711,7 @@ const styles = StyleSheet.create({
         margin: 12,
     },
     cardNoData: {
-        backgroundColor: '#B0BEC5', // màu xám cho module không có dữ liệu
+        backgroundColor: '#B0BEC5',
     },
     cardPressed: {
         opacity: 0.7,

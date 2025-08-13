@@ -48,6 +48,7 @@ import TaskUpdateScreen from "../pages/task/TaskUpdateScreen";
 
 //import page relationship
 import RelationshipListScreen from "../pages/relationship/RelationshipListScreen";
+import RelationshipListScreen_New from "../pages/relationship/RelationshipListScreen_New";
 
 //import page search
 import SearchModulesScreen from "../pages/search/SearchModulesScreen";
@@ -141,6 +142,8 @@ export default function AppRouter() {
                 
                 {/*Relationship List Screen*/}
                 <Stack.Screen name="RelationshipListScreen" component={RelationshipListScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="RelationshipListScreen_New" component={RelationshipListScreen_New} options={{ headerShown: false }} />
+
                 {/* Add more screens as needed */}
 
                 {/* <Stack.Screen name="MessageStackNavigator" component={MessageStackNavigator} options={{ headerShown: false }} /> */}

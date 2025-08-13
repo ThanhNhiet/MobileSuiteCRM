@@ -4,7 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { deleteModuleRecordApi, getModuleDetailApi, getModuleDetailFieldsApi } from '../../api/module/ModuleApi';
+import { deleteModuleRecordApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 
 export const useModule_Detail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
@@ -17,34 +17,30 @@ export const useModule_Detail = (moduleName, recordId) => {
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
-    // Fields and labels - GIỐNG UseNote_Detail
+    // Fields and labels
     const [detailFields, setDetailFields] = useState([]);
     const [nameFields, setNameFields] = useState('');
 
-    // Initialize fields and language for detail view - LOGIC GIỐNG UseNote_Detail
+    // Initialize fields and language for detail view
     const initializeDetailFields = useCallback(async () => {
         try {
-            // 1. Kiểm tra cache detailviewdefs.json có tồn tại không
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'detailviewdefs');
             
             if (!cachedFields) {
-                // Nếu chưa có cache, fetch từ API
                 const fieldsResponse = await getModuleDetailFieldsApi(moduleName);
                 fieldsData = fieldsResponse;
                 
-                // Lưu vào cache
                 await WriteCacheView.saveModuleField(moduleName, 'detailviewdefs', fieldsData);
             } else {
-                // Nếu có cache, sử dụng cache
                 fieldsData = cachedFields;
             }
-            
-            // 2. Lấy ngôn ngữ hiện tại
+
+            // Get selected language
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
-            
-            // Nếu không có language data, thử fetch lại
+
+            // If languageData is not found
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
@@ -52,7 +48,6 @@ export const useModule_Detail = (moduleName, recordId) => {
                 }
             }
             
-            // Lấy mod_strings và app_strings từ cấu trúc language data
             let modStrings = null;
             let appStrings = null;
             if (languageData && languageData.data) {
@@ -60,7 +55,6 @@ export const useModule_Detail = (moduleName, recordId) => {
                 appStrings = languageData.data.app_strings;
             }
             
-            // Helper function để tìm translation với fallback pattern
             const findTranslation = (key) => {
                 if (modStrings && modStrings[key]) {
                     return modStrings[key];
@@ -71,40 +65,32 @@ export const useModule_Detail = (moduleName, recordId) => {
                 return null;
             };
             
-            // Kiểm tra fieldsData có hợp lệ không
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                // Using default fields structure với key có trong language file
-                // GENERIC DEFAULT FIELDS cho nhiều module
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
             
-            // 3. Tạo nameFields string từ fieldsData
             const fieldKeys = Object.keys(fieldsData);
             const nameFieldsString = fieldKeys.join(',');
             setNameFields(nameFieldsString);
             
-            // 4. Tạo detailFields với bản dịch chính xác từ value
             const detailFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
-                let vietnameseLabel = labelValue || fieldKey; // Sử dụng labelValue làm default
+                let vietnameseLabel = labelValue || fieldKey;
                 
                 if ((modStrings || appStrings) && labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                    // CHỈ sử dụng labelValue từ detailviewdefs để tìm translation
                     const translation = findTranslation(labelValue);
                     if (translation) {
                         vietnameseLabel = translation;
                     }
-                    // Không có fallback pattern - chỉ dùng chính xác labelValue
                 }
                 
                 return {
                     key: fieldKey,
                     label: vietnameseLabel,
-                    type: 'text', // Default type, có thể mở rộng sau
-                    required: false // Default required, có thể mở rộng sau
+                    type: 'text',
+                    required: false
                 };
             });
             
-            // Thêm id vào detailFields với translation phù hợp
             const idLabel = findTranslation('LBL_ID') || 'ID';
             detailFieldsData.unshift({
                 key: 'id',
@@ -122,7 +108,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         }
     }, [moduleName]);
 
-    // Get default fields for different modules - LINH HOẠT CHO NHIỀU MODULE
+    // Get default fields for different modules
     const getDefaultFieldsForModule = (module) => {
         const defaultFields = {
             'Notes': {
@@ -222,7 +208,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         };
     };
 
-    // Process relationships từ response mẫu - GIỐNG AccountDetailScreen
+    // Process relationships
     const processRelationships = (relationshipsData) => {
         if (!relationshipsData || typeof relationshipsData !== 'object') {
             return [];
@@ -278,7 +264,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         return moduleLabels[moduleName] || moduleName;
     };
 
-    // Fetch record detail - LOGIC GIỐNG UseNote_Detail
+    // Fetch record detail
     const fetchRecord = useCallback(async (isRefresh = false) => {
         if (!recordId || !nameFields || !moduleName) return;
         
@@ -290,22 +276,29 @@ export const useModule_Detail = (moduleName, recordId) => {
             }
             setError(null);
 
-            // Get record detail with relationships - SỬ DỤNG getModuleDetailApi
+            // Get record detail with relationships
             const response = await getModuleDetailApi(moduleName, recordId, nameFields);
-            
+
+            //Get parent_id and parent_type
+            const parentInfo = await getParentId_typeByModuleIdApi(moduleName, recordId);
+
             // Process record data
             const recordData = {
                 id: response.data.id,
                 type: response.data.type,
+                parent_id: parentInfo.parent_id || null,
+                parent_type: parentInfo.parent_type || null,
                 ...response.data.attributes
             };
             
             setRecord(recordData);
 
-            // Process relationships from response - XỬ LÝ RELATIONSHIPS TỪ RESPONSE MẪU
+            // Process relationships from response
             if (response.data.relationships) {
                 const processedRelationships = processRelationships(response.data.relationships);
                 setRelationships(processedRelationships);
+            } else {
+                setRelationships([]);
             }
             
         } catch (err) {
@@ -319,7 +312,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         }
     }, [recordId, nameFields, moduleName]);
 
-    // Delete record - LOGIC GIỐNG UseNote_Detail
+    // Delete record
     const deleteRecord = useCallback(async () => {
         if (!recordId || !moduleName) return false;
         
@@ -346,19 +339,19 @@ export const useModule_Detail = (moduleName, recordId) => {
         fetchRecord(true);
     }, [fetchRecord]);
 
-    // Get field value for display - GIỐNG UseNote_Detail
+    // Get field value for display
     const getFieldValue = useCallback((fieldKey) => {
         if (!record) return '';
         return record[fieldKey] || '';
     }, [record]);
 
-    // Get field label - GIỐNG UseNote_Detail
+    // Get field label
     const getFieldLabel = useCallback((fieldKey) => {
         const field = detailFields.find(f => f.key === fieldKey);
         return field ? field.label : fieldKey;
     }, [detailFields]);
 
-    // Check if field should be displayed - GIỐNG UseNote_Detail
+    // Check if field should be displayed
     const shouldDisplayField = useCallback((fieldKey) => {
         const value = getFieldValue(fieldKey);
         

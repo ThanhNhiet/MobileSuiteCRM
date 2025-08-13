@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigation from "../../components/navigations/TopNavigation";
-import { useRelationshipList } from "../../services/useApi/relationship/UseRelationshipList_New";
+import { useRelationshipList } from "../../services/useApi/relationship/UseRelationshipList";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
 
