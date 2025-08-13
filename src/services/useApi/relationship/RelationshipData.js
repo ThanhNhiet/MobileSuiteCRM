@@ -7,7 +7,7 @@ const RelationshipsData = {};
 RelationshipsData.getRequiredFields = async (token,moduleName) => {
   try {
     let ObjectrequiredFields = null;
-    const cacheExists = await WriteCacheView.checkPath(moduleName, '/requiredFields/requiredfields');
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/requiredfields');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -18,10 +18,10 @@ RelationshipsData.getRequiredFields = async (token,moduleName) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField(moduleName, '/requiredFields/requiredfields', ObjectrequiredFields);
+      await WriteCacheView.saveModuleField(moduleName, '/requiredfields', ObjectrequiredFields);
     } else {
       // Lấy từ cache
-      ObjectrequiredFields = await ReadCacheView.getModuleField(moduleName, '/requiredFields/requiredfields');
+      ObjectrequiredFields = await ReadCacheView.getModuleField(moduleName, '/requiredfields');
       if (!ObjectrequiredFields) {
         console.error('❌ Không thể lấy required fields từ cache');
         return null;
@@ -84,7 +84,7 @@ RelationshipsData.getLanguageModule = async (token, language,moduleName) => {
 RelationshipsData.getListView = async (token,moduleName) => {
   try {
     let listViewData = null;
-    const cacheExists = await WriteCacheView.checkPath(moduleName, '/listViews/listview');
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/listview');
 
     if (!cacheExists) {
       // Lấy từ API
@@ -95,10 +95,10 @@ RelationshipsData.getListView = async (token,moduleName) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField(moduleName, '/listViews/listview', listViewData);
+      await WriteCacheView.saveModuleField(moduleName, '/listview', listViewData);
     } else {
       // Lấy từ cache
-      listViewData = await ReadCacheView.getModuleField(moduleName, '/listViews/listview');
+      listViewData = await ReadCacheView.getModuleField(moduleName, '/listview');
       if (!listViewData) {
         console.error('❌ Không thể lấy dữ liệu list view từ cache');
         return [];
@@ -126,7 +126,7 @@ RelationshipsData.getListView = async (token,moduleName) => {
 RelationshipsData.getEditView = async (token,moduleName) => {
   try {
     let editViewData = null;
-    const cacheExists = await WriteCacheView.checkPath(moduleName, '/editViews/editview');
+    const cacheExists = await WriteCacheView.checkPath(moduleName, '/editview');
 
     if (!cacheExists) {
       // Lấy từ API
@@ -137,10 +137,10 @@ RelationshipsData.getEditView = async (token,moduleName) => {
       }
     
       // Lưu vào cache
-      await WriteCacheView.saveModuleField(moduleName, '/editViews/editview', editViewData);
+      await WriteCacheView.saveModuleField(moduleName, '/editview', editViewData);
     } else {
       // Lấy từ cache
-      editViewData = await ReadCacheView.getModuleField(moduleName, '/editViews/editview');
+      editViewData = await ReadCacheView.getModuleField(moduleName, '/editview');
       if (!editViewData) {
         console.error('❌ Không thể lấy dữ liệu edit view từ cache');
         return [];
