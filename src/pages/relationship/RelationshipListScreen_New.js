@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    Modal,
     RefreshControl,
     StatusBar,
     StyleSheet,
@@ -11,297 +11,555 @@ import {
     TextInput,
     TouchableOpacity,
     View
-} from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import TopNavigation from "../../components/navigations/TopNavigation";
-import { useRelationshipList } from "../../services/useApi/relationship/UseRelationshipList";
-import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
-import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
+} from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import BottomNavigation from '../../components/navigations/BottomNavigation';
+import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
+import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
+
+/**
+ * RelationshipListScreen_New component
+ * Independent of old relationship files, follows ModuleListScreen patterns
+ * Receives relationship data via route params
+ */
 export default function RelationshipListScreen_New() {
     const navigation = useNavigation();
     const route = useRoute();
+    
+    // Get relationship data from route params (passed from ModuleDetailScreen renderRelationshipItem)
     const { 
-        moduleName, 
-        recordId, 
-        relationshipType, 
-        relationshipName 
-    } = route.params || {};
-
-    // Check if navigation is available
-    const isNavigationReady = navigation && typeof navigation.goBack === 'function';
-
+        relationship,           // relationship object with moduleName, displayName, relatedLink, etc.
+        sourceModule,           // source/parent module name  
+        sourceRecordId,         // source/parent record ID
+        parentModule,           // alternative parent module name (for backward compatibility)
+        parentId,              // alternative parent record ID (for backward compatibility)
+        parentRecord           // parent record data (optional)
+    } = route.params;
+    
+    // Extract moduleName and relatedLink from relationship
+    const moduleName = relationship?.moduleName;
+    const relatedLink = relationship?.relatedLink;
+    const displayName = relationship?.displayName || relationship?.moduleLabel || moduleName;
+    
+    // Use sourceModule/sourceRecordId if available, otherwise fall back to parentModule/parentId
+    const actualParentModule = sourceModule || parentModule;
+    const actualParentId = sourceRecordId || parentId;
+    
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    
+    // Translation states
+    const [translations, setTranslations] = useState({
+        mdName: displayName,
+        searchPlaceholder: 'Nhập từ khóa tìm kiếm',
+        selectedTypeDefault: 'Tất cả',
+        searchButton: 'Tìm',
+        addButton: 'Thêm',
+        loading: 'Đang tải...',
+        tryAgain: 'Thử lại',
+        pullToRefresh: 'Kéo để tải lại...',
+        noData: 'Không có dữ liệu',
+        createNew: 'Tạo mới'
+    });
+    
+    const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
-    // State for translations and search
-    const [translations, setTranslations] = useState({});
+    // State cho search và filter
     const [searchText, setSearchText] = useState('');
+    const [selectedTimeFilter, setSelectedTimeFilter] = useState('');
+    const [showTimeDropdown, setShowTimeDropdown] = useState(false);
 
-    // Use custom hook for relationship list
+    // Validation
+    if (!moduleName || !relatedLink) {
+        throw new Error('moduleName and relatedLink are required for RelationshipListScreen_New');
+    }
+
+    // Sử dụng custom hook
     const {
-        relationships,
+        records,
+        columns,
+        timeFilterOptions,
+        filtersInitialized,
+        currentPage,
+        totalPages,
         loading,
         refreshing,
         error,
-        hasMore,
-        refreshList,
+        handleSearch: hookHandleSearch,
+        handleRefresh,
         loadMore,
-        searchRelationships
-    } = useRelationshipList(moduleName, recordId, relationshipType);
+        handleFilter,
+        clearSearchAndFilters
+    } = useRelationshipList(moduleName, relatedLink);
 
     // Initialize translations
     useEffect(() => {
-        const initTranslations = async () => {
+        const initializeTranslations = async () => {
             try {
-                const translatedLabels = await systemLanguageUtils.translateKeys([
-                    'LBL_SEARCH',
+                // Get all translations at once using SystemLanguageUtils
+                const translated = await systemLanguageUtils.translateKeys([
+                    `LBL_${moduleName.toUpperCase()}`,
+                    'LBL_SEARCH_BUTTON_LABEL',
+                    'LBL_CREATE_BUTTON_LABEL',
+                    'LBL_EMAIL_LOADING',
+                    'UPLOAD_REQUEST_ERROR',
                     'LBL_NO_DATA',
-                    'LBL_LOADING',
-                    'LBL_ERROR_GENERAL_TITLE',
-                    'LBL_RETRY',
-                    'LBL_LOAD_MORE'
+                    'LBL_DROPDOWN_LIST_ALL',
+                    'LBL_IMPORT',
+                    'LBL_SUBJECT',
                 ]);
-
-                setTranslations(translatedLabels);
+                
+                setTranslations({
+                    mdName: translated[`LBL_${moduleName.toUpperCase()}`] || displayName,
+                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Nhập từ khóa tìm kiếm',
+                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
+                    loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
+                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
+                    pullToRefresh: 'Pull to refresh...',
+                    noData: translated.LBL_NO_DATA || 'Không có dữ liệu',
+                    createNew: 'Tạo mới'
+                });
+                
+                setTranslationsLoaded(true);
             } catch (error) {
-                console.error('Error loading translations:', error);
+                console.error(`RelationshipListScreen_New (${moduleName}): Error loading translations:`, error);
+                setTranslationsLoaded(true);
             }
         };
+        
+        initializeTranslations();
+    }, [moduleName, systemLanguageUtils, displayName]);
 
-        initTranslations();
-    }, []);
+    // Update filter dropdown defaults when options are loaded
+    useEffect(() => {
+        if (filtersInitialized && timeFilterOptions.length > 0) {
+            // Set default values for dropdown using the first option (which should be "All Time")
+            setSelectedTimeFilter(timeFilterOptions[0]?.label || translations.selectedTypeDefault);
+        } else if (!filtersInitialized) {
+            // Reset to empty when not initialized
+            setSelectedTimeFilter('');
+        }
+    }, [filtersInitialized, timeFilterOptions, translations.selectedTypeDefault]);
 
-    // Handle search
-    const handleSearch = (text) => {
-        setSearchText(text);
-        searchRelationships(text);
+    // Utility functions for data display
+    const getFieldValue = (item, fieldKey) => {
+        return item[fieldKey] || '';
     };
 
-    // Handle item press - navigate to detail screen
-    const handleItemPress = (item) => {
-        if (!isNavigationReady) {
-            console.warn('Navigation not ready');
-            return;
+    const getColumnLabel = (fieldKey) => {
+        const column = columns.find(col => col.key === fieldKey);
+        return column ? column.label : fieldKey;
+    };
+
+    const formatCellValue = (fieldKey, value) => {
+        if (!value) return '';
+        
+        // Format dates using formatDateBySelectedLanguage
+        if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified')) {
+            try {
+                // Convert to ISO string if it's not already
+                const isoString = value.includes('T') ? value : new Date(value).toISOString();
+                return formatDateBySelectedLanguage(isoString);
+            } catch {
+                return value;
+            }
         }
         
+        return String(value);
+    };
+
+    // Wrapper function for search with filters
+    const searchRecords = (searchText, filters = {}) => {
+        // If there's a time filter, use handleFilter directly
+        if (filters.time_filter !== undefined) {
+            handleFilter({}, filters.time_filter);
+        } else {
+            // Otherwise use search
+            hookHandleSearch(searchText);
+        }
+    };
+
+    // Options cho dropdown (mapping từ hook options)
+    const timeOptions = [...(Array.isArray(timeFilterOptions) ? timeFilterOptions.map(opt => opt.label) : [])];
+
+    // Tính danh sách trang hiển thị (tối đa 3 trang)
+    const [startPage, setStartPage] = useState(1);
+    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+
+    // Vô hiệu hóa khi ở đầu/cuối
+    const isPrevDisabled = startPage === 1;
+    const isNextDisabled = startPage + 2 >= totalPages;
+
+    const handlePrev = () => {
+        if (!isPrevDisabled && startPage > 1) {
+            const newStart = startPage - 1;
+            setStartPage(newStart);
+            // Load new page via loadMore if needed
+            loadMore();
+        }
+    };
+
+    const handleNext = () => {
+        if (!isNextDisabled && startPage + 2 < totalPages) {
+            const newStart = startPage + 1;
+            setStartPage(newStart);
+            // Load new page via loadMore if needed
+            loadMore();
+        }
+    };
+
+    const handleSearchAction = () => {
+        const filters = {};
+        
+        // Find selected time filter value
+        const selectedTimeOption = timeFilterOptions.find(opt => opt.label === selectedTimeFilter);
+        if (selectedTimeOption && selectedTimeOption.value) {
+            filters.time_filter = selectedTimeOption.value;
+        }
+        
+        searchRecords(searchText, filters);
+    };
+
+    // Handle time filter selection - filter immediately
+    const handleTimeFilterSelect = (selectedOption) => {
+        setSelectedTimeFilter(selectedOption);
+        
+        // Find selected time filter value and apply filter immediately
+        const selectedTimeOption = timeFilterOptions.find(opt => opt.label === selectedOption);
+        const filters = {};
+        
+        if (selectedTimeOption && selectedTimeOption.value) {
+            filters.time_filter = selectedTimeOption.value;
+        }
+        
+        // Apply filter immediately without waiting for search button
+        searchRecords(searchText, filters);
+    };
+
+    const handlePageClick = (pageNumber) => {
+        if (pageNumber !== currentPage) {
+            setStartPage(Math.max(1, pageNumber - 1));
+            // Load specific page - implement if needed
+            // For now, we'll use the existing pagination
+        }
+    };
+
+    // Navigation to create screen
+    const navigateToCreateScreen = () => {
+        const screenName = `${moduleName}CreateScreen`;
+        
+        // Map common module names to their create screens
+        const moduleToScreenMap = {
+            'Notes': 'NoteCreateScreen',
+            'Tasks': 'TaskCreateScreen', 
+            'Meetings': 'MeetingCreateScreen',
+            'Calls': 'CallCreateScreen',
+            'Accounts': 'AccountCreateScreen',
+            'Contacts': 'ContactCreateScreen',
+            'Opportunities': 'OpportunityCreateScreen'
+        };
+        
+        const targetScreen = moduleToScreenMap[moduleName] || screenName;
+        
+        try {
+            navigation.navigate(targetScreen, {
+                parentModule: actualParentModule,
+                parentId: actualParentId,
+                parentRecord,
+                relationship,
+                refreshCallback: handleRefresh
+            });
+        } catch (error) {
+            console.warn(`Navigation to ${targetScreen} failed:`, error);
+            // Fallback to generic create if specific screen doesn't exist
+            navigation.navigate('ModuleCreateScreen', {
+                moduleName,
+                parentModule: actualParentModule,
+                parentId: actualParentId,
+                parentRecord,
+                relationship,
+                refreshCallback: handleRefresh
+            });
+        }
+    };
+
+    // Navigation to detail screen
+    const navigateToDetailScreen = (record) => {
         navigation.navigate('ModuleDetailScreen', {
-            moduleName: relationshipType,
-            recordId: item.id
+            moduleName,
+            recordId: record.id
         });
     };
 
-    // Render relationship item
-    const renderItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.itemContainer}
-            onPress={() => handleItemPress(item)}
-        >
-            <View style={styles.itemContent}>
-                <View style={styles.itemHeader}>
-                    <Text style={styles.itemTitle} numberOfLines={2}>
-                        {item.name || item.title || item.subject || `${relationshipType} #${item.id}`}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                </View>
-                
-                {item.description && (
-                    <Text style={styles.itemDescription} numberOfLines={2}>
-                        {item.description}
-                    </Text>
-                )}
-                
-                <View style={styles.itemFooter}>
-                    {item.created_date && (
-                        <Text style={styles.itemDate}>
-                            {formatDateTimeBySelectedLanguage(item.created_date)}
-                        </Text>
-                    )}
-                    {item.status && (
-                        <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
-                            <Text style={[styles.statusText, getStatusTextStyle(item.status)]}>
-                                {item.status}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
-
-    // Get status badge style
-    const getStatusStyle = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'active':
-            case 'completed':
-                return { backgroundColor: '#d4edda' };
-            case 'inactive':
-            case 'cancelled':
-                return { backgroundColor: '#f8d7da' };
-            case 'pending':
-                return { backgroundColor: '#fff3cd' };
-            default:
-                return { backgroundColor: '#e2e3e5' };
-        }
-    };
-
-    // Get status text style
-    const getStatusTextStyle = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'active':
-            case 'completed':
-                return { color: '#155724' };
-            case 'inactive':
-            case 'cancelled':
-                return { color: '#721c24' };
-            case 'pending':
-                return { color: '#856404' };
-            default:
-                return { color: '#495057' };
-        }
-    };
-
-    // Render empty state
-    const renderEmptyState = () => (
-        <View style={styles.emptyContainer}>
-            <Ionicons name="file-tray-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyTitle}>
-                {translations.LBL_NO_DATA || 'Không có dữ liệu'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-                Không tìm thấy {relationshipName || relationshipType} nào
-            </Text>
-        </View>
-    );
-
-    // Render error state
-    const renderErrorState = () => (
-        <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={60} color="#FF3B30" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity
-                style={styles.retryButton}
-                onPress={refreshList}
-            >
-                <Text style={styles.retryButtonText}>
-                    {translations.LBL_RETRY || 'Thử lại'}
-                </Text>
-            </TouchableOpacity>
-        </View>
-    );
-
-    // Render footer (load more)
-    const renderFooter = () => {
-        if (!hasMore) return null;
-        
-        return (
-            <View style={styles.footerContainer}>
-                <TouchableOpacity
-                    style={styles.loadMoreButton}
-                    onPress={loadMore}
-                >
-                    <Text style={styles.loadMoreText}>
-                        {translations.LBL_LOAD_MORE || 'Tải thêm'}
-                    </Text>
+    // Render individual record item
+    const renderItem = ({ item }) => {
+        // Ensure columns is an array and has proper structure
+        if (!Array.isArray(columns) || columns.length === 0) {
+            return (
+                <TouchableOpacity style={styles.tableRow}>
+                    <Text style={styles.cell}>Loading...</Text>
                 </TouchableOpacity>
-            </View>
+            );
+        }
+
+        // Get first 3 fields for display (excluding id)
+        const displayFields = columns
+            .filter(column => column && column.key && column.key !== 'id')
+            .slice(0, 3);
+
+        if (displayFields.length === 0) {
+            return (
+                <TouchableOpacity style={styles.tableRow}>
+                    <Text style={styles.cell}>No fields available</Text>
+                </TouchableOpacity>
+            );
+        }
+            
+        return (
+            <TouchableOpacity
+                style={styles.tableRow}
+                onPress={() => navigateToDetailScreen(item)}
+            >
+                {displayFields.map((field, index) => {
+                    // Ensure field is a proper object with key property
+                    if (!field || typeof field !== 'object' || !field.key) {
+                        return (
+                            <Text key={index} style={styles.cell}>
+                                -
+                            </Text>
+                        );
+                    }
+
+                    // Get value with multiple possible key variations
+                    let rawValue = '';
+                    const possibleKeys = [
+                        field.key,
+                        field.key.toLowerCase(),
+                        field.key.toUpperCase(),
+                        field.key.replace(/_/g, ''),
+                        field.key.toLowerCase().replace(/_/g, ''),
+                        field.key.toUpperCase().replace(/_/g, '')
+                    ];
+
+                    // Find first key with value
+                    for (const key of possibleKeys) {
+                        if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
+                            rawValue = item[key];
+                            break;
+                        }
+                    }
+
+                    // Format value (especially dates)
+                    const displayValue = formatCellValue(field.key, rawValue);
+
+                    return (
+                        <Text key={index} style={styles.cell}>
+                            {displayValue || '-'}
+                        </Text>
+                    );
+                })}
+            </TouchableOpacity>
         );
     };
 
-    if (loading && relationships.length === 0) {
-        return (
-            <SafeAreaProvider>
-                <SafeAreaView style={styles.container}>
-                    <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-                    <TopNavigation 
-                        title={relationshipName || relationshipType || 'Relationships'}
-                        onBackPress={() => {
-                            if (isNavigationReady) {
-                                navigation.goBack();
-                            }
-                        }}
-                    />
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#007AFF" />
-                        <Text style={styles.loadingText}>
-                            {translations.LBL_LOADING || 'Đang tải...'}
-                        </Text>
-                    </View>
-                </SafeAreaView>
-            </SafeAreaProvider>
-        );
-    }
-
-    if (error && relationships.length === 0) {
-        return (
-            <SafeAreaProvider>
-                <SafeAreaView style={styles.container}>
-                    <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-                    <TopNavigation 
-                        title={relationshipName || relationshipType || 'Relationships'}
-                        onBackPress={() => {
-                            if (isNavigationReady) {
-                                navigation.goBack();
-                            }
-                        }}
-                    />
-                    {renderErrorState()}
-                </SafeAreaView>
-            </SafeAreaProvider>
-        );
-    }
+    // Component Dropdown
+    const DropdownSelect = ({ options, selectedValue, onSelect, visible, onClose }) => (
+        <Modal
+            transparent={true}
+            visible={visible}
+            animationType="fade"
+            onRequestClose={onClose}
+        >
+            <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={onClose}
+            >
+                <View style={styles.dropdownContainer}>
+                    {options.map((option, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.dropdownItem,
+                                option === selectedValue && styles.selectedItem
+                            ]}
+                            onPress={() => {
+                                onSelect(option);
+                                onClose();
+                            }}
+                        >
+                            <Text style={[
+                                styles.dropdownText,
+                                option === selectedValue && styles.selectedText
+                            ]}>
+                                {option}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
 
     return (
         <SafeAreaProvider>
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-                <TopNavigation 
-                    title={relationshipName || relationshipType || 'Relationships'}
-                    onBackPress={() => {
-                        if (isNavigationReady) {
-                            navigation.goBack();
-                        }
-                    }}
+                <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
+
+                <TopNavigationRelationship
+                    moduleName={translations.mdName}
+                    navigation={navigation}
                 />
 
-                {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <View style={styles.searchInputContainer}>
-                        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder={translations.LBL_SEARCH || 'Tìm kiếm...'}
-                            value={searchText}
-                            onChangeText={handleSearch}
-                            returnKeyType="search"
-                        />
-                        {searchText.length > 0 && (
+                <View style={styles.content}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        {/* Search Form */}
+                        <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                            <View style={styles.searchBar}>
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder={translations.searchPlaceholder}
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                />
+                            </View>
+                            <View style={styles.searchFormOptions}>
+                                <TouchableOpacity
+                                    style={styles.select}
+                                    onPress={() => setShowTimeDropdown(true)}
+                                >
+                                    <Text>{selectedTimeFilter || translations.selectedTypeDefault}</Text>
+                                    <Text style={styles.dropdownArrow}>▼</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.searchButton} onPress={handleSearchAction}>
+                                    <Text style={{ color: '#fff' }}>{translations.searchButton}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Add new "+" button */}
+                        <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
-                                onPress={() => handleSearch('')}
-                                style={styles.clearButton}
+                                onPress={navigateToCreateScreen}
+                                style={styles.addNewBtn}
                             >
-                                <Ionicons name="close-circle" size={20} color="#666" />
+                                <Text style={styles.plusText}>+</Text>
                             </TouchableOpacity>
+                            <Text>{translations.addButton}</Text>
+                        </View>
+                    </View>
+
+                    {/* Table Header */}
+                    <View style={styles.tableHeader}>
+                        {loading && !translationsLoaded ? (
+                            <Text style={styles.headerCell}>{translations.loading}</Text>
+                        ) : !Array.isArray(columns) || columns.length === 0 ? (
+                            <Text style={styles.headerCell}>Loading columns...</Text>
+                        ) : (
+                            columns
+                                .filter(column => column && column.key && column.key !== 'id')
+                                .slice(0, 3)
+                                .map((column, index) => (
+                                    <Text key={index} style={styles.headerCell}>
+                                        {(column.label && typeof column.label === 'string') ? column.label : column.key}
+                                    </Text>
+                                ))
                         )}
                     </View>
+
+                    {/* Table Rows - Scrollable */}
+                    {loading && !refreshing ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#4B84FF" />
+                            <Text>{translations.loading}</Text>
+                        </View>
+                    ) : error ? (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>Error: {error}</Text>
+                            <TouchableOpacity
+                                style={styles.retryButton}
+                                onPress={handleRefresh}
+                            >
+                                <Text style={styles.retryText}>{translations.tryAgain}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={records || []}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.id}
+                            style={styles.list}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            showsVerticalScrollIndicator={false}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={handleRefresh}
+                                    colors={['#4B84FF']}
+                                    title={translations.pullToRefresh}
+                                />
+                            }
+                            onEndReached={loadMore}
+                            onEndReachedThreshold={0.1}
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Text>{translations.noData}</Text>
+                                    <Text>Module: {moduleName}</Text>
+                                    <Text>Records: {records?.length || 0}</Text>
+                                </View>
+                            }
+                        />
+                    )}
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <View style={styles.pagination}>
+                            {/* Prev */}
+                            <TouchableOpacity
+                                onPress={handlePrev}
+                                style={[styles.pageBtn, isPrevDisabled && styles.disabledBtn]}
+                                disabled={isPrevDisabled}
+                            >
+                                <Text style={isPrevDisabled ? { color: '#aaa' } : {}}>{'<'}</Text>
+                            </TouchableOpacity>
+
+                            {/* Page numbers */}
+                            {visiblePages.map((num) => (
+                                <TouchableOpacity
+                                    key={num}
+                                    onPress={() => handlePageClick(num)}
+                                    style={[styles.pageBtn, num === currentPage && styles.activePage]}
+                                >
+                                    <Text style={num === currentPage ? { color: '#fff' } : {}}>{num}</Text>
+                                </TouchableOpacity>
+                            ))}
+
+                            {/* Next */}
+                            <TouchableOpacity
+                                onPress={handleNext}
+                                style={[styles.pageBtn, isNextDisabled && styles.disabledBtn]}
+                                disabled={isNextDisabled}
+                            >
+                                <Text style={isNextDisabled ? { color: '#aaa' } : {}}>{'>'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
-                {/* List */}
-                <FlatList
-                    data={relationships}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={refreshList}
-                            colors={['#007AFF']}
-                        />
-                    }
-                    ListEmptyComponent={renderEmptyState}
-                    ListFooterComponent={renderFooter}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={relationships.length === 0 ? styles.emptyListContainer : null}
+                <BottomNavigation navigation={navigation} />
+
+                {/* Dropdown Modal */}
+                <DropdownSelect
+                    options={timeOptions}
+                    selectedValue={selectedTimeFilter}
+                    onSelect={handleTimeFilterSelect}
+                    visible={showTimeDropdown}
+                    onClose={() => setShowTimeDropdown(false)}
                 />
             </SafeAreaView>
         </SafeAreaProvider>
@@ -311,155 +569,189 @@ export default function RelationshipListScreen_New() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f0f0f0',
     },
-    loadingContainer: {
+    content: {
         flex: 1,
-        justifyContent: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        minHeight: '80%',
+    },
+    searchBar: {
+        height: 35,
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 10,
         alignItems: 'center',
     },
-    loadingText: {
-        marginTop: 10,
-        fontSize: 16,
+    searchFormOptions: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 10,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    input: {
+        borderWidth: 1,
+        padding: 6,
+        flex: 1,
+        minWidth: '80%',
+        backgroundColor: '#fff',
+        borderRadius: 4,
+        borderColor: '#ddd',
+    },
+    select: {
+        borderWidth: 1,
+        padding: 6,
+        backgroundColor: '#eee',
+        minWidth: 60,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderRadius: 4,
+        borderColor: '#ddd',
+    },
+    dropdownArrow: {
+        fontSize: 10,
+        marginLeft: 5,
         color: '#666',
     },
-    errorContainer: {
-        flex: 1,
+    searchButton: {
+        backgroundColor: '#4B84FF',
+        padding: 6,
+        paddingHorizontal: 16,
+        borderRadius: 4,
+    },
+    addNewBtn: {
+        width: 60,
+        height: 60,
+        backgroundColor: '#4B84FF',
+        borderRadius: 35,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 30,
     },
-    errorText: {
-        fontSize: 16,
-        color: '#FF3B30',
-        textAlign: 'center',
-        marginVertical: 20,
+    plusText: {
+        color: '#fff',
+        fontSize: 40,
+        lineHeight: 27,
     },
-    retryButton: {
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 30,
-        paddingVertical: 12,
-        borderRadius: 8,
-    },
-    retryButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    searchContainer: {
-        backgroundColor: 'white',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    searchInputContainer: {
+    tableHeader: {
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        borderRadius: 10,
-        paddingHorizontal: 12,
+        backgroundColor: '#C9B4AB',
+        padding: 8,
+        borderRadius: 4,
     },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
+    headerCell: {
         flex: 1,
-        paddingVertical: 12,
-        fontSize: 16,
+        fontWeight: 'bold',
         color: '#333',
     },
-    clearButton: {
-        padding: 4,
+    tableRow: {
+        flexDirection: 'row',
+        padding: 11,
+        backgroundColor: '#F3F0EF',
+        borderBottomWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 4,
+        marginVertical: 1,
     },
-    itemContainer: {
+    cell: { 
+        flex: 1,
+        color: '#333',
+    },
+    list: {
+        flexGrow: 0,
+        maxHeight: 500,
+    },
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        gap: 6,
+    },
+    pageBtn: {
+        padding: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        minWidth: 32,
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
+    activePage: {
+        backgroundColor: '#4B84FF',
+        borderColor: '#4B84FF',
+    },
+    disabledBtn: {
+        borderColor: '#eee',
+        backgroundColor: '#f9f9f9',
+    },
+    // Loading and Error states
+    loadingContainer: {
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    errorContainer: {
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    errorText: {
+        color: '#e74c3c',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    retryButton: {
+        backgroundColor: '#4B84FF',
+        padding: 10,
+        borderRadius: 4,
+    },
+    retryText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    emptyContainer: {
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    // Dropdown styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dropdownContainer: {
         backgroundColor: 'white',
-        marginHorizontal: 16,
-        marginVertical: 6,
-        borderRadius: 12,
-        elevation: 1,
+        minWidth: 150,
+        maxHeight: 250,
+        elevation: 5,
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
-            height: 1,
+            height: 2,
         },
-        shadowOpacity: 0.22,
-        shadowRadius: 2.22,
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        borderRadius: 4,
     },
-    itemContent: {
-        padding: 16,
+    dropdownItem: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
     },
-    itemHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 8,
+    selectedItem: {
+        backgroundColor: '#4B84FF',
     },
-    itemTitle: {
-        flex: 1,
+    dropdownText: {
         fontSize: 16,
-        fontWeight: '600',
         color: '#333',
-        marginRight: 8,
     },
-    itemDescription: {
-        fontSize: 14,
-        color: '#666',
-        lineHeight: 20,
-        marginBottom: 12,
-    },
-    itemFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    itemDate: {
-        fontSize: 12,
-        color: '#999',
-    },
-    statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    statusText: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    emptyListContainer: {
-        flexGrow: 1,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 30,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#666',
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: '#999',
-        textAlign: 'center',
-    },
-    footerContainer: {
-        paddingVertical: 20,
-        alignItems: 'center',
-    },
-    loadMoreButton: {
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 30,
-        paddingVertical: 12,
-        borderRadius: 8,
-    },
-    loadMoreText: {
+    selectedText: {
         color: 'white',
-        fontSize: 16,
         fontWeight: 'bold',
     },
 });
