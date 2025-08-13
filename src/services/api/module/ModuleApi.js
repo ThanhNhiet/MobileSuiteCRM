@@ -338,9 +338,28 @@ export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
                 [`fields[${moduleName}]`]: 'parent_id,parent_type'
             }
         });
-        return response.data.data.attributes;
+        
+        const attributes = response.data.data.attributes || {};
+        
+        // Return the attributes, defaulting to null if fields don't exist
+        return {
+            parent_id: attributes.parent_id || null,
+            parent_type: attributes.parent_type || null
+        };
     } catch (error) {
-        console.warn("Get Parent ID by ID API error:", error);
+        console.warn(`Get Parent ID by ID API error for ${moduleName}:`, error);
+        
+        // If the error is specifically about the fields not existing (400), 
+        // return null values instead of throwing
+        if (error.response && error.response.status === 400) {
+            console.info(`Module ${moduleName} does not support parent_id/parent_type fields`);
+            return {
+                parent_id: null,
+                parent_type: null
+            };
+        }
+        
+        // For other errors, still throw
         throw error;
     }
 };

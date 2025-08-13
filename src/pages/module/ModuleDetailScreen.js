@@ -193,7 +193,7 @@ export default function ModuleDetailScreen() {
                                     text: translations.ok || 'OK',
                                     onPress: () => {
                                         if (isNavigationReady && navigation.canGoBack()) {
-                                            navigation.goBack();
+                                            navigation.navigate('ModuleListScreen', { moduleName: moduleName });
                                         }
                                     }
                                 }]

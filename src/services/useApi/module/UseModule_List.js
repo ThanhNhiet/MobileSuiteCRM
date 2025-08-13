@@ -214,11 +214,11 @@ export const useModule_List = (moduleName) => {
         try {
             // Common time filter options
             const timeOptions = [
-                { label: 'All Time', value: '' },
-                { label: 'Today', value: 'today' },
-                { label: 'This Week', value: 'this_week' },
-                { label: 'This Month', value: 'this_month' },
-                { label: 'This Year', value: 'this_year' }
+                { label: 'LBL_DROPDOWN_LIST_ALL', value: '' },
+                { label: 'today', value: 'today' },
+                { label: 'this_week', value: 'this_week' },
+                { label: 'this_month', value: 'this_month' },
+                { label: 'this_year', value: 'this_year' }
             ];
             
             // Translate time filter options
@@ -226,7 +226,6 @@ export const useModule_List = (moduleName) => {
                 timeOptions.map(async (option) => {
                     try {
                         const translatedLabel = await systemLanguageUtils.translate(
-                            `LBL_${option.label.toUpperCase().replace(/ /g, '_')}`, 
                             option.label
                         );
                         return { ...option, label: translatedLabel };
