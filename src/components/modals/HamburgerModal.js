@@ -7,6 +7,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -26,6 +27,8 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
     
     const [translations, setTranslations] = useState({});
     const [accessibleModules, setAccessibleModules] = useState([]);
+    const [filteredModules, setFilteredModules] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
     // Load modules and permissions
@@ -50,10 +53,12 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                 const moduleArray = Object.keys(userAccessibleModules).map(key => ({
                     key,
                     label: userAccessibleModules[key].label,
-                    screenName: userAccessibleModules[key].screenName
+                    screenName: userAccessibleModules[key].screenName,
+                    moduleName: userAccessibleModules[key].moduleName || key // Store moduleName for navigation
                 }));
                 
                 setAccessibleModules(moduleArray);
+                setFilteredModules(moduleArray); // Initialize filtered modules
                 
                 // Load translations for accessible modules
                 await loadTranslations(moduleArray);
@@ -69,8 +74,26 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
 
         if (visible) {
             loadModulesAndPermissions();
+            // Reset search when modal opens
+            setSearchQuery('');
         }
     }, [visible]);
+
+    // Handle search functionality
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            // No search query - show all accessible modules
+            setFilteredModules(accessibleModules);
+        } else {
+            // Filter modules based on translated text (case-insensitive)
+            const query = searchQuery.toLowerCase().trim();
+            const filtered = accessibleModules.filter(module => {
+                const translatedText = translations[module.key] || module.label || '';
+                return translatedText.toLowerCase().includes(query);
+            });
+            setFilteredModules(filtered);
+        }
+    }, [searchQuery, accessibleModules, translations]);
 
     // Load translations for modules and logout
     const loadTranslations = async (modules) => {
@@ -137,9 +160,15 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
         });
     };
 
-    const navigateTo = (screenName) => {
+    const navigateTo = (screenName, moduleName = null) => {
         handleClose();
-        navigation.navigate(screenName);
+        if (screenName === 'ModuleListScreen' && moduleName) {
+            // For generic modules, pass moduleName as parameter
+            navigation.navigate(screenName, { moduleName: moduleName });
+        } else {
+            // For special screens like Calendar, navigate directly
+            navigation.navigate(screenName);
+        }
     };
 
     return (
@@ -180,6 +209,30 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                         </TouchableOpacity>
                     </View>
 
+                    {/* Search Input */}
+                    <View style={styles.searchContainer}>
+                        <View style={styles.searchInputContainer}>
+                            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="..."
+                                placeholderTextColor="#999"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity
+                                    style={styles.clearSearchButton}
+                                    onPress={() => setSearchQuery('')}
+                                >
+                                    <Ionicons name="close-circle" size={20} color="#666" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+
                     {/* Menu Items */}
                     <ScrollView
                         style={styles.menuContainer}
@@ -190,12 +243,22 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                             <View style={styles.loadingContainer}>
                                 <Text style={styles.loadingText}>Loading modules...</Text>
                             </View>
+                        ) : filteredModules.length === 0 ? (
+                            <View style={styles.noResultsContainer}>
+                                <Ionicons name="search" size={48} color="#ccc" />
+                                <Text style={styles.noResultsText}>
+                                    {searchQuery.trim() 
+                                        ? `No results for "${searchQuery}"`
+                                        : 'No modules available'
+                                    }
+                                </Text>
+                            </View>
                         ) : (
-                            accessibleModules.map((module) => (
+                            filteredModules.map((module) => (
                                 <TouchableOpacity
                                     key={module.key}
                                     style={styles.menuItem}
-                                    onPress={() => navigateTo(module.screenName)}
+                                    onPress={() => navigateTo(module.screenName, module.moduleName)}
                                 >
                                     <Text style={styles.menuText}>
                                         {translations[module.key] || module.label}
@@ -269,6 +332,39 @@ const styles = StyleSheet.create({
     closeButton: {
         padding: 5,
     },
+    searchContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
+    searchInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        borderRadius: 25,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.22,
+        shadowRadius: 2.22,
+    },
+    searchIcon: {
+        marginRight: 10,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+        paddingVertical: 0, // Remove default padding on Android
+    },
+    clearSearchButton: {
+        marginLeft: 10,
+        padding: 2,
+    },
     menuContainer: {
         flex: 1,
         paddingHorizontal: 20,
@@ -284,6 +380,18 @@ const styles = StyleSheet.create({
         color: '#666',
         fontSize: 14,
         fontStyle: 'italic',
+    },
+    noResultsContainer: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 20,
+    },
+    noResultsText: {
+        color: '#999',
+        fontSize: 16,
+        textAlign: 'center',
+        marginTop: 15,
+        lineHeight: 22,
     },
     menuItem: {
         backgroundColor: '#BFAAA1',

@@ -25,8 +25,9 @@ export default function HomeScreen() {
 
   const handleNavigation = async (item) => {
     try {
-      // Use navigationTarget from the item if available (new permission-based approach)
-      const targetScreen = item.navigationTarget || getScreenNameFromModule(item.module);
+      // Always use generic ModuleListScreen for consistency
+      const targetScreen = getScreenNameFromModule(item.module);
+      const moduleName = item.module;
       
       // Check if user has permission to navigate to this screen
       const hasAccess = await hasNavigationAccess(targetScreen);
@@ -37,31 +38,34 @@ export default function HomeScreen() {
         return;
       }
       
-      navigation.navigate(targetScreen);
+      // Navigate to the appropriate screen
+      if (targetScreen === 'ModuleListScreen') {
+        // For generic modules, pass moduleName as parameter
+        navigation.navigate(targetScreen, { moduleName: moduleName });
+      } else {
+        // For special screens like Calendar, navigate directly
+        navigation.navigate(targetScreen);
+      }
     } catch (error) {
       console.error('Error checking navigation access:', error);
-      // Fallback to original navigation on error
+      // Fallback navigation on error
       const targetScreen = getScreenNameFromModule(item.module);
-      navigation.navigate(targetScreen);
+      if (targetScreen === 'ModuleListScreen') {
+        navigation.navigate(targetScreen, { moduleName: item.module });
+      } else {
+        navigation.navigate(targetScreen);
+      }
     }
   };
 
-  // Legacy function for mapping modules to screen names
+  // Updated function for mapping modules to screen names with generic support
   const getScreenNameFromModule = (module) => {
     switch (module) {
-      case 'Accounts':
-        return 'AccountListScreen';
-      case 'Notes':
-        return 'NoteListScreen';
-      case 'Tasks':
-        return 'TaskListScreen';
-      case 'Meetings':
-        return 'MeetingListScreen';
       case 'Calendar':
         return 'CalendarScreen';
       default:
-        console.warn('No navigation defined for module:', module);
-        return 'HomeScreen';
+        // All other modules use generic ModuleListScreen
+        return 'ModuleListScreen';
     }
   };
 
@@ -146,6 +150,19 @@ export default function HomeScreen() {
                         styles.label,
                         loading && styles.disabledText
                       ]}>View</Text>
+                    </View>
+                  )}
+
+                  {item.noCount && (
+                    <View style={styles.statCol}>
+                      <Text style={[
+                        styles.moduleIcon,
+                        loading && styles.disabledText
+                      ]}>📋</Text>
+                      <Text style={[
+                        styles.label,
+                        loading && styles.disabledText
+                      ]}>Access</Text>
                     </View>
                   )}
                 </View>
@@ -236,6 +253,10 @@ const styles = StyleSheet.create({
     color: '#2a2a2a',
   },
   calendarIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  moduleIcon: {
     fontSize: 20,
     marginBottom: 2,
   },

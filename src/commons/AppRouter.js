@@ -16,6 +16,12 @@ import CalendarScreen from "../pages/calendar/CalendarScreen";
 import TimetableScreen from "../pages/calendar/TimetableScreen";
 import LoginScreen from "../pages/login/LoginScreen";
 
+//import page module
+import ModuleCreateScreen from "../pages/module/ModuleCreateScreen";
+import ModuleDetailScreen from "../pages/module/ModuleDetailScreen";
+import ModuleListScreen from "../pages/module/ModuleListScreen";
+import ModuleUpdateScreen from "../pages/module/ModuleUpdateScreen";
+
 //import page meeting
 import MeetingCreateScreen from "../pages/meeting/MeetingCreateScreen";
 import MeetingDetailScreen from "../pages/meeting/MeetingDetailScreen";
@@ -42,6 +48,7 @@ import TaskUpdateScreen from "../pages/task/TaskUpdateScreen";
 
 //import page relationship
 import RelationshipListScreen from "../pages/relationship/RelationshipListScreen";
+import RelationshipListScreen_New from "../pages/relationship/RelationshipListScreen_New";
 
 //import page search
 import SearchModulesScreen from "../pages/search/SearchModulesScreen";
@@ -79,7 +86,17 @@ export default function AppRouter() {
 
                 {/*Search Modules Screen*/}
                 <Stack.Screen name="SearchModulesScreen" component={SearchModulesScreen} options={{ headerShown: false }} />
-
+              
+                {/*ModuleScreen*/}
+                {/*ListScreen*/}
+                <Stack.Screen name="ModuleListScreen" component={ModuleListScreen} options={{ headerShown: false }} />
+                {/*DetailScreen*/}
+                <Stack.Screen name="ModuleDetailScreen" component={ModuleDetailScreen} options={{ headerShown: false }} />
+                {/*UpdateScreen*/}
+                <Stack.Screen name="ModuleUpdateScreen" component={ModuleUpdateScreen} options={{ headerShown: false }} />
+                {/*CreateScreen*/}
+                <Stack.Screen name="ModuleCreateScreen" component={ModuleCreateScreen} options={{ headerShown: false }} />
+                
                 {/*Profile Screen*/}
                 <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: true, title: "Profile" }} />
                 {/*Update Profile Screen*/}
@@ -125,6 +142,8 @@ export default function AppRouter() {
                 
                 {/*Relationship List Screen*/}
                 <Stack.Screen name="RelationshipListScreen" component={RelationshipListScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="RelationshipListScreen_New" component={RelationshipListScreen_New} options={{ headerShown: false }} />
+
                 {/* Add more screens as needed */}
 
                 {/* <Stack.Screen name="MessageStackNavigator" component={MessageStackNavigator} options={{ headerShown: false }} /> */}

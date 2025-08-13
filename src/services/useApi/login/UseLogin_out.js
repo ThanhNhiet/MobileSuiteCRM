@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
+import ModulesConfig from '../../../configs/ModulesConfig';
+import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { LOCALHOST_IP } from '../../../utils/localhost';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
@@ -17,10 +19,45 @@ export const useLogin_out = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Loading state for auth check
   const [selectedLanguage, setSelectedLanguage] = useState('vi_VN'); // Default language
 
-  // Define modules that need language caching
-  const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
+  // Get accessible modules dynamically from API and user permissions
+  const getAccessibleModules = async () => {
+    try {
+      const rolesConfig = RolesConfig.getInstance();
+      const modulesConfig = ModulesConfig.getInstance();
+      
+      // Load user roles and modules if not already loaded
+      await Promise.all([
+        rolesConfig.loadUserRoles(),
+        modulesConfig.loadModules()
+      ]);
+      
+      const allModules = modulesConfig.getFilteredModules();
+      const accessibleModules = [];
+      
+      // Filter modules by user permissions
+      for (const [moduleName] of Object.entries(allModules)) {
+        if (rolesConfig.hasModuleAccess(moduleName)) {
+          accessibleModules.push(moduleName);
+        }
+      }
+      
+      // Always include special modules that don't follow standard patterns
+      const specialModules = ['Users', 'Alerts', 'Calendar'];
+      for (const specialModule of specialModules) {
+        if (!accessibleModules.includes(specialModule)) {
+          accessibleModules.push(specialModule);
+        }
+      }
+      
+      return accessibleModules;
+    } catch (error) {
+      console.warn('Error getting accessible modules, using fallback:', error);
+      // Fallback to essential modules if API fails
+      return ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar', 'Alerts'];
+    }
+  };
 
-  // Function to fetch and cache language data for all modules
+  // Function to fetch and cache language data for all accessible modules
   const fetchAndCacheLanguageData = async (lang) => {
     try {
       console.log(`Starting to fetch and cache language data for: ${lang}`);
@@ -38,7 +75,11 @@ export const useLogin_out = () => {
       } catch (error) {
         console.warn('Error fetching system language:', error);
       }
-      // Fetch and cache language for each module
+      
+      // Get accessible modules dynamically
+      const modules = await getAccessibleModules();
+      
+      // Fetch and cache language for each accessible module
       for (const module of modules) {
         try {
           const languageExists = await cacheManager.checkModuleLanguageExists(module, lang);

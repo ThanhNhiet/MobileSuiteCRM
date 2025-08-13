@@ -36,7 +36,7 @@ export default function TopNavigationDetail({
       </Pressable>
 
       {/* Tiêu đề */}
-      <Text style={styles.title}>Chi tiết {moduleName}</Text>
+      <Text style={styles.title}>{moduleName}</Text>
 
       <View style={styles.placeholder} />
      

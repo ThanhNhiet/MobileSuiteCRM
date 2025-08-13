@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
+import ModulesConfig from '../../../configs/ModulesConfig';
+import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
@@ -27,6 +29,45 @@ export const useUserSetting = () => {
     const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
+
+    // Get accessible modules dynamically from API and user permissions
+    const getAccessibleModules = async () => {
+        try {
+            const rolesConfig = RolesConfig.getInstance();
+            const modulesConfig = ModulesConfig.getInstance();
+            
+            // Load user roles and modules if not already loaded
+            await Promise.all([
+                rolesConfig.loadUserRoles(),
+                modulesConfig.loadModules()
+            ]);
+            
+            const allModules = modulesConfig.getFilteredModules();
+            const accessibleModules = [];
+            
+            // Filter modules by user permissions
+            for (const [moduleName] of Object.entries(allModules)) {
+                if (rolesConfig.hasModuleAccess(moduleName)) {
+                    accessibleModules.push(moduleName);
+                }
+            }
+            
+            // Always include special modules that don't follow standard patterns
+            const specialModules = ['Users', 'Alerts', 'Calendar'];
+            for (const specialModule of specialModules) {
+                if (!accessibleModules.includes(specialModule)) {
+                    accessibleModules.push(specialModule);
+                }
+            }
+            
+            console.log('Accessible modules for cache refresh:', accessibleModules);
+            return accessibleModules;
+        } catch (error) {
+            console.warn('Error getting accessible modules, using fallback:', error);
+            // Fallback to essential modules if API fails
+            return ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar', 'Alerts'];
+        }
+    };
 
     // Date format options
     const dateFormatOptions = [
@@ -78,18 +119,18 @@ export const useUserSetting = () => {
             } catch (error) {
                 console.warn('Error loading translations:', error);
                 // Set fallback translations
-                setTranslations({
-                    selectButton: 'chọn',
-                    type: 'Loại',
-                    time: 'Thời gian',
-                    currency: 'Tiền tệ',
-                    thousandsSep: 'ký tự ngăn cách hàng nghìn',
-                    decimalSym: 'Ký tự thập phân',
-                    example: 'ví dụ',
-                    update: 'Update',
-                    language: 'Language',
-                    field: 'Fields'
-                });
+                // setTranslations({
+                //     selectButton: 'chọn',
+                //     type: 'Loại',
+                //     time: 'Thời gian',
+                //     currency: 'Tiền tệ',
+                //     thousandsSep: 'ký tự ngăn cách hàng nghìn',
+                //     decimalSym: 'Ký tự thập phân',
+                //     example: 'ví dụ',
+                //     update: 'Update',
+                //     language: 'Language',
+                //     field: 'Fields'
+                // });
             }
         };
 
@@ -235,7 +276,7 @@ export const useUserSetting = () => {
     const refreshLanguageCache = async () => {
         try {
             const savedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
-            const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
+            const modules = await getAccessibleModules();
             
             // Delete all language cache files
             for (const module of modules) {
@@ -277,7 +318,7 @@ export const useUserSetting = () => {
                 console.warn('Error refreshing system language:', error);
             }
             
-            // Fetch and cache language for each module
+            // Fetch and cache language for each accessible module
             for (const module of modules) {
                 try {
                     const languageData = await getLanguageApi(module, savedLanguage);
@@ -298,7 +339,7 @@ export const useUserSetting = () => {
     // Function to refresh field metadata cache (moved from UseUser_Profile)
     const refreshFieldsCache = async () => {
         try {
-            const modules = ['Accounts', 'Meetings', 'Notes', 'Tasks', 'Users', 'Calendar'];
+            const modules = await getAccessibleModules();
             
             // Delete all field metadata cache files
             for (const module of modules) {

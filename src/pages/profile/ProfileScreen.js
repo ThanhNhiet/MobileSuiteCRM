@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -33,22 +33,53 @@ export default function ProfileScreen({ navigation }) {
     useEffect(() => {
         const loadTranslations = async () => {
             try {
-                const keys = [
-                    'LBL_LOADING',
-                    'LBL_ERROR',
-                    'LBL_RETRY',
-                    'LBL_USER_INFORMATION', 
-                    'LBL_ADDRESS_INFORMATION',
-                    'LBL_EDIT',
-                    'LBL_GENERATE_PASSWORD_BUTTON_LABEL',
-                    'LBL_SETTINGS',
-                    'LBL_EMAIL_SETTINGS'
-                ];
-                
-                const translatedLabels = await userLanguageUtils.translateKeys(keys);
-                setTranslations(translatedLabels);
+                const [
+                    loading,
+                    error,
+                    retry,
+                    userInfo,
+                    addressInfo,
+                    contactInfo,
+                    edit,
+                    changePassword,
+                    settings
+                ] = await Promise.all([
+                    userLanguageUtils.translate('LBL_LOADING'),
+                    userLanguageUtils.translate('LBL_ERROR'),
+                    userLanguageUtils.translate('LBL_RETRY'),
+                    userLanguageUtils.translate('LBL_USER_INFORMATION'),
+                    userLanguageUtils.translate('LBL_ADDRESS_INFORMATION'),
+                    userLanguageUtils.translate('LBL_CONTACT_NAME'),
+                    userLanguageUtils.translate('LBL_EDIT'),
+                    userLanguageUtils.translate('LBL_GENERATE_PASSWORD_BUTTON_LABEL'),
+                    userLanguageUtils.translate('LBL_EMAIL_SETTINGS')
+                ]);
+
+                setTranslations({
+                    loading,
+                    error,
+                    retry,
+                    userInfo,
+                    addressInfo,
+                    contactInfo,
+                    edit,
+                    changePassword,
+                    settings
+                });
             } catch (error) {
                 console.warn('Error loading profile translations:', error);
+                // Set fallback translations
+                // setTranslations({
+                //     loading: 'Đang tải...',
+                //     error: 'Lỗi',
+                //     retry: 'Thử lại',
+                //     userInfo: 'Thông tin người dùng',
+                //     addressInfo: 'Thông tin địa chỉ',
+                //     contactInfo: 'Thông tin liên hệ',
+                //     edit: 'Chỉnh sửa',
+                //     changePassword: 'Đổi mật khẩu',
+                //     settings: 'Cài đặt'
+                // });
             }
         };
 
@@ -62,7 +93,7 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
                     <Text style={styles.loadingText}>
-                        {translations.LBL_LOADING || 'Loading information...'}
+                        {translations.loading || 'Loading information...'}
                     </Text>
                 </View>
             </SafeAreaView>
@@ -81,7 +112,7 @@ export default function ProfileScreen({ navigation }) {
                         onPress={() => refreshProfile()}
                     >
                         <Text style={styles.retryButtonText}>
-                            {translations.LBL_RETRY || 'Retry'}
+                            {translations.retry || 'Retry'}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -161,8 +192,6 @@ export default function ProfileScreen({ navigation }) {
     const renderProfileFields = (fieldNames, data) => {
         return fieldNames.map(fieldName => {
             const value = data[fieldName];
-            // Skip fields that are empty or null for cleaner UI (optional)
-            // if (!value || value.trim() === '') return null;
             
             return (
                 <ProfileField
@@ -235,7 +264,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Profile Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_USER_INFORMATION || 'User Information'}
+                            {translations.userInfo || 'User Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().userInfoFields, displayData)}
@@ -244,7 +273,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Contact Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_CONTACT_INFORMATION || 'Contact Information'}
+                            {translations.contactInfo || 'Contact Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().contactFields, displayData)}
@@ -253,7 +282,7 @@ export default function ProfileScreen({ navigation }) {
                     {/* Address Information */}
                     <View style={styles.infoSection}>
                         <Text style={styles.sectionTitle}>
-                            {translations.LBL_ADDRESS_INFORMATION || 'Address Information'}
+                            {translations.addressInfo || 'Address Information'}
                         </Text>
                         
                         {renderProfileFields(getFieldSections().addressFields, displayData)}
@@ -267,7 +296,7 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="create-outline" size={20} color="white" />
                             <Text style={styles.primaryButtonText}>
-                                {translations.LBL_EDIT || 'Edit Information'}
+                                {translations.edit || 'Edit Information'}
                             </Text>
                         </TouchableOpacity>
 
@@ -277,7 +306,7 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
                             <Text style={styles.secondaryButtonText}>
-                                {translations.LBL_GENERATE_PASSWORD_BUTTON_LABEL || 'Change Password'}
+                                {translations.changePassword || 'Change Password'}
                             </Text>
                         </TouchableOpacity>
 
@@ -287,7 +316,7 @@ export default function ProfileScreen({ navigation }) {
                         >
                             <Ionicons name="settings-outline" size={20} color="#4B84FF" />
                             <Text style={styles.secondaryButtonText}>
-                                {translations.LBL_EMAIL_SETTINGS || 'Settings'}
+                                {translations.settings || 'Settings'}
                             </Text>
                         </TouchableOpacity>
                     </View>
