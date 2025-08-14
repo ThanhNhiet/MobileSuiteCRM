@@ -29,7 +29,16 @@ export default function HomeScreen() {
       const targetScreen = getScreenNameFromModule(item.module);
       const moduleName = item.module;
       
-      // Check if user has permission to navigate to this screen
+      // For ModuleListScreen, the access is already verified by the fact that 
+      // the item appears in the home screen (hasAccess: true)
+      // We don't need to double-check permissions here
+      if (targetScreen === 'ModuleListScreen') {
+        // For generic modules, pass moduleName as parameter
+        navigation.navigate(targetScreen, { moduleName: moduleName });
+        return;
+      }
+      
+      // For other screens (like Calendar), check navigation access
       const hasAccess = await hasNavigationAccess(targetScreen);
       
       if (!hasAccess) {
@@ -38,14 +47,9 @@ export default function HomeScreen() {
         return;
       }
       
-      // Navigate to the appropriate screen
-      if (targetScreen === 'ModuleListScreen') {
-        // For generic modules, pass moduleName as parameter
-        navigation.navigate(targetScreen, { moduleName: moduleName });
-      } else {
-        // For special screens like Calendar, navigate directly
-        navigation.navigate(targetScreen);
-      }
+      // Navigate to the special screen
+      navigation.navigate(targetScreen);
+      
     } catch (error) {
       console.error('Error checking navigation access:', error);
       // Fallback navigation on error
