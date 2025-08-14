@@ -22,7 +22,59 @@ import TopNavigationDetail from "../../components/navigations/TopNavigationDetai
 import { useModule_Detail } from "../../services/useApi/module/UseModule_Detail";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
+import { formatCurrency } from "../../utils/format/FormatCurrencies";
 import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
+
+// Component to handle async field value formatting
+const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils }) => {
+    const [formattedValue, setFormattedValue] = useState(value);
+
+    useEffect(() => {
+        const formatValue = async () => {
+            if (!value) {
+                setFormattedValue(translations.noValue || 'Không có');
+                return;
+            }
+
+            switch (fieldKey) {
+                case 'date_entered':
+                case 'date_modified':
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    break;
+                case 'parent_type':
+                    const typeLabels = {
+                        'Accounts': systemLanguageUtils.translate('LBL_ACCOUNTS'),
+                        'Users': systemLanguageUtils.translate('LBL_USERS'),
+                        'Tasks': systemLanguageUtils.translate('LBL_TASKS'),
+                        'Meetings': systemLanguageUtils.translate('LBL_MEETINGS')
+                    };
+                    setFormattedValue(typeLabels[value] || value);
+                    break;
+                case 'annual_revenue':
+                    try {
+                        const numericValue = parseFloat(value);
+                        if (isNaN(numericValue)) {
+                            setFormattedValue(value.toString());
+                        } else {
+                            const formatted = await formatCurrency(numericValue);
+                            setFormattedValue(formatted);
+                        }
+                    } catch (error) {
+                        console.warn('Error formatting annual_revenue:', error);
+                        setFormattedValue(value.toString());
+                    }
+                    break;
+                default:
+                    setFormattedValue(value.toString());
+                    break;
+            }
+        };
+
+        formatValue();
+    }, [fieldKey, value, translations, systemLanguageUtils]);
+
+    return formattedValue;
+};
 
 const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
@@ -113,6 +165,7 @@ export default function ModuleDetailScreen() {
         refreshing,
         error,
         deleting,
+        haveParent,
         refreshRecord,
         deleteRecord,
         getFieldValue,
@@ -205,13 +258,13 @@ export default function ModuleDetailScreen() {
         );
     };
 
-    // Check if user can edit this record
+    // Check if user can edit this record - ROLE_CHECK
     const canEditRecord = () => {
         if (!record) return false;
 
-        if (currentUserId !== record.created_by) {
-            return false;
-        }
+        // if (currentUserId !== record.created_by) {
+        //     return false;
+        // }
 
         return true;
     };
@@ -228,7 +281,8 @@ export default function ModuleDetailScreen() {
         }
         navigation.navigate('ModuleUpdateScreen', {
             moduleName,
-            recordData: record
+            recordData: record,
+            haveParent
         });
     };
 
@@ -248,6 +302,9 @@ export default function ModuleDetailScreen() {
                     'Meetings': systemLanguageUtils.translate('LBL_MEETINGS')
                 };
                 return typeLabels[value] || value;
+            case 'annual_revenue':
+                // For async formatting, use FormattedFieldValue component
+                return null; // This will be handled by component
             default:
                 return value.toString();
         }
@@ -297,9 +354,20 @@ export default function ModuleDetailScreen() {
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{field.label}</Text>
-                <Text style={styles.fieldValue}>
-                    {formatFieldValue(field.key, value)}
-                </Text>
+                {field.key === 'annual_revenue' ? (
+                    <Text style={styles.fieldValue}>
+                        <FormattedFieldValue 
+                            fieldKey={field.key} 
+                            value={value} 
+                            translations={translations}
+                            systemLanguageUtils={systemLanguageUtils}
+                        />
+                    </Text>
+                ) : (
+                    <Text style={styles.fieldValue}>
+                        {formatFieldValue(field.key, value)}
+                    </Text>
+                )}
             </View>
         );
     };
