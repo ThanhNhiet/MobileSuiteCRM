@@ -4,6 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { deleteModuleRecordApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 
 export const useModule_Detail = (moduleName, recordId) => {
@@ -13,7 +14,8 @@ export const useModule_Detail = (moduleName, recordId) => {
     const [error, setError] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [relationships, setRelationships] = useState([]);
-    
+    const [haveParent, setHaveParent] = useState(false);
+
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
@@ -147,6 +149,7 @@ export const useModule_Detail = (moduleName, recordId) => {
                 "name": "LBL_NAME",
                 "account_type": "LBL_TYPE",
                 "industry": "LBL_INDUSTRY",
+                "annual_revenue": "LBL_ANNUAL_REVENUE",
                 "phone_office": "LBL_PHONE_OFFICE",
                 "email1": "LBL_EMAIL_ADDRESS",
                 "billing_address_city": "LBL_CITY",
@@ -292,6 +295,9 @@ export const useModule_Detail = (moduleName, recordId) => {
             };
             
             setRecord(recordData);
+            if(parentInfo.parent_id && parentInfo.parent_type) {
+                setHaveParent(true);
+            }
 
             // Process relationships from response
             if (response.data.relationships) {
@@ -382,6 +388,29 @@ export const useModule_Detail = (moduleName, recordId) => {
         }
     }, [nameFields, recordId, moduleName, fetchRecord]);
 
+    // Format field value based on field type
+    const formatFieldValue = useCallback(async (fieldKey, value) => {
+        if (!value || value === '' || value === null || value === undefined) {
+            return '';
+        }
+
+        switch (fieldKey) {
+            case 'annual_revenue':
+                try {
+                    const numericValue = parseFloat(value);
+                    if (isNaN(numericValue)) {
+                        return value;
+                    }
+                    return await formatCurrency(numericValue);
+                } catch (error) {
+                    console.warn('Error formatting annual_revenue:', error);
+                    return value;
+                }
+            default:
+                return value;
+        }
+    }, []);
+
     return {
         // Data
         record,
@@ -391,6 +420,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         refreshing,
         error,
         deleting,
+        haveParent,
         
         // Actions
         fetchRecord,
@@ -400,6 +430,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         // Helpers
         getFieldValue,
         getFieldLabel,
-        shouldDisplayField
+        shouldDisplayField,
+        formatFieldValue
     };
 };

@@ -351,8 +351,18 @@ export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
         
         // If the error is specifically about the fields not existing (400), 
         // return null values instead of throwing
-        if (error.response && error.response.status === 400) {
+        if (error.response && (error.response.status === 400 || error.response.status === 422)) {
             console.info(`Module ${moduleName} does not support parent_id/parent_type fields`);
+            return {
+                parent_id: null,
+                parent_type: null
+            };
+        }
+
+        // For network errors or other critical errors, also return safe defaults
+        // to prevent breaking the detail view loading
+        if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+            console.warn(`Network error when fetching parent info for ${moduleName}, using defaults`);
             return {
                 parent_id: null,
                 parent_type: null
