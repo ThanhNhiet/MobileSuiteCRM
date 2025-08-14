@@ -169,22 +169,72 @@ export const useUserSetting = () => {
             // Get detailed currency data
             const detailCurrenciesResponse = await getDetailCurrenciesApi();
             
+            let currencyList = [];
+            
+            // Add default USD option (since it's the base currency for conversion_rate)
+            const usdOption = {
+                id: 'usd-default',
+                type: 'Currencies',
+                attributes: {
+                    name: 'US Dollar',
+                    iso4217: 'USD',
+                    symbol: '$',
+                    status: 'Active',
+                    conversion_rate: '1.000000', // Base currency
+                    deleted: '0'
+                }
+            };
+            currencyList.push(usdOption);
+            
             if (detailCurrenciesResponse && detailCurrenciesResponse.data) {
-                setCurrencies(detailCurrenciesResponse.data);
+                // Add other currencies from API
+                currencyList = [...currencyList, ...detailCurrenciesResponse.data];
                 
-                // Save to cache
-                await WriteCacheView.saveCurrencyData(detailCurrenciesResponse);
+                setCurrencies(currencyList);
+                
+                // Save to cache (including USD option)
+                const updatedResponse = {
+                    ...detailCurrenciesResponse,
+                    data: currencyList
+                };
+                await WriteCacheView.saveCurrencyData(updatedResponse);
                 
                 // Set default currency if none selected
-                if (!selectedCurrency && detailCurrenciesResponse.data.length > 0) {
-                    const defaultCurrency = detailCurrenciesResponse.data[0];
+                if (!selectedCurrency && currencyList.length > 0) {
+                    const defaultCurrency = currencyList[0]; // USD will be first
                     setSelectedCurrency(defaultCurrency);
                     await AsyncStorage.setItem('selectedCurrency', JSON.stringify(defaultCurrency));
+                }
+            } else {
+                // If API fails, at least show USD option
+                setCurrencies(currencyList);
+                if (!selectedCurrency) {
+                    setSelectedCurrency(usdOption);
+                    await AsyncStorage.setItem('selectedCurrency', JSON.stringify(usdOption));
                 }
             }
         } catch (error) {
             console.error('Error loading currencies:', error);
             setError(error.message);
+            
+            // Fallback to USD only if API completely fails
+            const usdFallback = {
+                id: 'usd-fallback',
+                type: 'Currencies',
+                attributes: {
+                    name: 'US Dollar',
+                    iso4217: 'USD',
+                    symbol: '$',
+                    status: 'Active',
+                    conversion_rate: '1.000000',
+                    deleted: '0'
+                }
+            };
+            setCurrencies([usdFallback]);
+            if (!selectedCurrency) {
+                setSelectedCurrency(usdFallback);
+                await AsyncStorage.setItem('selectedCurrency', JSON.stringify(usdFallback));
+            }
         } finally {
             setLoading(false);
         }

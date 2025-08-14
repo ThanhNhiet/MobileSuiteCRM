@@ -83,7 +83,15 @@ const formatCurrency_USD = (amount, symbol = '$') => {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReadCacheView from '../cacheViewManagement/ReadCacheView';
 
-export const formatCurrency = async (amount) => {
+// Function to convert currency using conversion_rate (base is USD)
+const convertCurrency = (amount, conversionRate) => {
+    if (!conversionRate || conversionRate === 0) {
+        return amount;
+    }
+    return amount * conversionRate;
+};
+
+export const formatCurrency = async (amount, shouldConvert = true) => {
     try {
         const [cachedCurrency, thousandsSeparator, decimalSymbol] = await Promise.all([
             ReadCacheView.getCurrencyData(),
@@ -128,11 +136,22 @@ export const formatCurrency = async (amount) => {
         const symbol = currencyAttributes.symbol || '$';
         const position = getSymbolPosition(currencyAttributes);
         
-        return formatCurrencyWithPosition(amount, symbol, position, customThousandsSeparator, customDecimalSymbol);
+        // Convert currency if needed and conversion rate is available
+        let convertedAmount = amount;
+        if (shouldConvert && currencyAttributes.conversion_rate) {
+            convertedAmount = convertCurrency(amount, parseFloat(currencyAttributes.conversion_rate));
+        }
+        
+        return formatCurrencyWithPosition(convertedAmount, symbol, position, customThousandsSeparator, customDecimalSymbol);
         
     } catch (error) {
         console.warn('Error formatting currency:', error);
         // Fallback to USD format on error
         return formatCurrencyWithPosition(amount, '$', 'prefix', ',', '.');
     }
+};
+
+// Export function to format currency without conversion (for display purposes)
+export const formatCurrencyWithoutConversion = async (amount) => {
+    return await formatCurrency(amount, false);
 };
