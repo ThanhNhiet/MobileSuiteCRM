@@ -467,130 +467,140 @@ export const useModule_Detail = (moduleName, recordId) => {
             const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
             setRoleInfo(prev => ({ ...prev, editPerm }));
         }, [userRoles]);
-        // check quyền xóa
-        useEffect(()=>{
-            const checkDeletePerm = async () => {
+        // helpers.ts
+            const getUserIdSafe = async () => {
+            const token = await AsyncStorage.getItem('token');
+            return getUserIdFromToken(token);
+            };
+
+            const getRecordFieldSafe = (record) => {
+            // Một số API đặt data trong attributes
+            const r = (record && typeof record === 'object') ? (record.attributes ?? record) : {};
+            return {
+                created_by: r?.created_by ?? r?.created_by_id,
+                assigned_user_id: r?.assigned_user_id ?? r?.owner_id,
+            };
+            };
+
+            const buildMemberIdSet = (groupsList = []) => {
+            return new Set(
+                groupsList.flatMap(g => (g?.members ?? [])
+                .map(m => m?.id)
+                .filter(Boolean)
+                )
+            );
+            };
+
+            const fetchGroupMemberIdSet = async (roleName) => {
+            const data = await initializationSecurityGroupsRelationsApi(roleName);
+            if (!data) {
+                console.warn(`No security groups found for role: ${roleName}`);
+                return new Set();
+            }
+            const list = await getUserSecurityGroupsMember(data);
+            if (!Array.isArray(list) || list.length === 0) {
+                console.warn('No members found for security groups:', data);
+                return new Set();
+            }
+            return buildMemberIdSet(list);
+            };
+
+            // ---- Hàm chung kiểm tra quyền theo kiểu (delete/edit) ----
+            const checkPermGeneric = async ({
+            permInfo,      // roleInfo.deletePerm hoặc roleInfo.editPerm
+            roleName,      // roleInfo.roleName
+            record,
+            setter,        // setDeletePerm hoặc setEditPerm
+            myUserId,      // user_id của bạn
+            }) => {
+            // Nếu thiếu permInfo hoặc thiếu record -> không đủ dữ kiện, return
+            if (!permInfo || !record) return;
+
+            const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
+            const { created_by, assigned_user_id } = getRecordFieldSafe(record);
+
+            switch (level) {
+                case 'all':
+                setter(true);
+                return;
+
+                case 'owner':
+                setter(!!(myUserId && (created_by === myUserId || assigned_user_id === myUserId)));
+                return;
+
+                case 'unknown': {
+                // Diễn giải: cho phép nếu chủ sở hữu (created_by/assigned_user_id)
+                // thuộc một Security Group mà role này được phép thao tác
+                const memberIdSet = await fetchGroupMemberIdSet(roleName);
+                if (memberIdSet.size === 0) {
+                    setter(false);
+                    return;
+                }
+                const can = memberIdSet.has(assigned_user_id) || memberIdSet.has(created_by);
+                setter(!!can);             // KHÔNG đảo ngược!
+                return;
+                }
+
+                case 'default':
+                setter(true);
+                return;
+
+                case 'none':
+                setter(false);
+                return;
+
+                default:
+                setter(false);
+                return;
+            }
+            };
+            // component.jsx
+        useEffect(() => {
+        let alive = true;
+        (async () => {
             try {
-                if (!roleInfo.deletePerm && !record) return;
-                const token = await AsyncStorage.getItem('token');
-                const user_id = getUserIdFromToken(token);
-                const RoleName = roleInfo.deletePerm?.access_level_name?.toLowerCase?.() ?? '';
-                console.log('Role Name:', RoleName);
-                switch (RoleName) {
-                    case 'all':
-                        setDeletePerm(true);
-                        break;
-                    case 'unknown':
-                        {
-                        const data = await initializationSecurityGroupsRelationsApi(roleInfo.roleName);
-                        if (!data){
-                            console.warn(`No security groups found for role: ${roleInfo.roleName}`);
-                        }
-                        const list = await getUserSecurityGroupsMember(data);
-                        // rỗng thì thoát sớm
-                       if (!Array.isArray(list) || list.length === 0) {
-                            console.warn('No members found for security groups:', data);
-                            if (typeof setDeletePerm === 'function') setDeletePerm(false);
-                            return;
-                            }
+            // Nếu thiếu deletePerm hoặc record -> không kiểm tra
+            if (!roleInfo?.deletePerm || !record) return;
+            const user_id = await getUserIdSafe();
+            if (!alive) return;
+            await checkPermGeneric({
+                permInfo: roleInfo.deletePerm,
+                roleName: roleInfo.roleName,
+                record,
+                setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
+                myUserId: user_id,
+            });
+            } catch (e) {
+            console.error('Error checking delete permissions:', e);
+            }
+        })();
+        return () => { alive = false; };
+        // Chỉ phụ thuộc thứ thật sự cần
+        }, [roleInfo?.deletePerm, roleInfo?.roleName, record?.id]);
 
-                            // Gom toàn bộ user_id từ các group
-                            const memberIdSet = new Set(
-                            list.flatMap(g => (g?.members ?? [])
-                                .map(m => m?.id)
-                                .filter(Boolean))
-                            );
-
-                            // True nếu 1 trong 2 khớp
-                            const canDelete =
-                            memberIdSet.has(record?.assigned_user_id) ||
-                            memberIdSet.has(record?.created_by);
-                            console.log('Can delete:', canDelete);
-                            if (typeof setDeletePerm === 'function') setDeletePerm(!canDelete);
-                        break;
-                     }
-                    case 'owner':
-                        if (record.created_by === user_id || record.assigned_user_id === user_id)
-                           setDeletePerm(true);
-                        break;
-                    case 'none':
-                        setDeletePerm(false);
-                        break;
-                    case 'default':
-                        setDeletePerm(true);
-                        break;
-                    default:
-                        setDeletePerm(false);
-                        break;
-                }
-            } catch (error) {
-                    console.error('Error checking delete permissions:', error);
-                }
-        }
-        checkDeletePerm();
-        },[roleInfo.deletePerm,record]);
-
-         // check quyền xóa
-        useEffect(()=>{
-            const checkEditPerm = async () => {
+        useEffect(() => {
+        let alive = true;
+        (async () => {
             try {
-                if (!roleInfo.editPerm && !record) return;
-                const token = await AsyncStorage.getItem('token');
-                const user_id = getUserIdFromToken(token);
-                const RoleName = roleInfo.editPerm?.access_level_name?.toLowerCase?.() ?? '';
-                switch (RoleName) {
-                    case 'all':
-                        setEditPerm(true);
-                        break;
-                    case 'unknown':
-                        {
-                        const data = await initializationSecurityGroupsRelationsApi(roleInfo.roleName);
-                        if (!data){
-                            console.warn(`No security groups found for role: ${roleInfo.roleName}`);
-                        }
-                        const list = await getUserSecurityGroupsMember(data);
-                        // rỗng thì thoát sớm
-                       if (!Array.isArray(list) || list.length === 0) {
-                            console.warn('No members found for security groups:', data);
-                            if (typeof setEditPerm === 'function') setEditPerm(false);
-                            return;
-                            }
+            if (!roleInfo?.editPerm || !record) return;
+            const user_id = await getUserIdSafe();
+            if (!alive) return;
+            await checkPermGeneric({
+                permInfo: roleInfo.editPerm,
+                roleName: roleInfo.roleName,
+                record,
+                setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
+                myUserId: user_id,
+            });
+            } catch (e) {
+            console.error('Error checking edit permissions:', e);
+            }
+        })();
+        return () => { alive = false; };
+        }, [roleInfo?.editPerm, roleInfo?.roleName, record?.id]);
 
-                            // Gom toàn bộ user_id từ các group
-                            const memberIdSet = new Set(
-                            list.flatMap(g => (g?.members ?? [])
-                                .map(m => m?.id)
-                                .filter(Boolean))
-                            );
 
-                            // True nếu 1 trong 2 khớp
-                            const canDelete =
-                            memberIdSet.has(record?.assigned_user_id) ||
-                            memberIdSet.has(record?.created_by);
-                            console.log('Can delete:', canDelete);
-                            if (typeof setEditPerm === 'function') setEditPerm(!canDelete);
-                        break;
-                     }
-                    case 'owner':
-                        if (record.created_by === user_id || record.assigned_user_id === user_id)
-                           setEditPerm(true);
-                        break;
-                    case 'none':
-                        setEditPerm(false);
-                        break;
-                    case 'default':
-                        setEditPerm(true);
-                        break;
-                    default:
-                        setEditPerm(false);
-                        break;
-                }
-            } catch (error) {
-                    console.error('Error checking edit permissions:', error);
-                }
-        }
-        checkEditPerm();
-        },[roleInfo.editPerm,record]);
+        
 
 
     return {
