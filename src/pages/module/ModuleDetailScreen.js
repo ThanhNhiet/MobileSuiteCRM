@@ -159,6 +159,8 @@ export default function ModuleDetailScreen() {
 
     const {
         record,
+        deletePerm,
+        editPerm,
         detailFields,
         relationships, // relationships had been processed
         loading,
@@ -219,20 +221,20 @@ export default function ModuleDetailScreen() {
 
     // Handle delete with confirmation
     const handleDelete = () => {
-        if (!canEditRecord()) {
+        // if (!canEditRecord()) {
+        //     Alert.alert(
+        //         translations.noPermission || 'Không có quyền',
+        //         translations.noDeletePermission || 'Bạn không có quyền xóa bản ghi này vì nó được giao cho người dùng khác.',
+        //         [{ text: translations.ok || 'OK' }]
+        //     );
+        //     return;
+        // }
+        if (deletePerm) {
             Alert.alert(
-                translations.noPermission || 'Không có quyền',
-                translations.noDeletePermission || 'Bạn không có quyền xóa bản ghi này vì nó được giao cho người dùng khác.',
-                [{ text: translations.ok || 'OK' }]
-            );
-            return;
-        }
-
-        Alert.alert(
-            translations.confirmDelete || 'Xác nhận xóa',
-            translations.confirmDeleteMsg || 'Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.',
-            [
-                { text: translations.cancel || 'Hủy', style: 'cancel' },
+                translations.confirmDelete || 'Xác nhận xóa',
+                translations.confirmDeleteMsg || 'Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.',
+                [
+                    { text: translations.cancel || 'Hủy', style: 'cancel' },
                 {
                     text: translations.delete || 'Xóa',
                     style: 'destructive',
@@ -256,6 +258,14 @@ export default function ModuleDetailScreen() {
                 }
             ]
         );
+    } else{
+             Alert.alert(
+                translations.noPermission || 'Không có quyền',
+                translations.noDeletePermission || 'Bạn không có quyền xóa bản ghi này vì nó được giao cho người dùng khác.',
+                [{ text: translations.ok || 'OK' }]
+            );
+            return;
+    }
     };
 
     // Check if user can edit this record - ROLE_CHECK
@@ -271,19 +281,27 @@ export default function ModuleDetailScreen() {
 
     // Navigate to update screen
     const handleUpdate = () => {
-        if (!canEditRecord()) {
+        // if (!canEditRecord()) {
+        //     Alert.alert(
+        //         translations.noPermission || 'Không có quyền',
+        //         translations.noEditPermission || 'Bạn không có quyền chỉnh sửa bản ghi này vì nó được giao cho người dùng khác.',
+        //         [{ text: translations.ok || 'OK' }]
+        //     );
+        //     return;
+        // }
+        if (editPerm) {
+            navigation.navigate('ModuleUpdateScreen', {
+                moduleName,
+                recordData: record,
+                haveParent
+            });
+        } else{
             Alert.alert(
                 translations.noPermission || 'Không có quyền',
                 translations.noEditPermission || 'Bạn không có quyền chỉnh sửa bản ghi này vì nó được giao cho người dùng khác.',
                 [{ text: translations.ok || 'OK' }]
             );
-            return;
         }
-        navigation.navigate('ModuleUpdateScreen', {
-            moduleName,
-            recordData: record,
-            haveParent
-        });
     };
 
     // Format field value for display
