@@ -1,4 +1,4 @@
-import { searchModulesApi } from '../../../services/api/external/ExternalApi';
+import { getUserRolesApi, searchModulesApi } from '../../../services/api/external/ExternalApi';
 import ReadCacheView from '../../../utils/cacheViewManagement/Accounts/ReadCacheView';
 import WriteCacheView from '../../../utils/cacheViewManagement/Accounts/WriteCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
@@ -12,7 +12,7 @@ const AccountData = {};
 AccountData.getRequiredFields = async (token) => {
   try {
     let ObjectrequiredFields = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/requiredFields/requiredfields');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/requiredfields');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -23,10 +23,10 @@ AccountData.getRequiredFields = async (token) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/requiredFields/requiredfields', ObjectrequiredFields);
+      await WriteCacheView.saveModuleField('Accounts', '/requiredfields', ObjectrequiredFields);
     } else {
       // Lấy từ cache
-      ObjectrequiredFields = await ReadCacheView.getModuleField('Accounts', '/requiredFields/requiredfields');
+      ObjectrequiredFields = await ReadCacheView.getModuleField('Accounts', '/requiredfields');
       if (!ObjectrequiredFields) {
         console.error('❌ Không thể lấy required fields từ cache');
         return null;
@@ -88,7 +88,7 @@ AccountData.getLanguageModule = async (token, language) => {
 AccountData.getListView = async (token) => {
   try {
     let listViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/listViews/listviewdefs');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/listviewdefs');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -99,10 +99,10 @@ AccountData.getListView = async (token) => {
       }
      
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/listViews/listviewdefs', listViewData);
+      await WriteCacheView.saveModuleField('Accounts', '/listviewdefs', listViewData);
     } else {
       // Lấy từ cache
-      listViewData = await ReadCacheView.getModuleField('Accounts', '/listViews/listviewdefs');
+      listViewData = await ReadCacheView.getModuleField('Accounts', '/listviewdefs');
       if (!listViewData) {
         console.error('❌ Không thể lấy dữ liệu list view từ cache');
         return [];
@@ -130,7 +130,7 @@ AccountData.getListView = async (token) => {
 AccountData.getEditView = async (token) => {
   try {
     let editViewData = null;
-    const cacheExists = await WriteCacheView.checkPath('Accounts', '/editViews/editviewdefs');
+    const cacheExists = await WriteCacheView.checkPath('Accounts', '/editviewdefs');
     
     if (!cacheExists) {
       // Lấy từ API
@@ -141,10 +141,10 @@ AccountData.getEditView = async (token) => {
       }
     
       // Lưu vào cache
-      await WriteCacheView.saveModuleField('Accounts', '/editViews/editviewdefs', editViewData);
+      await WriteCacheView.saveModuleField('Accounts', '/editviewdefs', editViewData);
     } else {
       // Lấy từ cache
-      editViewData = await ReadCacheView.getModuleField('Accounts', '/editViews/editviewdefs');
+      editViewData = await ReadCacheView.getModuleField('Accounts', '/editviewdefs');
       if (!editViewData) {
         console.error('❌ Không thể lấy dữ liệu edit view từ cache');
         return [];
@@ -414,6 +414,32 @@ AccountData.getSearchKeyWords = async (parent_type, keyword, page) => {
     console.error('💥 Error in getSearchKeyWords:', error);
   }
 }
+
+AccountData.getRoleModule = async () => {
+  try {
+    const data = await getUserRolesApi(); // <-- Đã là response.data rồi
+
+    if (!data || !data.roles || data.roles.length === 0) {
+      return null;
+    }
+
+    const role = data.roles[0];
+
+    const rolesUser = {
+      roleName: role.role_name,
+      roles: role.actions.filter(action => action.category === 'Accounts'),
+    };
+
+    console.log('Roles User:', rolesUser.roles[0]);
+
+    return rolesUser;
+
+  } catch (error) {
+    console.error('💥 Error in getRoleModule:', error);
+    return null;
+  }
+};
+
 
 AccountData.getRelationships = async (token, accountId) => {
   try {

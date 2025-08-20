@@ -44,3 +44,97 @@ export const getUserRolesApi = async () => {
         throw error;
     }
 };
+
+// get security groups
+// GET /Api/V8/custom/user/{user_id}/security_groups
+export const getUserSecurityGroupsApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/ACLRole`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get User Security Groups API error:", error);
+        throw error;
+    }
+};
+export const getUserSecurityGroupsRelationsApi = async (role_name) => {
+  try {
+    const payload = await getUserSecurityGroupsApi(); // trả về { data: [...] } các ACLRole
+    const items = Array.isArray(payload?.data) ? payload.data : [];
+    const role = items.find((it) => it?.attributes?.name === role_name);
+    if (!role) {
+      console.warn(`No role found for name: ${role_name}`);
+      return [];
+    }
+
+    // lấy related link (hỗ trợ SecurityGroups/securitygroups + string hoặc {href})
+    const rel =
+      role?.relationships?.SecurityGroups?.links?.related ??
+      role?.relationships?.securitygroups?.links?.related ??
+      null;
+    let url =
+      typeof rel === 'string' ? rel :
+      (rel && typeof rel === 'object' ? rel.href : '');
+    if (!url) {
+      console.warn('No related link for SecurityGroups on this role');
+      return [];
+    }
+    // nếu là relative (V8/module/...) -> chèn /Api/
+    if (!/^https?:\/\//i.test(url)) {
+      url = url.replace(/^\/+/, '');          // bỏ '/' đầu
+      if (!/^api\//i.test(url)) url = `Api/${url}`;  // thêm Api/ nếu thiếu
+      url = `/${url}`;                         // đưa về dạng /Api/...
+    }
+    // axios sẽ tự ghép baseURL + url (nếu url không phải http absolute)
+    const resp = await axiosInstance.get(url);
+    const data = Array.isArray(resp?.data?.data) ? resp.data.data : [];
+    const map = data.map(it => ({
+    id: it.id
+    }));
+    return map;
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      console.warn('Role→SecurityGroups 404 (nhiều bản SuiteCRM không expose).');
+      return [];
+    }
+    console.warn('Get User Security Groups Relations API error:', error);
+    throw error;
+  }
+};
+
+export const getUserSecurityGroupsMember = async (groups) => {
+  try {
+    // chuẩn hoá thành mảng id duy nhất
+    const ids = [...new Set(
+      (groups || [])
+        .map(g => (typeof g === 'string' ? g : g?.id))
+        .filter(Boolean)
+    )];
+
+    if (ids.length === 0) return [];
+
+    // gọi song song
+    const jobs = ids.map(id => {
+      const url = `/Api/V8/custom/security-groups/${encodeURIComponent(id)}/members`;
+      return axiosInstance.get(url)
+        .then(r => ({ ok: true, id, data: r.data }))
+        .catch(error => ({ ok: false, id, error }));
+    });
+
+    const results = await Promise.all(jobs);
+
+    // gom kết quả: mỗi phần tử là object trả về từ API (KHÔNG spread object vào mảng)
+    const list = [];
+    for (const r of results) {
+      if (!r.ok) {
+        console.warn('Get members failed for group:', r.id, r.error?.response?.status, r.error?.response?.data);
+        continue;
+      }
+      if (r.data) list.push(r.data); // { group_id, group_name, members:[...], ... }
+    }
+
+    return list;
+  } catch (error) {
+    console.warn('Get User Security Groups Member API error:', error);
+    throw error;
+  }
+};

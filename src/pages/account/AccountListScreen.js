@@ -125,6 +125,8 @@ export default function AccountListScreen() {
             // Lấy dữ liệu với 20 dòng mỗi trang
             //token, page, pageSize, language
             const result = await AccountData.useListData(token, pageNumber, 20, language);
+            const rolesUser = await AccountData.getRoleModule();
+            console.log('Roles User:', rolesUser);
             setApiData(result);
            //console.log('Dữ liệu trang', pageNumber, ':', result.accounts);
            // console.log('Dữ liệu trang', pageNumber, ':', result.listViews);

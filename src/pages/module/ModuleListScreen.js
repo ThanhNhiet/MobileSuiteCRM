@@ -2,6 +2,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Modal,
     RefreshControl,
@@ -63,6 +64,8 @@ export default function ModuleListScreen() {
     const {
         records,
         columns,
+        recordsRole,
+        viewPerm,
         timeFilterOptions,
         filtersInitialized,
         currentPage,
@@ -237,10 +240,14 @@ export default function ModuleListScreen() {
         <TouchableOpacity 
             style={styles.tableRow} 
             onPress={() => {
-                navigation.navigate('ModuleDetailScreen', { 
-                    moduleName: moduleName,
-                    recordId: item.id
-                });
+                if (viewPerm.includes(item.id)) {
+                    navigation.navigate('ModuleDetailScreen', { 
+                        moduleName: moduleName,
+                        recordId: item.id
+                    });
+                } else{
+                    Alert.alert('Permission Denied', 'You do not have permission to view this record.');
+                }
             }}
         >
             {columns.map((column, index) => (
@@ -376,7 +383,7 @@ export default function ModuleListScreen() {
                     {/* Table Rows - Scrollable */}
                     {!loading && !error && (
                         <FlatList
-                            data={records}
+                            data={recordsRole}
                             renderItem={renderItem}
                             keyExtractor={(item) => item.id}
                             style={styles.list}
