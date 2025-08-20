@@ -1,6 +1,6 @@
 import { getUserIdFromToken } from '@/src/utils/DecodeToken';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
@@ -467,9 +467,10 @@ export const useModule_List = (moduleName) => {
 
 
         const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
-        const [editPerm, setEditPerm] = useState([]);
+       // const [editPerm, setEditPerm] = useState([]);
         const [viewPerm, setViewPerm] = useState([]);
-        const [deletePerm, setDeletePerm] = useState([]);
+      //  const [deletePerm, setDeletePerm] = useState([]);
+      //console.log('User roles:', records);
         // lấy quyền truy cập của người dùng list
         useEffect(() => {
         if (!userRoles) return;
@@ -495,7 +496,8 @@ export const useModule_List = (moduleName) => {
             const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
             setRoleInfo(prev => ({ ...prev, editPerm }));
         }, [userRoles]);
-        // Lấy core data an toàn (suitecrm đôi khi để trong attributes)
+        
+       // ===== xu ly role =====
         const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
 
         const getOwnersAndId = (rec) => {
@@ -509,7 +511,7 @@ export const useModule_List = (moduleName) => {
         };
         };
 
-        const buildSetsFromGroups = (list) => ({
+        const buildSetsFromGroups = (list = []) => ({
         memberIdSet: new Set(
             list.flatMap(g => (g?.members ?? []).map(m => m?.id).filter(Boolean))
         ),
@@ -518,244 +520,126 @@ export const useModule_List = (moduleName) => {
         ),
         });
 
-        const filterRecordsByGroupOrOwner = (records, memberIdSet, groupIdSet) => {
-        return (records ?? []).filter(rec => {
+        const filterRecordsByGroupOrOwner = (records = [], memberIdSet, groupIdSet) => {
+        return records.filter(rec => {
             const { created_by, assigned_user_id, securitygroup_id, securitygroups } = getOwnersAndId(rec);
             return (
-            // record có gán group trực tiếp
             (!!securitygroup_id && groupIdSet.has(securitygroup_id)) ||
-            // hoặc record có nhiều group
             securitygroups.some(id => groupIdSet.has(id)) ||
-            // hoặc owner/assignee thuộc các group
             memberIdSet.has(assigned_user_id) ||
             memberIdSet.has(created_by)
             );
         });
         };
 
-        const uniqueIds = (records) =>
+        const uniqueIds = (records = []) =>
         Array.from(new Set(records.map(r => getOwnersAndId(r).id).filter(Boolean)));
 
+        const uniqueRecordsById = (records = []) =>
+        Array.from(new Map(records.map(r => [getOwnersAndId(r).id, r])).values())
+            .filter(r => !!getOwnersAndId(r).id);
 
-        // check quyền view
-        useEffect(() => {
-            let alive = true;
-            (async () => {
-                try {
-                if (!roleInfo?.viewPerm || !Array.isArray(records) || records.length === 0) {
-                    if (typeof setViewPerm === 'function') setViewPerm([]);
-                    return;
-                }
-
-                const viewName = roleInfo.viewPerm?.access_level_name?.toLowerCase?.() ?? '';
-                console.log('Checking view permissions for:', viewName);
-
-                switch (viewName) {
-                    case 'all':
-                    case 'default': {
-                    const ids = uniqueIds(records);
-                    if (alive) setViewPerm(ids);
-                    break;
-                    }
-
-                    case 'owner': {
-                    const token = await AsyncStorage.getItem('token');
-                    const user_id = getUserIdFromToken(token);
-                    const ids = uniqueIds(
-                        records.filter(r => {
-                        const { created_by, assigned_user_id } = getOwnersAndId(r);
-                        return created_by === user_id || assigned_user_id === user_id;
-                        })
-                    );
-                    if (alive) setViewPerm(ids);
-                    break;
-                    }
-
-                    case 'unknown': {
-                    const data = await initializationSecurityGroupsRelationsApi(roleInfo.roleName);
-                    if (!data) {
-                        console.warn(`No security groups found for role: ${roleInfo.roleName}`);
-                        if (alive) setViewPerm([]);
-                        return;
-                    }
-                    const list = await getUserSecurityGroupsMember(data);
-                    if (!Array.isArray(list) || list.length === 0) {
-                        console.warn('No members found for security groups:', data);
-                        if (alive) setViewPerm([]);
-                        return;
-                    }
-
-                    const { memberIdSet, groupIdSet } = buildSetsFromGroups(list);
-                    const filtered = filterRecordsByGroupOrOwner(records, memberIdSet, groupIdSet);
-                    const ids = uniqueIds(filtered);
-                    console.log('Unique IDs for view permissions:', ids);
-                    if (alive) setViewPerm(ids);
-                    break;
-                    }
-
-                    case 'none':
-                    if (alive) setViewPerm([]);
-                    break;
-
-                    default:
-                    if (alive) setViewPerm([]);
-                    break;
-                }
-                } catch (error) {
-                console.error('Error checking view permissions:', error);
-                if (alive) setViewPerm([]);
-                }
-            })();
-            return () => { alive = false; };
-            }, [roleInfo?.viewPerm, roleInfo?.roleName, records]);
-
-
-        // Lấy danh sách bản ghi theo quyền của người dùng
-        useEffect(() => {
-            const initializeRecordsRole = async () => {
-            if (!roleInfo.roleName || !roleInfo.listPerm) return;
-            const token = await AsyncStorage.getItem('token');
-            const user_id = getUserIdFromToken(token);
-            const nameRoleList = roleInfo.listPerm?.access_level_name?.toLowerCase?.() ?? '';
-            switch (nameRoleList) {
-                case 'all':
-                    setRecordsRole(records);
-                    break;
-                case 'unknown':{
-                    const data = await initializationSecurityGroupsRelationsApi(roleInfo.roleName);
-                    if (!data){
-                        console.warn(`No security groups found for role: ${roleInfo.roleName}`);
-                        setRecordsRole([]);
-                    }
-                    const list = await getUserSecurityGroupsMember(data);
-
-                        // rỗng thì thoát sớm
-                        if (!Array.isArray(list) || list.length === 0) {
-                        console.warn('No members found for security groups:', data);
-                        setRecordsRole([]);
-                        return;
-                        }
-
-                        // gom memberId và groupId từ tất cả group
-                        const memberIdSet = new Set(
-                        list.flatMap(g => (g?.members ?? []).map(m => m.id).filter(Boolean))
-                        );
-                        const groupIdSet = new Set(
-                        list.map(g => g?.group_id ?? g?.id).filter(Boolean)
-                        );
-
-                        // lọc record: theo group của record hoặc theo người tạo/được giao thuộc nhóm
-                        const filtered = (records ?? []).filter(r =>
-                        // record có gán group trực tiếp
-                        (r?.securitygroup_id && groupIdSet.has(r.securitygroup_id)) ||
-                        (Array.isArray(r?.securitygroups) && r.securitygroups.some(id => groupIdSet.has(id))) ||
-                        // hoặc do user trong nhóm tạo/giao
-                        memberIdSet.has(r?.assigned_user_id) ||
-                        memberIdSet.has(r?.created_by)
-                        );
-
-                        // dedupe theo record.id
-                        const unique = Array.from(new Map(filtered.map(r => [r.id, r])).values());
-
-                        // set đúng 1 lần
-                        setRecordsRole(unique);
-
-                    break;
-                }
-                case 'owner':
-                    const ownerRecords = records.filter(record => {
-                        return record.created_by === user_id || record.assigned_user_id === user_id;
-                    });
-                    setRecordsRole(ownerRecords);
-                    break;
-                case 'default':
-                    setRecordsRole(records);
-                    break;
-                default:
-                    setRecordsRole([]);
-                    break;
-
-            }
+        const getUserIdSafe = async () => {
+        const token = await AsyncStorage.getItem('token');
+        return getUserIdFromToken(token);
         };
-        initializeRecordsRole();
-    }, [roleInfo, records]);
-    useEffect(() => {
-  let alive = true;
-  (async () => {
-    try {
-      if (!roleInfo?.roleName || !roleInfo?.listPerm || !Array.isArray(records)) return;
 
-      const nameRoleList = roleInfo.listPerm?.access_level_name?.toLowerCase?.() ?? '';
+        // Đánh giá record theo 1 quyền (list/view): trả về MẢNG RECORD
+        const evaluateRecordsByPerm = async ({ permInfo, roleName, records }) => {
+        if (!permInfo || !Array.isArray(records) || records.length === 0) return [];
 
-      switch (nameRoleList) {
-        case 'all':
-        case 'default': {
-          if (alive) setRecordsRole(records);
-          break;
+        const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
+        console.log('Evaluate Records by Permission:',  level);
+        switch (level) {
+            case 'all':
+            case 'default':
+            return uniqueRecordsById(records);
+
+            case 'owner': {
+            const userId = await getUserIdSafe();
+            const ownerRecords = records.filter(r => {
+                const { created_by, assigned_user_id } = getOwnersAndId(r);
+                return created_by === userId || assigned_user_id === userId;
+            });
+            return uniqueRecordsById(ownerRecords);
+            }
+
+            case 'unknown': {
+            const data = await initializationSecurityGroupsRelationsApi(roleName);
+            if (!data) return [];
+            const list = await getUserSecurityGroupsMember(data);
+            if (!Array.isArray(list) || list.length === 0) return [];
+
+            const { memberIdSet, groupIdSet } = buildSetsFromGroups(list);
+            const filtered = filterRecordsByGroupOrOwner(records, memberIdSet, groupIdSet);
+            return uniqueRecordsById(filtered);
+            }
+
+            case 'none':
+            default:
+            return [];
         }
+        };
 
-        case 'owner': {
-          const token = await AsyncStorage.getItem('token');
-          const user_id = getUserIdFromToken(token);
-          const ownerRecords = records.filter(r => {
-            const { created_by, assigned_user_id } = getOwnersAndId(r);
-            return created_by === user_id || assigned_user_id === user_id;
-          });
-          // dedupe theo id
-          const uniq = Array.from(
-            new Map(ownerRecords.map(r => [getOwnersAndId(r).id, r])).values()
-          );
-          if (alive) setRecordsRole(uniq);
-          break;
-        }
+        // ===== LIST: records theo quyền listPerm (TRẢ VỀ RECORD) =====
+        const listSeqRef = useRef(0);
+        useEffect(() => {
+        let alive = true;
+        const seq = ++listSeqRef.current;
 
-        case 'unknown': {
-          const data = await initializationSecurityGroupsRelationsApi(roleInfo.roleName);
-          if (!data) {
-            console.warn(`No security groups found for role: ${roleInfo.roleName}`);
-            if (alive) setRecordsRole([]);
-            return;
-          }
-          const list = await getUserSecurityGroupsMember(data);
-          if (!Array.isArray(list) || list.length === 0) {
-            console.warn('No members found for security groups:', data);
-            if (alive) setRecordsRole([]);
-            return;
-          }
+        (async () => {
+            try {
+            console.log('Initializing records role for list permission...',{
+                permInfo: roleInfo?.listPerm,
+                roleName: roleInfo?.roleName,
+                records,
+            });
+            const allowed = await evaluateRecordsByPerm({
+                permInfo: roleInfo?.listPerm,
+                roleName: roleInfo?.roleName,
+                records,
+            });
 
-          const { memberIdSet, groupIdSet } = buildSetsFromGroups(list);
-          const filtered = filterRecordsByGroupOrOwner(records, memberIdSet, groupIdSet);
+            if (!alive || seq !== listSeqRef.current) return;
+            console.log('List Records:', allowed);
+            setRecordsRole(allowed); // <-- MẢNG RECORD
+            } catch (e) {
+            console.error('initializeRecordsRole error:', e);
+            if (alive && seq === listSeqRef.current) setRecordsRole([]);
+            }
+        })();
 
-          const uniq = Array.from(
-            new Map(filtered.map(r => [getOwnersAndId(r).id, r])).values()
-          );
-          if (alive) setRecordsRole(uniq);
-          break;
-        }
+        return () => { alive = false; };
+        }, [roleInfo?.roleName, roleInfo?.listPerm, records]);
 
-        case 'none':
-          if (alive) setRecordsRole([]);
-          break;
+        // ===== VIEW: ID được xem theo viewPerm (TRẢ VỀ ID) =====
+        const viewSeqRef = useRef(0);
+        useEffect(() => {
+        let alive = true;
+        const seq = ++viewSeqRef.current;
 
-        default:
-          if (alive) setRecordsRole([]);
-          break;
-      }
-    } catch (e) {
-      console.error('initializeRecordsRole error:', e);
-      if (alive) setRecordsRole([]);
-    }
-  })();
-  return () => { alive = false; };
-}, [roleInfo?.roleName, roleInfo?.listPerm, records]);
+        (async () => {
+            try {
+            const allowed = await evaluateRecordsByPerm({
+                permInfo: roleInfo?.viewPerm,
+                roleName: roleInfo?.roleName,
+                records,
+            });
 
-    useEffect(()=>{
-        if (!recordsRole || !viewPerm) return;
-        console.log('Role info updated:', recordsRole);
-    console.log('View permissions updated:', viewPerm);
-    console.log('Records role:', records);
-    },[recordsRole,viewPerm])
-    
+            const ids = uniqueIds(allowed); // <-- MẢNG ID
+            console.log('View IDs:', ids);
+
+            if (!alive || seq !== viewSeqRef.current) return;
+            setViewPerm(ids);
+            } catch (e) {
+            console.error('Error checking view permissions:', e);
+            if (alive && seq === viewSeqRef.current) setViewPerm([]);
+            }
+        })();
+
+        return () => { alive = false; };
+        }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
+
     return {
         // Data
         records,
