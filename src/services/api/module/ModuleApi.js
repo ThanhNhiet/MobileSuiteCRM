@@ -69,9 +69,9 @@ export const getModuleRecordsApi = async (moduleName, pageSize = 10, pageNumber 
 
         const response = await axiosInstance.get(`/Api/V8/module/${moduleName}`, {
             params: {
-                'filter[operator]': 'or',
-                'filter[assigned_user_id][eq]': userId,
-                'filter[created_by][eq]': userId,
+              //  'filter[operator]': 'or',
+              //  'filter[assigned_user_id][eq]': userId,
+              //  'filter[created_by][eq]': userId,
                 'filter[deleted][eq]': 0,
                 [`fields[${moduleName}]`]: nameFields,
                 'page[size]': pageSize,
@@ -187,9 +187,9 @@ export const searchModuleByFilterApi = async (moduleName, pageSize = 10, pageNum
         
         // Base parameters
         const params = {
-            'filter[operator]': 'and',
-            'filter[assigned_user_id][eq]': userId,
-            'filter[created_by][eq]': userId,
+           // 'filter[operator]': 'and',
+           // 'filter[assigned_user_id][eq]': userId,
+          //  'filter[created_by][eq]': userId,
             'filter[deleted][eq]': 0,
             [`fields[${moduleName}]`]: nameFields,
             'page[size]': pageSize,

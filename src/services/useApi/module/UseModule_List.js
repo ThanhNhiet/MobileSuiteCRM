@@ -747,6 +747,7 @@ export const useModule_List = (moduleName) => {
         if (!recordsRole || !viewPerm) return;
         console.log('Role info updated:', recordsRole);
     console.log('View permissions updated:', viewPerm);
+    console.log('Records role:', records);
     },[recordsRole,viewPerm])
     
     return {
