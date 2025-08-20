@@ -122,16 +122,22 @@ export const useModule_List = (moduleName) => {
             }
             
             // Use only first 2 fields
-            const fieldEntries = Object.entries(fieldsData).slice(0, 2);
+            let fieldEntries;
+            const allFieldEntries = Object.entries(fieldsData);
+            if (moduleName === 'Calls') {
+                // Skip first field
+                fieldEntries = allFieldEntries.slice(1, 3);
+            } else {
+                fieldEntries = allFieldEntries.slice(0, 2);
+            }
             
             // Build nameFields string from field definitions
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
-            const requiredFields = [...fieldKeys, 'assigned_user_id', 'created_by'];
             
             // Filter out invalid fields
-            const validFields = requiredFields.filter(field => 
-                field && 
-                typeof field === 'string' && 
+            const validFields = fieldKeys.filter(field =>
+                field &&
+                typeof field === 'string' &&
                 field.trim() !== '' &&
                 !field.includes(' ')
             );
