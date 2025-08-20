@@ -11,8 +11,8 @@ const BottomNavigation = ({ navigation }) => {
   useEffect(() => {
     const loadTranslations = async () => {
       const homeLabel = await systemLanguageUtils.translate('Home');
-      const profileLabel = await systemLanguageUtils.translate('LBL_PROFILE', 'Profile');
-      setTranslations({ home: homeLabel, profile: profileLabel });
+      const calendarLabel = await systemLanguageUtils.translate('Calendar');
+      setTranslations({ home: homeLabel, calendar: calendarLabel });
     };
     loadTranslations();
   }, []);
@@ -23,9 +23,9 @@ const BottomNavigation = ({ navigation }) => {
         <Ionicons name="home-outline" size={24} color="black" />
         <Text>{translations.home}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('ProfileScreen')}>
-        <Ionicons name="person-circle-outline" size={24} color="black" />
-        <Text>{translations.profile}</Text>
+      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('CalendarScreen')}>
+        <Ionicons name="calendar-outline" size={24} color="black" />
+        <Text>{translations.calendar}</Text>
       </TouchableOpacity>
     </View>
   );

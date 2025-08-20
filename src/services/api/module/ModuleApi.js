@@ -66,6 +66,7 @@ export const getModuleRecordsApi = async (moduleName, pageSize = 10, pageNumber 
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
+        // console.log(`Full url: /Api/V8/module/${moduleName}?filter[operator]=or&filter[assigned_user_id][eq]=${userId}&filter[created_by][eq]=${userId}&filter[deleted][eq]=0&fields[${moduleName}]=${nameFields}&page[size]=${pageSize}&page[number]=${pageNumber}&sort=-${sortField}`);
 
         const response = await axiosInstance.get(`/Api/V8/module/${moduleName}`, {
             params: {
@@ -158,9 +159,13 @@ export const deleteModuleRecordApi = async (moduleName, recordId) => {
 //GET /Api/V8/custom/{ModuleName}?keyword={keyword}&field={nameField}&page={page}
 export const searchModuleByKeywordApi = async (moduleName, keyword, page = 1, fields = 'name,description,created_by,assigned_user_id,date_entered') => {
     try {
+        const token = await AsyncStorage.getItem('token');
+        const userId = getUserIdFromToken(token);
+
         const response = await axiosInstance.get(`/Api/V8/custom/${moduleName}`, {
             params: {
                 'keyword': keyword,
+                'assigned_user_id': userId,
                 'fields': fields,
                 'page': page
             }
