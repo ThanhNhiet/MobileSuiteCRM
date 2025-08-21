@@ -15,7 +15,7 @@ class ModulesConfig {
         return ModulesConfig.instance;
     }
 
-    //Convert module to screen name. ex: Accounts -> AccountListScreen  
+    //Convert module to screen name
     getScreenName(moduleName) {
         if (!moduleName) return '';
         moduleName = moduleName.trim();

@@ -14,10 +14,7 @@ export const useCountModules = () => {
   const [error, setError] = useState(null);
   const [translations, setTranslations] = useState({});
   const [data, setData] = useState([
-    { title: 'Khách hàng', module: 'Accounts', my: 0 },
-    { title: 'Ghi chú', module: 'Notes', my: 0 },
-    { title: 'Công việc', module: 'Tasks', my: 0 },
-    { title: 'Cuộc họp', module: 'Meetings', my: 0 }
+    { title: '...', module: '...', my: 0 }
   ]);
 
   // Load translations dynamically for all available modules
