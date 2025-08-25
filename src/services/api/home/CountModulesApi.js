@@ -223,110 +223,76 @@ export const getAccessibleModuleCounts = async () => {
     try {
         const rolesConfig = RolesConfig.getInstance();
         const modulesConfig = ModulesConfig.getInstance();
-        
-        // Load user roles and modules if not already loaded
         await Promise.all([
             rolesConfig.loadUserRoles(),
             modulesConfig.loadModules()
         ]);
-        
-        const moduleCounts = {};
-        
-        // Get dynamic module list from ModulesConfig
-        const availableModules = modulesConfig.getRequiredModules();
-        
-        // Define count functions and metadata for each module (all showing 'my' records)
-        const moduleCountFunctions = {
-            'Accounts': {
-                getCount: () => countMyRecordApi('Accounts'),
-                icon: 'business-outline',
-                showType: 'my'
-            },
-            'Meetings': {
-                getCount: () => countMyRecordApi('Meetings'),
-                icon: 'people-outline',
-                showType: 'my'
-            },
-            'Tasks': {
-                getCount: () => countMyRecordApi('Tasks'),
-                icon: 'checkbox-outline',
-                showType: 'my'
-            },
-            'Notes': {
-                getCount: () => countMyRecordApi('Notes'),
-                icon: 'document-text-outline',
-                showType: 'my'
-            },
-            'Calendar': {
-                getCount: () => Promise.resolve(0),
-                icon: 'calendar-outline',
-                showType: 'calendar'
-            }
-        };
-        
-        // Get default module configuration for modules without specific count APIs
-        const getDefaultModuleConfig = (moduleName) => {
-            const iconMap = {
-                'Contacts': 'person-outline',
-                'Calls': 'call-outline',
-                'Leads': 'trending-up-outline',
-                'Opportunities': 'briefcase-outline',
-                'Campaigns': 'megaphone-outline',
-                'Cases': 'folder-outline',
-                'Documents': 'document-outline',
-                'Emails': 'mail-outline',
-                'Projects': 'layers-outline',
-                'Reports': 'bar-chart-outline'
-            };
-            
-            return {
-                getCount: () => countMyRecordApi(moduleName), // Use generic my records count
-                icon: iconMap[moduleName] || 'apps-outline',
-                showType: 'my' // All modules show 'my' records
-            };
-        };
-        
-        // Process each module from ModulesConfig
-        for (const [moduleName, navigationTarget] of Object.entries(availableModules)) {
-            try {
-                // Check if user has access to this module
-                if (rolesConfig.hasModuleAccess(moduleName)) {
-                    // Get module configuration - use specific config or default
-                    const moduleConfig = moduleCountFunctions[moduleName] || getDefaultModuleConfig(moduleName);
-                    
-                    const count = await moduleConfig.getCount();
-                    moduleCounts[moduleName] = {
-                        count: count || 0,
-                        icon: moduleConfig.icon,
-                        showType: moduleConfig.showType,
-                        navigationTarget: navigationTarget,
-                        hasAccess: true
-                    };
-                }
-            } catch (error) {
-                console.error(`Error getting count for ${moduleName}:`, error);
-                // If error occurs, still include module but with 0 count if user has access
-                if (rolesConfig.hasModuleAccess(moduleName)) {
-                    const moduleConfig = moduleCountFunctions[moduleName] || getDefaultModuleConfig(moduleName);
-                    moduleCounts[moduleName] = {
-                        count: 0,
-                        icon: moduleConfig.icon,
-                        showType: moduleConfig.showType,
-                        navigationTarget: availableModules[moduleName],
-                        hasAccess: true,
-                        error: true
-                    };
-                }
-            }
+
+        // Get selected modules from Home settings
+        let selectedModules = null;
+        try {
+            const ReadCacheView = (await import('../../../utils/cacheViewManagement/ReadCacheView')).default;
+            selectedModules = await ReadCacheView.getHomeSettings();
+        } catch (e) {
+            selectedModules = null;
         }
-        
+
+        // If no settings are found, get the first 2 modules from the list of user-accessible modules
+        const availableModules = modulesConfig.getRequiredModules();
+        let modulesToCount = [];
+        if (selectedModules && Array.isArray(selectedModules) && selectedModules.length > 0) {
+            modulesToCount = selectedModules;
+        } else {
+            modulesToCount = Object.keys(availableModules).filter(m => rolesConfig.hasModuleAccess(m)).slice(0, 2);
+        }
+
+        // Define icon and showType for each module
+        const iconMap = {
+            'Accounts': 'business-outline',
+            'Meetings': 'people-outline',
+            'Tasks': 'checkbox-outline',
+            'Notes': 'document-text-outline',
+            'Calendar': 'calendar-outline',
+            'Contacts': 'person-outline',
+            'Calls': 'call-outline',
+            'Leads': 'trending-up-outline',
+            'Opportunities': 'briefcase-outline',
+            'Campaigns': 'megaphone-outline',
+            'Cases': 'folder-outline',
+            'Documents': 'document-outline',
+            'Emails': 'mail-outline',
+            'Projects': 'layers-outline',
+            'Reports': 'bar-chart-outline'
+        };
+
+        const moduleCounts = {};
+        for (const moduleName of modulesToCount) {
+            let count = 0;
+            let showType = 'my';
+            if (moduleName === 'Calendar') {
+                showType = 'calendar';
+            } else {
+                try {
+                    count = await countMyRecordApi(moduleName);
+                } catch (error) {
+                    count = 0;
+                }
+            }
+            moduleCounts[moduleName] = {
+                count,
+                icon: iconMap[moduleName] || 'apps-outline',
+                showType,
+                navigationTarget: availableModules[moduleName],
+                hasAccess: true
+            };
+        }
+
         return {
             success: true,
             moduleCounts,
             totalAccessibleModules: Object.keys(moduleCounts).length,
-            processedModules: Object.keys(availableModules)
+            processedModules: modulesToCount
         };
-        
     } catch (error) {
         console.error('Error in getAccessibleModuleCounts:', error);
         throw error;
