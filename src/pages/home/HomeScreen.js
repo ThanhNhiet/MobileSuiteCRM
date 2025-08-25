@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   RefreshControl,
@@ -13,6 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useCountModules } from '../../services/useApi/home/UseCountModules';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 const boxWidth = (Dimensions.get('window').width - 32 - 12) / 2;
 
@@ -22,6 +23,33 @@ export default function HomeScreen() {
   const { data: DATA, loading, error, refresh, allModules, selectedModules, saveHomeSettings } = useCountModules();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [checkedModules, setCheckedModules] = React.useState(selectedModules || []);
+  const [translations, setTranslations] = useState({});
+  const systemLanguageUtils = SystemLanguageUtils.getInstance();
+
+  // Initialize translations
+  useEffect(() => {
+    const initializeTranslations = async () => {
+      try {
+        // Get all translations at once using SystemLanguageUtils
+        const translatedLabels = await systemLanguageUtils.translateKeys([
+          'LBL_LOADING',
+          'LBL_ADD_TAB',
+          'LBL_SAVE_BUTTON_LABEL',
+          'LBL_CANCEL'
+        ]);
+
+        setTranslations({
+          trans_loading: translatedLabels.LBL_LOADING,
+          trans_add_tab: translatedLabels.LBL_ADD_TAB,
+          trans_save: translatedLabels.LBL_SAVE_BUTTON_LABEL,
+          trans_cancel: translatedLabels.LBL_CANCEL
+        });
+      } catch (error) {
+        console.error(`Error loading translations:`, error);
+      }
+    };
+    initializeTranslations();
+  }, []);
 
   // Navigation logic
   const handleNavigation = async (item) => {
@@ -57,7 +85,7 @@ export default function HomeScreen() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.wrapper}>
         <TopNavigation moduleName={homeTitle} navigation={navigation} />
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.container}
           refreshControl={
             <RefreshControl
@@ -70,13 +98,13 @@ export default function HomeScreen() {
         >
           {loading && DATA.length === 0 ? (
             <View style={styles.initialLoadingContainer}>
-              <Text style={styles.loadingText}>...</Text>
+              <Text style={styles.loadingText}>{translations.trans_loading || 'Loading...'}</Text>
             </View>
           ) : (
             <>
               {DATA.map((item, index) => (
-                <TouchableOpacity 
-                  key={index} 
+                <TouchableOpacity
+                  key={index}
                   style={[styles.box, loading && styles.disabledBox]}
                   onPress={() => handleNavigation(item)}
                   disabled={loading}
@@ -99,32 +127,32 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
-              {/* Dấu cộng để mở modal chọn module */}
+              {/* To open modal to add tab module */}
               <TouchableOpacity style={[styles.box, styles.addBox]} onPress={openModuleModal}>
                 <Text style={styles.addIcon}>＋</Text>
               </TouchableOpacity>
             </>
           )}
         </ScrollView>
-        {/* Modal chọn module */}
+        {/* Modal to add tab module */}
         {modalVisible && (
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Chọn module hiển thị</Text>
+              <Text style={styles.modalTitle}>{translations.trans_addTab || 'Add tab'}</Text>
               <ScrollView style={{ maxHeight: 300 }}>
-                {allModules && allModules.map((module, idx) => (
-                  <TouchableOpacity key={module} style={styles.checkboxRow} onPress={() => toggleModule(module)}>
-                    <View style={[styles.checkbox, checkedModules.includes(module) && styles.checkboxChecked]} />
-                    <Text style={styles.checkboxLabel}>{module}</Text>
-                  </TouchableOpacity>
-                ))}
+                  {allModules && allModules.map((module, idx) => (
+                    <TouchableOpacity key={module.key} style={styles.checkboxRow} onPress={() => toggleModule(module.key)}>
+                      <View style={[styles.checkbox, checkedModules.includes(module.key) && styles.checkboxChecked]} />
+                      <Text style={styles.checkboxLabel}>{module.trans}</Text>
+                    </TouchableOpacity>
+                  ))}
               </ScrollView>
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSaveModules}>
-                  <Text style={styles.saveBtnText}>Lưu</Text>
+                  <Text style={styles.saveBtnText}>{translations.trans_save || 'Save'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
-                  <Text style={styles.cancelBtnText}>Hủy</Text>
+                  <Text style={styles.cancelBtnText}>{translations.trans_cancel || 'Cancel'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -244,7 +272,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     padding: 16,
-    paddingBottom: 80, // để tránh che bởi BottomNavigation
+    paddingBottom: 80,
   },
   box: {
     width: boxWidth,
@@ -254,7 +282,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 16,
 
-    // Bóng đổ nhẹ (Material style)
+    // Material style
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,

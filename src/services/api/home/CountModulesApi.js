@@ -314,7 +314,6 @@ export const hasNavigationAccess = async (screenName) => {
         // Special handling for ModuleListScreen - it's a generic screen that should always be accessible
         // The actual module access will be checked when loading the specific module data
         if (screenName === 'ModuleListScreen') {
-            console.log('ModuleListScreen is a generic screen, allowing access');
             return true;
         }
         

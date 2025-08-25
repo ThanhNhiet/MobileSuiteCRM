@@ -30,7 +30,6 @@ export const useCountModules = () => {
       let modulesToTranslate = [];
 
       if (moduleData && typeof moduleData === 'object') {
-        // Ưu tiên lấy label từ filteredModules, giống HamburgerModal
         modulesToTranslate = Object.entries(moduleData).map(
           ([moduleName, moduleInfo]) => ({
             moduleName,
@@ -143,7 +142,20 @@ export const useCountModules = () => {
       // Accessible modules by role
       const rolesConfig = RolesConfig.getInstance();
       const accessibleModules = Object.keys(filteredModules).filter(m => rolesConfig.hasModuleAccess(m));
-      setAllModules(accessibleModules);
+
+      // Create array allModules with {key, trans} for each module
+      let allModulesTranslations = translations;
+      if (
+        Object.keys(allModulesTranslations).length === 0 ||
+        !accessibleModules.every(m => allModulesTranslations.hasOwnProperty(m.toLowerCase()))
+      ) {
+        allModulesTranslations = await loadTranslations(filteredModules);
+      }
+      const translationsMap = accessibleModules.map(m => ({
+        key: m,
+        trans: allModulesTranslations[m.toLowerCase()] || m
+      }));
+      setAllModules(translationsMap);
 
       // Chosen modules
       const chosenModules = (homeSettings?.length > 0)

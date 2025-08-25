@@ -80,7 +80,7 @@ class ModulesConfig {
             }
             throw new Error('Invalid response structure');
         } catch (error) {
-            console.error('Error loading modules:', error);
+            // console.error('Error loading modules:', error);
             // Return fallback modules structure
             this.modules = this.getFallbackModules();
             this.isLoaded = true;
