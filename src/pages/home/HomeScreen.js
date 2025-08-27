@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   RefreshControl,
   ScrollView,
@@ -13,73 +12,80 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
-import { hasNavigationAccess } from '../../services/api/home/CountModulesApi';
 import { useCountModules } from '../../services/useApi/home/UseCountModules';
+import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 const boxWidth = (Dimensions.get('window').width - 32 - 12) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const homeTitle = 'Home';
-  const { data: DATA, loading, error, refresh } = useCountModules();
+  const { data: DATA, loading, error, refresh, allModules, selectedModules, saveHomeSettings } = useCountModules();
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [checkedModules, setCheckedModules] = React.useState(selectedModules || []);
+  const [translations, setTranslations] = useState({});
+  const systemLanguageUtils = SystemLanguageUtils.getInstance();
 
+  // Initialize translations
+  useEffect(() => {
+    const initializeTranslations = async () => {
+      try {
+        // Get all translations at once using SystemLanguageUtils
+        const translatedLabels = await systemLanguageUtils.translateKeys([
+          'LBL_LOADING',
+          'LBL_ADD_TAB',
+          'LBL_SAVE_BUTTON_LABEL',
+          'LBL_CANCEL'
+        ]);
+
+        setTranslations({
+          trans_loading: translatedLabels.LBL_LOADING,
+          trans_add_tab: translatedLabels.LBL_ADD_TAB,
+          trans_save: translatedLabels.LBL_SAVE_BUTTON_LABEL,
+          trans_cancel: translatedLabels.LBL_CANCEL
+        });
+      } catch (error) {
+        console.error(`Error loading translations:`, error);
+      }
+    };
+    initializeTranslations();
+  }, []);
+
+  // Navigation logic
   const handleNavigation = async (item) => {
-    try {
-      // Always use generic ModuleListScreen for consistency
-      const targetScreen = getScreenNameFromModule(item.module);
-      const moduleName = item.module;
-      
-      // For ModuleListScreen, the access is already verified by the fact that 
-      // the item appears in the home screen (hasAccess: true)
-      // We don't need to double-check permissions here
-      if (targetScreen === 'ModuleListScreen') {
-        // For generic modules, pass moduleName as parameter
-        navigation.navigate(targetScreen, { moduleName: moduleName });
-        return;
-      }
-      
-      // For other screens (like Calendar), check navigation access
-      const hasAccess = await hasNavigationAccess(targetScreen);
-      
-      if (!hasAccess) {
-        console.warn(`User doesn't have access to ${targetScreen}`);
-        // You could show an alert or toast here
-        return;
-      }
-      
-      // Navigate to the special screen
-      navigation.navigate(targetScreen);
-      
-    } catch (error) {
-      console.error('Error checking navigation access:', error);
-      // Fallback navigation on error
-      const targetScreen = getScreenNameFromModule(item.module);
-      if (targetScreen === 'ModuleListScreen') {
-        navigation.navigate(targetScreen, { moduleName: item.module });
-      } else {
-        navigation.navigate(targetScreen);
-      }
+    const targetScreen = item.navigationTarget || 'ModuleListScreen';
+    if (!loading) {
+      navigation.navigate(targetScreen, { moduleName: item.module });
     }
   };
 
-  // Updated function for mapping modules to screen names with generic support
-  const getScreenNameFromModule = (module) => {
-    switch (module) {
-      case 'Calendar':
-        return 'CalendarScreen';
-      default:
-        // All other modules use generic ModuleListScreen
-        return 'ModuleListScreen';
-    }
+  // Open modal to select modules
+  const openModuleModal = () => {
+    setCheckedModules(selectedModules || []);
+    setModalVisible(true);
+  };
+
+  // Save selected modules
+  const handleSaveModules = async () => {
+    await saveHomeSettings(checkedModules);
+    setModalVisible(false);
+    refresh();
+  };
+
+  // Toggle module checkbox
+  const toggleModule = (module) => {
+    setCheckedModules(prev =>
+      prev.includes(module)
+        ? prev.filter(m => m !== module)
+        : [...prev, module]
+    );
   };
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.wrapper}>
-
         <TopNavigation moduleName={homeTitle} navigation={navigation} />
-
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.container}
           refreshControl={
             <RefreshControl
@@ -91,90 +97,67 @@ export default function HomeScreen() {
           }
         >
           {loading && DATA.length === 0 ? (
-            // Show loading state when no data and loading
             <View style={styles.initialLoadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+              <Text style={styles.loadingText}>{translations.trans_loading || 'Loading...'}</Text>
             </View>
           ) : (
-            DATA.map((item, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[
-                  styles.box,
-                  loading && styles.disabledBox
-                ]}
-                onPress={() => {
-                  if (!loading) {
-                    handleNavigation(item);
-                  }
-                }}
-                disabled={loading}
-                activeOpacity={loading ? 1 : 0.7}
-              >
-                <Text style={[
-                  styles.title,
-                  loading && styles.disabledText
-                ]}>{item.title}</Text>
-
-                <View style={styles.row}>
-                  {item.my !== undefined && (
-                    <View style={styles.statCol}>
-                      <Text style={[
-                        styles.number,
-                        loading && styles.disabledText
-                      ]}>{item.my}</Text>
-                      <Text style={[
-                        styles.label,
-                        loading && styles.disabledText
-                      ]}>My</Text>
-                    </View>
-                  )}
-
-                  {item.all !== undefined && (
-                    <View style={styles.statCol}>
-                      <Text style={[
-                        styles.number,
-                        loading && styles.disabledText
-                      ]}>{item.all}</Text>
-                      <Text style={[
-                        styles.label,
-                        loading && styles.disabledText
-                      ]}>All</Text>
-                    </View>
-                  )}
-
-                  {item.calendar && (
-                    <View style={styles.statCol}>
-                      <Text style={[
-                        styles.calendarIcon,
-                        loading && styles.disabledText
-                      ]}>📅</Text>
-                      <Text style={[
-                        styles.label,
-                        loading && styles.disabledText
-                      ]}>View</Text>
-                    </View>
-                  )}
-
-                  {item.noCount && (
-                    <View style={styles.statCol}>
-                      <Text style={[
-                        styles.moduleIcon,
-                        loading && styles.disabledText
-                      ]}>📋</Text>
-                      <Text style={[
-                        styles.label,
-                        loading && styles.disabledText
-                      ]}>Access</Text>
-                    </View>
-                  )}
-                </View>
+            <>
+              {DATA.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.box, loading && styles.disabledBox]}
+                  onPress={() => handleNavigation(item)}
+                  disabled={loading}
+                  activeOpacity={loading ? 1 : 0.7}
+                >
+                  <Text style={[styles.title, loading && styles.disabledText]}>{item.title}</Text>
+                  <View style={styles.row}>
+                    {item.my !== undefined && (
+                      <View style={styles.statCol}>
+                        <Text style={[styles.number, loading && styles.disabledText]}>{item.my}</Text>
+                        <Text style={[styles.label, loading && styles.disabledText]}>My</Text>
+                      </View>
+                    )}
+                    {item.calendar && (
+                      <View style={styles.statCol}>
+                        <Text style={[styles.calendarIcon, loading && styles.disabledText]}>📅</Text>
+                        <Text style={[styles.label, loading && styles.disabledText]}>View</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {/* To open modal to add tab module */}
+              <TouchableOpacity style={[styles.box, styles.addBox]} onPress={openModuleModal}>
+                <Text style={styles.addIcon}>＋</Text>
               </TouchableOpacity>
-            ))
+            </>
           )}
         </ScrollView>
-
+        {/* Modal to add tab module */}
+        {modalVisible && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{translations.trans_addTab || 'Add tab'}</Text>
+              <ScrollView style={{ maxHeight: 300 }}>
+                  {allModules && allModules.map((module, idx) => (
+                    <TouchableOpacity key={module.key} style={styles.checkboxRow} onPress={() => toggleModule(module.key)}>
+                      <View style={[styles.checkbox, checkedModules.includes(module.key) && styles.checkboxChecked]} />
+                      <Text style={styles.checkboxLabel}>{module.trans}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveModules}>
+                  <Text style={styles.saveBtnText}>{translations.trans_save || 'Save'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>{translations.trans_cancel || 'Cancel'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
         <BottomNavigation navigation={navigation} />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -182,6 +165,94 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  addBox: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#eaf6ff',
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  addIcon: {
+    fontSize: 32,
+    color: '#007AFF',
+    marginBottom: 4,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 350,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    marginRight: 10,
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  saveBtn: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cancelBtn: {
+    backgroundColor: '#eee',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  cancelBtnText: {
+    color: '#333',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   wrapper: {
     flex: 1,
     backgroundColor: '#f5f7fa',
@@ -201,7 +272,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     padding: 16,
-    paddingBottom: 80, // để tránh che bởi BottomNavigation
+    paddingBottom: 80,
   },
   box: {
     width: boxWidth,
@@ -211,7 +282,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 16,
 
-    // Bóng đổ nhẹ (Material style)
+    // Material style
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,

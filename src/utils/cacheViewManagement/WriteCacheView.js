@@ -76,7 +76,16 @@ WriteCacheView.saveModuleField = async (module, name, data) => {
         throw error;
     }
 };
-
+WriteCacheView.saveHomeSettings = async (data) => {
+    try {
+        await cacheManager.saveHomeSettings(data);
+        console.log(`✅ Home settings written to cache successfully.`);
+        return true;
+    } catch (error) {
+        console.error(`❌ Error writing home settings:`, error);
+        throw error;
+    }
+};
 WriteCacheView.clearModuleCache = async (module) => {
     try {
         await cacheManager.clearModuleCache(module);

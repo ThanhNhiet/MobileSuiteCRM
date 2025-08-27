@@ -146,4 +146,19 @@ ReadCacheView.getCurrencyData = async () => {
         throw error;
     }
 }
+
+ReadCacheView.getHomeSettings = async () => {
+    try {
+        const result = await cacheManager.getHomeSettings();
+        if (!result) {
+            console.warn('⚠️ No cached home settings found');
+            return null;
+        }
+        return result;
+    } catch (error) {
+        console.error('❌ Error reading home settings:', error);
+        throw error;
+    }
+}
+
 export default ReadCacheView;
