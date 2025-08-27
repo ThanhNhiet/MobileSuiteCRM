@@ -1,11 +1,10 @@
-import { CLIENT_ID, CLIENT_SECRET } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { LOCALHOST_IP } from '../utils/localhost';
+import { getUrl } from '../utils/UrlManagement';
 
 // Axios instance configuration
 const axiosInstance = axios.create({
-    baseURL: LOCALHOST_IP
+    baseURL: getUrl()
 });
 
 // Flag to prevent multiple simultaneous refresh attempts
@@ -76,11 +75,13 @@ axiosInstance.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
+        const { client_id, client_secret } = (await axios.get(`${getUrl()}/custom/public/api/get_secret.php`)).data;
+
         // Send request to get new token
-        const tokenResponse = await axios.post(`${LOCALHOST_IP}/Api/access_token`, {
+        const tokenResponse = await axios.post(`${getUrl()}/Api/access_token`, {
           grant_type: 'refresh_token',
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
+          client_id: client_id,
+          client_secret: client_secret,
           refresh_token: refreshToken,
         });
 

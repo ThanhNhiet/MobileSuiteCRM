@@ -6,7 +6,7 @@ import { Alert, Keyboard } from 'react-native';
 import ModulesConfig from '../../../configs/ModulesConfig';
 import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
-import { LOCALHOST_IP } from '../../../utils/localhost';
+import { getUrl, setUrl } from '../../../utils/UrlManagement';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
@@ -124,7 +124,7 @@ export const useLogin_out = () => {
         
         try {
           // Try a simple API call to validate current token
-          const testResponse = await fetch(`${LOCALHOST_IP}/Api/V8/custom/system/language/lang=${savedLanguage || selectedLanguage}`, {
+          const testResponse = await fetch(`${getUrl()}/Api/V8/custom/system/language/lang=${savedLanguage || selectedLanguage}`, {
             headers: {
               'Authorization': `Bearer ${existingToken}`,
               'Content-Type': 'application/json'
@@ -199,11 +199,13 @@ export const useLogin_out = () => {
     Keyboard.dismiss();
     try {
       setLoading(true);
-      const response = await loginApi(username, password);
+      const response = await loginApi(website, username, password);
       const token = response?.access_token;
       const refreshToken = response?.refresh_token;
 
       if (token) {
+        setUrl(website);
+        await AsyncStorage.setItem('url', website);
         await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
         await AsyncStorage.setItem('selectedLanguage', selectedLanguage);

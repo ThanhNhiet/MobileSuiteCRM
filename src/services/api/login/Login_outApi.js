@@ -1,19 +1,21 @@
-import { CLIENT_ID, CLIENT_SECRET } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 import axiosInstance from '../../../configs/AxiosConfig';
-import { LOCALHOST_IP } from '../../../utils/localhost';
+import { getUrl } from '../../../utils/UrlManagement';
 
 //POST http://localhost/suitecrm7/Api/access_token
-export const loginApi = async (username, password) => {
+export const loginApi = async (website, username, password) => {
+  console.log("website:", website);
+  console.log("username:", username);
+  console.log("password:", password);
+  
   try {
-    // console.log("Using CLIENT_ID:", CLIENT_ID);
-    // console.log("Using CLIENT_SECRET:", CLIENT_SECRET);
-    // console.log("LOCALHOST_IP:", LOCALHOST_IP);
-    const response = await axios.post(`${LOCALHOST_IP}/Api/access_token`, {
+  const { client_id, client_secret } = (await axios.get(`${website}/custom/public/api/get_secret.php`)).data;
+
+    const response = await axios.post(`${website}/Api/access_token`, {
       grant_type: 'password',
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
+      client_id: client_id,
+      client_secret: client_secret,
       username: username,
       password: password
     });
@@ -28,10 +30,11 @@ export const loginApi = async (username, password) => {
 export const refreshTokenApi = async (refreshToken) => {
   try {
     console.log("Attempting to refresh token...");
-    const response = await axios.post(`${LOCALHOST_IP}/Api/access_token`, {
+  const { client_id, client_secret } = (await axios.get(`${getUrl()}/custom/public/api/get_secret.php`)).data;
+  const response = await axios.post(`${getUrl()}/Api/access_token`, {
       grant_type: 'refresh_token',
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
+      client_id: client_id,
+      client_secret: client_secret,
       refresh_token: refreshToken
     });
     console.log("Token refreshed successfully");
@@ -55,10 +58,10 @@ export const logoutApi = async () => {
   }
 }
 
-//GET http://localhost/suitecrm7/custom/api_languages.php
+//GET http://localhost/suitecrm7/custom/public/api/get_languages.php
 export const getAvailableLanguagesApi = async () => {
   try {
-    const response = await axios.get(`${LOCALHOST_IP}/custom/api_languages.php`);
+  const response = await axios.get(`${getUrl()}/custom/public/api/get_languages.php`);
     return response.data;
   } catch (error) {
     console.warn("Get API languages error:", error);
