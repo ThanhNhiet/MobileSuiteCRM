@@ -192,7 +192,7 @@ export const searchModuleByFilterApi = async (moduleName, pageSize = 10, pageNum
         
         // Base parameters
         const params = {
-           // 'filter[operator]': 'and',
+            //'filter[operator]': 'and',
            // 'filter[assigned_user_id][eq]': userId,
           //  'filter[created_by][eq]': userId,
             'filter[deleted][eq]': 0,
