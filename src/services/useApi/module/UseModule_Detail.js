@@ -8,6 +8,7 @@ import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
 import { deleteModuleRecordApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
+import { useModule_Role } from './UseModule_Role';
 export const useModule_Detail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -454,6 +455,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
         const [editPerm, setEditPerm] = useState(false);
         const [deletePerm, setDeletePerm] = useState(false);
+        const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
         // lấy quyền xoá
         useEffect(() => {
             if (!userRoles) return;
@@ -554,6 +556,45 @@ export const useModule_Detail = (moduleName, recordId) => {
                 return;
             }
             };
+             // Thứ tự quyền đơn giản
+            const SimpleRank = {
+            NONE: 0,
+            DEFAULT: 1,
+            OWNER: 2,
+            UNKNOWN: 3,
+            ALL: 4,
+            };
+
+            // Chuẩn hoá raw value -> label
+            const normalizeToLabel = (raw) => {
+            if (raw === null || raw === undefined || raw === '') return 'DEFAULT';
+            const n = Number(raw);
+
+            if (n === -99) return 'NONE';
+            if (n === 75)  return 'OWNER';
+            if (n === 80)  return 'UNKNOWN';
+            if (n >= 90)   return 'ALL';
+            return 'DEFAULT';
+            };
+
+            // Lấy label từ object action
+            const labelFromAction = (action) => {
+            const val = action && (action.access_override ?? action.aclaccess);
+            return normalizeToLabel(val);
+            };
+
+            // So sánh 2 object -> 1 | -1 | 0
+            function comparePermission(obj1, obj2) {
+            const label1 = labelFromAction(obj1);
+            const label2 = labelFromAction(obj2);
+
+            const rank1 = SimpleRank[label1];
+            const rank2 = SimpleRank[label2];
+
+            if (rank1 < rank2) return 1;     // obj1 nhỏ hơn obj2
+            if (rank1 > rank2) return -1;    // obj2 nhỏ hơn obj1
+            return 0;                        // bằng nhau
+            }
             // component.jsx
         useEffect(() => {
         let alive = true;
@@ -563,13 +604,33 @@ export const useModule_Detail = (moduleName, recordId) => {
             if (!roleInfo?.deletePerm || !record) return;
             const user_id = await getUserIdSafe();
             if (!alive) return;
-            await checkPermGeneric({
+            const check =  comparePermission(roleInfo?.listPerm, roleInfoGroup?.listPerm);
+            if (check === 1) {
+                await checkPermGeneric({
                 permInfo: roleInfo.deletePerm,
                 roleName: roleInfo.roleName,
                 record,
                 setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
                 myUserId: user_id,
             });
+            } else if (check === -1) {
+                await checkPermGeneric({
+                permInfo: roleInfoGroup.deletePerm,
+                roleName: roleInfoGroup.roleName,
+                record,
+                setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
+                myUserId: user_id,
+            });
+            } else if (check === 0) {
+                // Xử lý trường hợp bằng nhau
+                await checkPermGeneric({
+                permInfo: roleInfo.deletePerm,
+                roleName: roleInfo.roleName,
+                record,
+                setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
+                myUserId: user_id,
+            });
+            }
             } catch (e) {
             console.error('Error checking delete permissions:', e);
             }
@@ -585,13 +646,33 @@ export const useModule_Detail = (moduleName, recordId) => {
             if (!roleInfo?.editPerm || !record) return;
             const user_id = await getUserIdSafe();
             if (!alive) return;
-            await checkPermGeneric({
+             const check =  comparePermission(roleInfo?.listPerm, roleInfoGroup?.listPerm);
+            if (check === 1) {
+                await checkPermGeneric({
                 permInfo: roleInfo.editPerm,
                 roleName: roleInfo.roleName,
                 record,
                 setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
                 myUserId: user_id,
             });
+            } else if (check === -1) {
+                await checkPermGeneric({
+                permInfo: roleInfoGroup.editPerm,
+                roleName: roleInfoGroup.roleName,
+                record,
+                setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
+                myUserId: user_id,
+            });
+            } else if (check === 0) {
+                // Xử lý trường hợp bằng nhau
+                await checkPermGeneric({
+                permInfo: roleInfo.editPerm,
+                roleName: roleInfo.roleName,
+                record,
+                setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
+                myUserId: user_id,
+            });
+            }
             } catch (e) {
             console.error('Error checking edit permissions:', e);
             }

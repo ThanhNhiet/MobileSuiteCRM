@@ -14,6 +14,7 @@ import {
     searchModuleByFilterApi,
     searchModuleByKeywordApi
 } from '../../api/module/ModuleApi';
+import { useModule_Role } from './UseModule_Role';
 
 /**
  * Generic hook for module list functionality
@@ -465,12 +466,9 @@ export const useModule_List = (moduleName) => {
         }
     }, [filtersInitialized, nameFields, initialRecordsLoaded, fetchRecords]);
 
-
         const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
-       // const [editPerm, setEditPerm] = useState([]);
         const [viewPerm, setViewPerm] = useState([]);
-      //  const [deletePerm, setDeletePerm] = useState([]);
-      //console.log('User roles:', records);
+        const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
         // lấy quyền truy cập của người dùng list
         useEffect(() => {
         if (!userRoles) return;
@@ -496,6 +494,7 @@ export const useModule_List = (moduleName) => {
             const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
             setRoleInfo(prev => ({ ...prev, editPerm }));
         }, [userRoles]);
+
         
        // ===== xu ly role =====
         const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
@@ -549,7 +548,6 @@ export const useModule_List = (moduleName) => {
         if (!permInfo || !Array.isArray(records) || records.length === 0) return [];
 
         const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
-        console.log('Evaluate Records by Permission:',  level);
         switch (level) {
             case 'all':
             case 'default':
@@ -580,6 +578,50 @@ export const useModule_List = (moduleName) => {
             return [];
         }
         };
+            // Thứ tự quyền đơn giản
+            const SimpleRank = {
+            NONE: 0,
+            DEFAULT: 1,
+            OWNER: 2,
+            UNKNOWN: 3,
+            ALL: 4,
+            };
+
+            // Chuẩn hoá raw value -> label
+            const normalizeToLabel = (raw) => {
+            if (raw === null || raw === undefined || raw === '') return 'DEFAULT';
+            const n = Number(raw);
+
+            if (n === -99) return 'NONE';
+            if (n === 75)  return 'OWNER';
+            if (n === 80)  return 'UNKNOWN';
+            if (n >= 90)   return 'ALL';
+            return 'DEFAULT';
+            };
+
+            // Lấy label từ object action
+            const labelFromAction = (action) => {
+            const val = action && (action.access_override ?? action.aclaccess);
+            return normalizeToLabel(val);
+            };
+
+            // So sánh 2 object -> 1 | -1 | 0
+            function comparePermission(obj1, obj2) {
+            const label1 = labelFromAction(obj1);
+            const label2 = labelFromAction(obj2);
+
+            const rank1 = SimpleRank[label1];
+            const rank2 = SimpleRank[label2];
+
+            if (rank1 < rank2) return 1;     // obj1 nhỏ hơn obj2
+            if (rank1 > rank2) return -1;    // obj2 nhỏ hơn obj1
+            return 0;                        // bằng nhau
+            }
+            // Trả 1 nếu obj1 < obj2
+
+            // Trả -1 nếu obj2 < obj1
+
+            // Trả 0 nếu bằng nhau
 
         // ===== LIST: records theo quyền listPerm (TRẢ VỀ RECORD) =====
         const listSeqRef = useRef(0);
@@ -589,19 +631,30 @@ export const useModule_List = (moduleName) => {
 
         (async () => {
             try {
-            console.log('Initializing records role for list permission...',{
+               const check =  comparePermission(roleInfo?.listPerm, roleInfoGroup?.listPerm);
+               let allowed = [];
+               if (check === 1) {
+                   // obj1 < obj2
+                   allowed = await evaluateRecordsByPerm({
                 permInfo: roleInfo?.listPerm,
                 roleName: roleInfo?.roleName,
                 records,
             });
-            const allowed = await evaluateRecordsByPerm({
+               } else if (check === -1) {
+                   // obj2 < obj1
+                   allowed = await evaluateRecordsByPerm({
+                       permInfo: roleInfoGroup?.listPerm,
+                       roleName: roleInfoGroup?.roleName,
+                       records,
+                   });
+               } else if (check === 0) {
+                allowed = await evaluateRecordsByPerm({
                 permInfo: roleInfo?.listPerm,
                 roleName: roleInfo?.roleName,
                 records,
             });
-
+               }
             if (!alive || seq !== listSeqRef.current) return;
-            console.log('List Records:', allowed);
             setRecordsRole(allowed); // <-- MẢNG RECORD
             } catch (e) {
             console.error('initializeRecordsRole error:', e);
@@ -620,15 +673,30 @@ export const useModule_List = (moduleName) => {
 
         (async () => {
             try {
-            const allowed = await evaluateRecordsByPerm({
+           const check =  comparePermission(roleInfo?.viewPerm, roleInfoGroup?.viewPerm);
+               let allowed = [];
+               if (check === 1) {
+                   // obj1 < obj2
+                   allowed = await evaluateRecordsByPerm({
                 permInfo: roleInfo?.viewPerm,
                 roleName: roleInfo?.roleName,
                 records,
             });
-
+               } else if (check === -1) {
+                   // obj2 < obj1
+                   allowed = await evaluateRecordsByPerm({
+                       permInfo: roleInfoGroup?.viewPerm,
+                       roleName: roleInfoGroup?.roleName,
+                       records,
+                   });
+               } else if (check === 0) {
+                allowed = await evaluateRecordsByPerm({
+                permInfo: roleInfo?.viewPerm,
+                roleName: roleInfo?.roleName,
+                records,
+            });
+               }
             const ids = uniqueIds(allowed); // <-- MẢNG ID
-            console.log('View IDs:', ids);
-
             if (!alive || seq !== viewSeqRef.current) return;
             setViewPerm(ids);
             } catch (e) {
@@ -639,6 +707,7 @@ export const useModule_List = (moduleName) => {
 
         return () => { alive = false; };
         }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
+
 
     return {
         // Data

@@ -138,3 +138,35 @@ export const getUserSecurityGroupsMember = async (groups) => {
     throw error;
   }
 };
+
+export const getGroupUsersApi = async () =>{
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const user_id = getUserIdFromToken(token);
+    const response = await axiosInstance.get(`/Api/V8/custom/users/${user_id}/groups`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Group Users API error:", error);
+    throw error;
+  }
+}
+
+export const getGroupRoleUsersApi = async (group_id) =>{
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/security-groups/${group_id}/roles`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Group Role Users API error:", error);
+    throw error;
+  }
+}
+
+export const getGroupRoleActionsApi = async (role_id) =>{
+  try{
+    const response = await axiosInstance.get(`/Api/V8/custom/roles/${role_id}/actions`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Group Role Actions API error:", error);
+    throw error;
+  }
+}
