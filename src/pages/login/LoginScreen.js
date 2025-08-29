@@ -42,7 +42,7 @@ export default function LoginScreen() {
     isCheckingAuth,
     selectedLanguage,
     handleLanguageSelect,
-    checkExistingAuth, // Add this
+    checkExistingAuth,
   } = useLogin_out();
 
   // Check authentication when LoginScreen mounts
@@ -112,6 +112,14 @@ export default function LoginScreen() {
           onPress: async () => {
             try {
               await cacheManager.clearCache();
+              await AsyncStorage.clear();
+              setWebsiteInput('');
+              setWebsite('');
+              setSelectedLanguageLabel('Language');
+              setLanguageList([]);
+              setOriginalLangs([]);
+              setUsername('');
+              setPassword('');
               Alert.alert('Success', 'Cache cleared successfully!');
             } catch (error) {
               console.warn('Error clearing cache:', error);
@@ -144,6 +152,14 @@ export default function LoginScreen() {
       keyboardVerticalOffset={0}
     >
       <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
+
+      {/** Setting **/}
+      <View style={styles.settingRow}>
+        <TouchableOpacity style={styles.settingButton} onPress={() => setShowWebsiteModal(true)}>
+          <Ionicons name="settings-outline" size={24} color="#E85A4F" />
+          <Text style={styles.settingLabel}>Configure website link</Text>
+        </TouchableOpacity>
+      </View>
       <Modal visible={showWebsiteModal} animationType="slide" transparent>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: '80%' }}>
@@ -189,18 +205,6 @@ export default function LoginScreen() {
               <Text style={styles.languageTextSelected}>{selectedLanguageLabel}</Text>
               <Ionicons name="chevron-down" size={20} color="#333" />
             </TouchableOpacity>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Link website"
-                placeholderTextColor="#999"
-                value={website}
-                onChangeText={setWebsite}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-            </View>
 
             <View style={styles.inputContainer}>
               <TextInput
@@ -258,27 +262,29 @@ export default function LoginScreen() {
 
       {/* Modal chọn ngôn ngữ */}
       <Modal visible={langModalVisible} animationType="slide" transparent>
-        <TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={() => setLangModalVisible(false)}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Language</Text>
-              {languageLoading ? (
-                <ActivityIndicator size="large" color="#E85A4F" />
-              ) : (
-                <FlatList
-                  data={languageList}
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.languageOption}
-                      onPress={() => handleSelectLanguage(item)}
-                    >
-                      <Text style={styles.languageText}>{item}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              )}
-            </View>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Select Language</Text>
+                {languageLoading ? (
+                  <ActivityIndicator size="large" color="#E85A4F" />
+                ) : (
+                  <FlatList
+                    data={languageList}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.languageOption}
+                        onPress={() => handleSelectLanguage(item)}
+                      >
+                        <Text style={styles.languageText}>{item}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -289,7 +295,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f0f0' },
   scrollContent: { flexGrow: 1 },
-  content: { flex: 1, paddingHorizontal: 30, justifyContent: 'center', alignItems: 'center', minHeight: '100%' },
+  content: { flex: 1, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', minHeight: '100%' },
   logoContainer: { marginBottom: 40, alignItems: 'center' },
   formContainer: { width: '100%', alignItems: 'center' },
   imageSize: { width: 370, height: 110 },
@@ -417,5 +423,25 @@ const styles = StyleSheet.create({
   languageText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+
+  // Setting icon and label styles
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    marginBottom: 10,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingLabel: {
+    color: '#E85A4F',
+    fontSize: 15,
+    fontWeight: '500',
+    marginLeft: 6,
   },
 });

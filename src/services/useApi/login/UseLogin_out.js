@@ -192,7 +192,11 @@ export const useLogin_out = () => {
 
   // Function to handle login
   const handleLogin = async () => {
-    if (!website.trim() || !username.trim() || !password.trim()) {
+    if (!website.trim()) {
+      Alert.alert('Error', 'Please enter your website link');
+      return;
+    }
+    if (!username.trim() || !password.trim()) {
       Alert.alert('Error', 'Please fill in all required information');
       return;
     }
