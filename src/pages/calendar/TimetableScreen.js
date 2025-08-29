@@ -27,6 +27,7 @@ export default function TimetableScreen({ navigation, route }) {
     const [detailScheduleText, setDetailScheduleText] = useState('Lịch trình chi tiết');
     const [taskText, setTaskText] = useState('Công việc');
     const [meetingText, setMeetingText] = useState('Cuộc họp');
+    const [callText, setCallText] = useState('Cuộc gọi');
     const [tasksText, setTasksText] = useState('Tasks');
     const [meetingsText, setMeetingsText] = useState('Meetings');
     const calendarLanguageUtils = CalendarLanguageUtils.getInstance();
@@ -49,6 +50,7 @@ export default function TimetableScreen({ navigation, route }) {
                 const detailScheduleLabel = await calendarLanguageUtils.translate('LBL_MODULE_NAME');
                 const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS');
                 const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
+                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS');
                 const tasksLabel = await calendarLanguageUtils.translate('LBL_TASKS');
                 const meetingsLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
 
@@ -63,6 +65,7 @@ export default function TimetableScreen({ navigation, route }) {
                 setDetailScheduleText(detailScheduleLabel);
                 setTaskText(taskLabel);
                 setMeetingText(meetingLabel);
+                setCallText(callLabel);
                 setTasksText(tasksLabel);
                 setMeetingsText(meetingsLabel);
             } catch (error) {
@@ -96,6 +99,12 @@ export default function TimetableScreen({ navigation, route }) {
             details += `\n${startDateText}: ${startDate_fm}`;
             details += `\n${endDateText} ${endDate_fm}`;
             details += `\n${durationText}: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;
+        }else if (event.rawData && event.type === 'call') {
+            const startDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_start);
+            const endDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_end);
+            details += `\n${startDateText}: ${startDate_fm}`;
+            details += `\n${endDateText} ${endDate_fm}`;
+            details += `\n${durationText}: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;
         }
 
         const eventTypeText = event.type === 'task' ? taskText : meetingText;
@@ -107,19 +116,19 @@ export default function TimetableScreen({ navigation, route }) {
                     text: closeText,
                     style: 'cancel'
                 },
-                // {
-                //     text: 'Xem chi tiết',
-                //     onPress: () => {
-                //         // Navigate to detail screen based on type
-                //         if (event.type === 'task') {
-                //             // navigation.navigate('TaskDetailScreen', { taskId: event.id, taskData: event.rawData });
-                //             Alert.alert('Thông báo', event.id);
-                //         } else {
-                //             // navigation.navigate('MeetingDetailScreen', { meetingId: event.id, meetingData: event.rawData });
-                //             Alert.alert('Thông báo', event.id);
-                //         }
-                //     }
-                // }
+                {
+                    text: 'Xem chi tiết',
+                    onPress: () => {
+                        // Navigate to detail screen based on type
+                        if (event.type === 'task') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Tasks', recordId: event.rawData.id });
+                        } else if (event.type === 'meeting') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Meetings', recordId: event.rawData.id });
+                        } else if (event.type === 'call') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Calls', recordId: event.rawData.id });
+                        }
+                    }
+                }
             ]
         );
     };
@@ -157,7 +166,9 @@ export default function TimetableScreen({ navigation, route }) {
         <TouchableOpacity
             style={[
                 styles.eventCard,
-                { backgroundColor: event.type === 'task' ? '#FFE5E5' : '#E5F7F5' }
+                event.type === 'task' ? { backgroundColor: '#FFE5E5' }
+                : event.type === 'meeting' ? { backgroundColor: '#E5F7F5' }
+                : { backgroundColor: '#FFFACD' }
             ]}
             onPress={() => handleEventPress(event)}
             activeOpacity={0.7}
@@ -165,10 +176,14 @@ export default function TimetableScreen({ navigation, route }) {
             <View style={styles.eventHeader}>
                 <View style={[
                     styles.eventTypeIcon,
-                    { backgroundColor: event.type === 'task' ? '#FF6B6B' : '#4ECDC4' }
+                    event.type === 'task' ? { backgroundColor: '#FF6B6B' }
+                    : event.type === 'meeting' ? { backgroundColor: '#4ECDC4' }
+                    : { backgroundColor: '#FFD700' }
                 ]}>
                     <Ionicons
-                        name={event.type === 'task' ? 'checkmark-circle' : 'people'}
+                        name={event.type === 'task' ? 'checkmark-circle'
+                            : event.type === 'meeting' ? 'people'
+                            : 'call'}
                         size={16}
                         color="white"
                     />
@@ -179,9 +194,13 @@ export default function TimetableScreen({ navigation, route }) {
                 </Text>
                 <Text style={[
                     styles.eventTypeText,
-                    { color: event.type === 'task' ? '#FF6B6B' : '#4ECDC4' }
+                    event.type === 'task' ? { color: '#FF6B6B' }
+                    : event.type === 'meeting' ? { color: '#4ECDC4' }
+                    : { color: '#FFD700' }
                 ]}>
-                    {event.type === 'task' ? taskText : meetingText}
+                    {event.type === 'task' ? taskText
+                        : event.type === 'meeting' ? meetingText
+                        : callText}
                 </Text>
             </View>
             <Text style={styles.eventTitle}>{event.title}</Text>
@@ -231,6 +250,14 @@ export default function TimetableScreen({ navigation, route }) {
                             </View>
                             <Text style={styles.summaryText}>
                                 {events.filter(e => e.type === 'meeting').length} {meetingsText}
+                            </Text>
+                        </View>
+                        <View style={styles.summaryItem}>
+                            <View style={[styles.summaryIcon, { backgroundColor: '#FFD700' }]}>
+                                <Ionicons name="call" size={16} color="white" />
+                            </View>
+                            <Text style={styles.summaryText}>
+                                {events.filter(e => e.type === 'call').length} {callText}
                             </Text>
                         </View>
                     </View>

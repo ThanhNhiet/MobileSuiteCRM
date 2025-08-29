@@ -7,8 +7,6 @@ export const getUserProfileApi = async (nameFields) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        console.log('✅ User ID:', userId);
-
         const response = await axiosInstance.get(`/Api/V8/module/Users/${userId}`, {
             params: {
                 'fields[User]': nameFields

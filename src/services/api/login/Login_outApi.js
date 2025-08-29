@@ -1,16 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from "axios";
 import axiosInstance from '../../../configs/AxiosConfig';
-import { getUrl } from '../../../utils/UrlManagement';
 
 //POST http://localhost/suitecrm7/Api/access_token
 export const loginApi = async (website, username, password) => {
-  console.log("website:", website);
-  console.log("username:", username);
-  console.log("password:", password);
-  
   try {
-  const { client_id, client_secret } = (await axios.get(`${website}/custom/public/api/get_secret.php`)).data;
+    const { client_id, client_secret } = (await axios.get(`${website}/custom/public/api/get_secret.php`)).data;
 
     const response = await axios.post(`${website}/Api/access_token`, {
       grant_type: 'password',
@@ -30,8 +25,9 @@ export const loginApi = async (website, username, password) => {
 export const refreshTokenApi = async (refreshToken) => {
   try {
     console.log("Attempting to refresh token...");
-  const { client_id, client_secret } = (await axios.get(`${getUrl()}/custom/public/api/get_secret.php`)).data;
-  const response = await axios.post(`${getUrl()}/Api/access_token`, {
+    const storedUrl = await AsyncStorage.getItem('url');
+    const { client_id, client_secret } = (await axios.get(`${storedUrl}/custom/public/api/get_secret.php`)).data;
+    const response = await axios.post(`${storedUrl}/Api/access_token`, {
       grant_type: 'refresh_token',
       client_id: client_id,
       client_secret: client_secret,
@@ -61,7 +57,8 @@ export const logoutApi = async () => {
 //GET http://localhost/suitecrm7/custom/public/api/get_languages.php
 export const getAvailableLanguagesApi = async () => {
   try {
-  const response = await axios.get(`${getUrl()}/custom/public/api/get_languages.php`);
+    const storedUrl = await AsyncStorage.getItem('url');
+    const response = await axios.get(`${storedUrl}/custom/public/api/get_languages.php`);
     return response.data;
   } catch (error) {
     console.warn("Get API languages error:", error);

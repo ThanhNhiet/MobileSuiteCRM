@@ -23,6 +23,18 @@ export const getMeetingsLanguageApi = async (lang = "vi_vn") => {
         throw error;
     }
 }
+
+//GET /Api/V8/custom/Calls/language/lang=vi_vn
+export const getCallsLanguageApi = async (lang = "vi_vn") => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/Calls/language/lang=${lang}`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Calls Language API error:", error);
+        throw error;
+    }
+}
+
 //GET Task by month
 //GET {{suitecrm.url}}/V8/module/Tasks?fields[Tasks]=name,date_start,date_due
 //&filter[date_start][gte]={yyyy-MM-dd}&filter[date_start][lt]={yyyy-MM-dd}
@@ -73,6 +85,30 @@ export const getMeetingsByMonthApi = async (startDate, endDate) => {
         return response.data;
     } catch (error) {
         console.warn("Get Meetings by Month API error:", error);
+        throw error;
+    }
+}
+
+//GET Calls by month
+export const getCallsByMonthApi = async (startDate, endDate) => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const userId = getUserIdFromToken(token);
+
+        const response = await axiosInstance.get(`/Api/V8/module/Calls`, {
+            params: {
+                'fields[Calls]': 'name,date_start,date_end,duration_hours,duration_minutes',
+                'filter[date_start][gte]': startDate,
+                'filter[date_start][lt]': endDate,
+                'filter[assigned_user_id][eq]': userId,
+                'filter[deleted][eq]': 0,
+                'sort': '-date_start'
+            }
+        });
+        console.log("Calls by Month API response:", response.data);
+        return response.data;
+    } catch (error) {
+        console.warn("Get Calls by Month API error:", error);
         throw error;
     }
 }
