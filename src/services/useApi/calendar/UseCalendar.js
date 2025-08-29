@@ -12,7 +12,7 @@ import {
 export const useCalendar = () => {
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
-    
+
     // State management
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -61,7 +61,7 @@ export const useCalendar = () => {
         const month = date.getMonth();
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 1);
-        
+
         return {
             startDate: formatDateKey(startDate),
             endDate: formatDateKey(endDate)
@@ -105,7 +105,7 @@ export const useCalendar = () => {
     }, [taskLabels, meetingLabels, callLabels]);
 
     // Combine tasks and meetings into events by date
-    const combineEventsData = useCallback((tasksData, meetingsData) => {
+    const combineEventsData = useCallback((tasksData, meetingsData, callsData) => {
         const eventsMap = {};
 
         // Process Tasks
@@ -143,8 +143,8 @@ export const useCalendar = () => {
         });
 
         // Process Calls
-        if (Array.isArray(calls)) {
-            calls.forEach(call => {
+        if (Array.isArray(callsData)) {
+            callsData.forEach(call => {
                 const dateKey = getDateFromDateTime(call.attributes.date_start);
                 if (!eventsMap[dateKey]) {
                     eventsMap[dateKey] = [];
@@ -167,7 +167,7 @@ export const useCalendar = () => {
         });
 
         return eventsMap;
-    }, [calls]);
+    }, []);
 
     // Load calendar data for specific month
     const loadCalendarData = useCallback(async (targetDate = currentDate, isRefresh = false) => {
@@ -200,7 +200,7 @@ export const useCalendar = () => {
             setCalls(callsData);
 
             // Combine data into events
-            const combined = combineEventsData(tasksData, meetingsData);
+            const combined = combineEventsData(tasksData, meetingsData, callsData);
             setCombinedEvents(combined);
 
         } catch (error) {
@@ -304,10 +304,10 @@ export const useCalendar = () => {
         currentDate,
         selectedDate,
         setSelectedDate,
-    tasks,
-    meetings,
-    calls,
-    combinedEvents,
+        tasks,
+        meetings,
+        calls,
+        combinedEvents,
         loading,
         refreshing,
         error,

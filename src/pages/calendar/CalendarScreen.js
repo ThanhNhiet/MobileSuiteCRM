@@ -76,6 +76,7 @@ export default function CalendarScreen({ navigation }) {
                 const hasScheduleLabel = await calendarLanguageUtils.translate('Planned') || 'Ngày có lịch trình';
                 const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS') || 'Task';
                 const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS') || 'Meeting';
+                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS') || 'Call';
 
                 setMonthNames(monthLabels);
                 setDayNames(dayLabels);
@@ -90,7 +91,6 @@ export default function CalendarScreen({ navigation }) {
                 setHasScheduleText(hasScheduleLabel);
                 setTaskText(taskLabel);
                 setMeetingText(meetingLabel);
-                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS') || 'Call';
                 setCallText(callLabel);
             } catch (error) {
                 console.error('Error loading calendar translations:', error);

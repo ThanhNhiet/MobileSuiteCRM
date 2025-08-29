@@ -4,10 +4,6 @@ import axiosInstance from '../../../configs/AxiosConfig';
 
 //POST http://localhost/suitecrm7/Api/access_token
 export const loginApi = async (website, username, password) => {
-  console.log("website:", website);
-  console.log("username:", username);
-  console.log("password:", password);
-
   try {
     const { client_id, client_secret } = (await axios.get(`${website}/custom/public/api/get_secret.php`)).data;
 

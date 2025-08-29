@@ -50,7 +50,7 @@ export default function TimetableScreen({ navigation, route }) {
                 const detailScheduleLabel = await calendarLanguageUtils.translate('LBL_MODULE_NAME');
                 const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS');
                 const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
-                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS') || 'Cuộc gọi';
+                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS');
                 const tasksLabel = await calendarLanguageUtils.translate('LBL_TASKS');
                 const meetingsLabel = await calendarLanguageUtils.translate('LBL_MEETINGS');
 
@@ -94,6 +94,12 @@ export default function TimetableScreen({ navigation, route }) {
             details += `\n${startDateText}: ${startDate_fm}`;
             details += `\n${dueDateText}: ${dueDate_fm}`;
         } else if (event.rawData && event.type === 'meeting') {
+            const startDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_start);
+            const endDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_end);
+            details += `\n${startDateText}: ${startDate_fm}`;
+            details += `\n${endDateText} ${endDate_fm}`;
+            details += `\n${durationText}: ${event.rawData.attributes.duration_hours}h ${event.rawData.attributes.duration_minutes}m`;
+        }else if (event.rawData && event.type === 'call') {
             const startDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_start);
             const endDate_fm = formatDateTimeBySelectedLanguage(event.rawData.attributes.date_end);
             details += `\n${startDateText}: ${startDate_fm}`;
@@ -244,6 +250,14 @@ export default function TimetableScreen({ navigation, route }) {
                             </View>
                             <Text style={styles.summaryText}>
                                 {events.filter(e => e.type === 'meeting').length} {meetingsText}
+                            </Text>
+                        </View>
+                        <View style={styles.summaryItem}>
+                            <View style={[styles.summaryIcon, { backgroundColor: '#FFD700' }]}>
+                                <Ionicons name="call" size={16} color="white" />
+                            </View>
+                            <Text style={styles.summaryText}>
+                                {events.filter(e => e.type === 'call').length} {callText}
                             </Text>
                         </View>
                     </View>
