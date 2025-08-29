@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,6 +26,8 @@ import { convertLocaleCode } from '../../utils/convert/ConvertLanguageCode';
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [languageList, setLanguageList] = useState([]);
+  const [websiteInput, setWebsiteInput] = useState('');
+  const [showWebsiteModal, setShowWebsiteModal] = useState(true);
   const [originalLangs, setOriginalLangs] = useState([]); // Store original locale codes
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [languageLoading, setLanguageLoading] = useState(false);
@@ -44,22 +47,32 @@ export default function LoginScreen() {
 
   // Check authentication when LoginScreen mounts
   useEffect(() => {
+    const checkUrl = async () => {
+      const storedUrl = await AsyncStorage.getItem('url');
+      if (storedUrl && storedUrl.trim() !== '') {
+        setWebsiteInput(storedUrl);
+        setShowWebsiteModal(false);
+        setWebsite(storedUrl);
+      }
+    };
+    checkUrl();
     checkExistingAuth();
   }, []);
 
   useEffect(() => {
+    if (showWebsiteModal) return; //fetch after website modal is closed
     const fetchLanguages = async () => {
       try {
         setLanguageLoading(true);
         const langs = await getAvailableLanguagesApi();
-        
+
         // Store original langs for mapping later
         setOriginalLangs(langs);
-        
+
         // Convert locale codes to display names
         const convertedLangs = langs.map(lang => convertLocaleCode(lang));
         setLanguageList(convertedLangs);
-        
+
         // Set initial language label based on selectedLanguage from hook
         if (selectedLanguage && langs.includes(selectedLanguage)) {
           setSelectedLanguageLabel(convertLocaleCode(selectedLanguage));
@@ -71,12 +84,12 @@ export default function LoginScreen() {
       }
     };
     fetchLanguages();
-  }, [selectedLanguage]);
+  }, [selectedLanguage, showWebsiteModal]);
 
   const handleSelectLanguage = (displayName) => {
     setLangModalVisible(false);
     setSelectedLanguageLabel(displayName);
-    
+
     // Find the original locale code by matching display name
     const originalLangIndex = languageList.indexOf(displayName);
     if (originalLangIndex !== -1 && originalLangs[originalLangIndex]) {
@@ -131,6 +144,32 @@ export default function LoginScreen() {
       keyboardVerticalOffset={0}
     >
       <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
+      <Modal visible={showWebsiteModal} animationType="slide" transparent>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: '80%' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' }}>Your website link</Text>
+            <TextInput
+              style={{ backgroundColor: '#E0E0E0', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20 }}
+              placeholder="https://..."
+              value={websiteInput}
+              onChangeText={setWebsiteInput}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <TouchableOpacity
+              style={{ backgroundColor: '#E85A4F', borderRadius: 10, paddingVertical: 12 }}
+              onPress={async () => {
+                if (!websiteInput.trim()) return;
+                await AsyncStorage.setItem('url', websiteInput.trim());
+                setWebsite(websiteInput.trim());
+                setShowWebsiteModal(false);
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -254,7 +293,7 @@ const styles = StyleSheet.create({
   logoContainer: { marginBottom: 40, alignItems: 'center' },
   formContainer: { width: '100%', alignItems: 'center' },
   imageSize: { width: 370, height: 110 },
-  
+
   // Loading styles
   loadingContainer: {
     flex: 1,
@@ -272,7 +311,7 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  
+
   inputContainer: { width: '100%', marginBottom: 20, position: 'relative' },
   input: {
     backgroundColor: '#E0E0E0',

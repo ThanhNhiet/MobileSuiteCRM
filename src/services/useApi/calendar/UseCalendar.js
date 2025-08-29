@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import {
+    getCallsByMonthApi,
+    getCallsLanguageApi,
     getMeetingsByMonthApi,
     getMeetingsLanguageApi,
     getTasksByMonthApi,
     getTasksLanguageApi
-} from '../../api/calendar/TaskMeetingApi';
+} from '../../api/calendar/Task_Meeting_CallsApi';
 
 export const useCalendar = () => {
     // SystemLanguageUtils instance
@@ -16,6 +18,7 @@ export const useCalendar = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [tasks, setTasks] = useState([]);
     const [meetings, setMeetings] = useState([]);
+    const [calls, setCalls] = useState([]);
     const [combinedEvents, setCombinedEvents] = useState({});
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -24,6 +27,7 @@ export const useCalendar = () => {
     // Language labels cache - only load once per session
     const [taskLabels, setTaskLabels] = useState(null);
     const [meetingLabels, setMeetingLabels] = useState(null);
+    const [callLabels, setCallLabels] = useState(null);
     const [labelsLoaded, setLabelsLoaded] = useState(false);
 
     // Utility functions
@@ -69,13 +73,15 @@ export const useCalendar = () => {
         if (labelsLoaded) return;
 
         try {
-            const [tasksLang, meetingsLang] = await Promise.all([
+            const [tasksLang, meetingsLang, callsLang] = await Promise.all([
                 getTasksLanguageApi(),
-                getMeetingsLanguageApi()
+                getMeetingsLanguageApi(),
+                getCallsLanguageApi()
             ]);
 
             setTaskLabels(tasksLang);
             setMeetingLabels(meetingsLang);
+            setCallLabels(callsLang);
             setLabelsLoaded(true);
         } catch (error) {
             console.error('Error loading language labels:', error);
@@ -92,8 +98,11 @@ export const useCalendar = () => {
         if (module === 'Meetings' && meetingLabels && meetingLabels.data) {
             return meetingLabels.data[`LBL_${fieldKey.toUpperCase()}`] || fieldKey;
         }
+        if (module === 'Calls' && callLabels && callLabels.data) {
+            return callLabels.data[`LBL_${fieldKey.toUpperCase()}`] || fieldKey;
+        }
         return fieldKey;
-    }, [taskLabels, meetingLabels]);
+    }, [taskLabels, meetingLabels, callLabels]);
 
     // Combine tasks and meetings into events by date
     const combineEventsData = useCallback((tasksData, meetingsData) => {
@@ -133,13 +142,32 @@ export const useCalendar = () => {
             });
         });
 
+        // Process Calls
+        if (Array.isArray(calls)) {
+            calls.forEach(call => {
+                const dateKey = getDateFromDateTime(call.attributes.date_start);
+                if (!eventsMap[dateKey]) {
+                    eventsMap[dateKey] = [];
+                }
+                eventsMap[dateKey].push({
+                    id: call.id,
+                    type: 'call',
+                    title: call.attributes.name,
+                    time: getTimeFromDateTime(call.attributes.date_start),
+                    endTime: call.attributes.date_end ? getTimeFromDateTime(call.attributes.date_end) : null,
+                    rawData: call,
+                    module: 'Calls'
+                });
+            });
+        }
+
         // Sort events by time within each day
         Object.keys(eventsMap).forEach(date => {
             eventsMap[date].sort((a, b) => a.time.localeCompare(b.time));
         });
 
         return eventsMap;
-    }, []);
+    }, [calls]);
 
     // Load calendar data for specific month
     const loadCalendarData = useCallback(async (targetDate = currentDate, isRefresh = false) => {
@@ -157,16 +185,19 @@ export const useCalendar = () => {
             const { startDate, endDate } = getMonthDateRange(targetDate);
 
             // Load tasks and meetings for the month
-            const [tasksResponse, meetingsResponse] = await Promise.all([
+            const [tasksResponse, meetingsResponse, callsResponse] = await Promise.all([
                 getTasksByMonthApi(startDate, endDate),
-                getMeetingsByMonthApi(startDate, endDate)
+                getMeetingsByMonthApi(startDate, endDate),
+                getCallsByMonthApi(startDate, endDate)
             ]);
 
             const tasksData = tasksResponse.data || [];
             const meetingsData = meetingsResponse.data || [];
+            const callsData = callsResponse.data || [];
 
             setTasks(tasksData);
             setMeetings(meetingsData);
+            setCalls(callsData);
 
             // Combine data into events
             const combined = combineEventsData(tasksData, meetingsData);
@@ -273,9 +304,10 @@ export const useCalendar = () => {
         currentDate,
         selectedDate,
         setSelectedDate,
-        tasks,
-        meetings,
-        combinedEvents,
+    tasks,
+    meetings,
+    calls,
+    combinedEvents,
         loading,
         refreshing,
         error,

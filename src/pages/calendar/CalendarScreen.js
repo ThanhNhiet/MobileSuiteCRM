@@ -30,6 +30,7 @@ export default function CalendarScreen({ navigation }) {
     const [hasScheduleText, setHasScheduleText] = useState('Ngày có lịch trình');
     const [taskText, setTaskText] = useState('Task');
     const [meetingText, setMeetingText] = useState('Meeting');
+    const [callText, setCallText] = useState('Call');
     const calendarLanguageUtils = CalendarLanguageUtils.getInstance();
 
     // Use the custom calendar hook
@@ -89,6 +90,8 @@ export default function CalendarScreen({ navigation }) {
                 setHasScheduleText(hasScheduleLabel);
                 setTaskText(taskLabel);
                 setMeetingText(meetingLabel);
+                const callLabel = await calendarLanguageUtils.translate('LBL_CALLS') || 'Call';
+                setCallText(callLabel);
             } catch (error) {
                 console.error('Error loading calendar translations:', error);
                 // Keep default values if translation fails
@@ -266,6 +269,10 @@ export default function CalendarScreen({ navigation }) {
                         <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#4ECDC4' }]} />
                             <Text style={styles.legendText}>{meetingText}</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.legendColor, { backgroundColor: '#FFD700' }]} />
+                            <Text style={styles.legendText}>{callText}</Text>
                         </View>
                     </View>
                 </View>

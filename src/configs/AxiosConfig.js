@@ -1,11 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { getUrl } from '../utils/UrlManagement';
 
 // Axios instance configuration
-const axiosInstance = axios.create({
-    baseURL: getUrl()
-});
+const axiosInstance = axios.create();
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
@@ -26,13 +23,17 @@ const processQueue = (error, token = null) => {
 // Add request interceptor
 axiosInstance.interceptors.request.use(
   async config => {
+    // get dynamic baseURL from AsyncStorage each time sending a request
+    const url = await AsyncStorage.getItem('url');
+    if (url) {
+      config.baseURL = url;
+    }
+
     const token = await AsyncStorage.getItem('token');
     const isTokenEndpoint = config.url?.includes('/Api/access_token');
-
     if (!isTokenEndpoint && token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
     return config;
   },
   error => {
@@ -75,10 +76,11 @@ axiosInstance.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const { client_id, client_secret } = (await axios.get(`${getUrl()}/custom/public/api/get_secret.php`)).data;
+        const url = await AsyncStorage.getItem('url');
+        const { client_id, client_secret } = (await axios.get(`${url}/custom/public/api/get_secret.php`)).data;
 
         // Send request to get new token
-        const tokenResponse = await axios.post(`${getUrl()}/Api/access_token`, {
+        const tokenResponse = await axios.post(`${url}/Api/access_token`, {
           grant_type: 'refresh_token',
           client_id: client_id,
           client_secret: client_secret,
