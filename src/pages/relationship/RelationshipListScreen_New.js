@@ -251,23 +251,11 @@ export default function RelationshipListScreen_New() {
 
     // Navigation to create screen
     const navigateToCreateScreen = () => {
-        const screenName = `${moduleName}CreateScreen`;
-        
-        // Map common module names to their create screens
-        const moduleToScreenMap = {
-            'Notes': 'NoteCreateScreen',
-            'Tasks': 'TaskCreateScreen', 
-            'Meetings': 'MeetingCreateScreen',
-            'Calls': 'CallCreateScreen',
-            'Accounts': 'AccountCreateScreen',
-            'Contacts': 'ContactCreateScreen',
-            'Opportunities': 'OpportunityCreateScreen'
-        };
-        
-        const targetScreen = moduleToScreenMap[moduleName] || screenName;
+        const targetScreen = 'ModuleCreateScreen';
         
         try {
             navigation.navigate(targetScreen, {
+                moduleName,
                 parentModule: actualParentModule,
                 parentId: actualParentId,
                 parentRecord,
