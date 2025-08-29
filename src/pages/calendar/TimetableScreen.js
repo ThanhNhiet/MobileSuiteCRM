@@ -116,19 +116,19 @@ export default function TimetableScreen({ navigation, route }) {
                     text: closeText,
                     style: 'cancel'
                 },
-                // {
-                //     text: 'Xem chi tiết',
-                //     onPress: () => {
-                //         // Navigate to detail screen based on type
-                //         if (event.type === 'task') {
-                //             // navigation.navigate('TaskDetailScreen', { taskId: event.id, taskData: event.rawData });
-                //             Alert.alert('Thông báo', event.id);
-                //         } else {
-                //             // navigation.navigate('MeetingDetailScreen', { meetingId: event.id, meetingData: event.rawData });
-                //             Alert.alert('Thông báo', event.id);
-                //         }
-                //     }
-                // }
+                {
+                    text: 'Xem chi tiết',
+                    onPress: () => {
+                        // Navigate to detail screen based on type
+                        if (event.type === 'task') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Tasks', recordId: event.rawData.id });
+                        } else if (event.type === 'meeting') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Meetings', recordId: event.rawData.id });
+                        } else if (event.type === 'call') {
+                            navigation.navigate('ModuleDetailScreen', { moduleName: 'Calls', recordId: event.rawData.id });
+                        }
+                    }
+                }
             ]
         );
     };
