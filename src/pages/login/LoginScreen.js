@@ -179,6 +179,10 @@ export default function LoginScreen() {
                 await AsyncStorage.setItem('url', websiteInput.trim());
                 setWebsite(websiteInput.trim());
                 setShowWebsiteModal(false);
+                // Reset ngôn ngữ khi đổi link website
+                setSelectedLanguageLabel('Language');
+                setLanguageList([]);
+                setOriginalLangs([]);
               }}
             >
               <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>Confirm</Text>
