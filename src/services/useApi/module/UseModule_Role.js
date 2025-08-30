@@ -17,11 +17,12 @@ export const useModule_Role = (moduleName) => {
             setGroups(data.groups);
             }
             initializationGroup();
-        },[]);
+        },[moduleName]);
 
 
     useEffect(() => {
         const initializationRole = async () => {
+            if (!groups[0]?.id) return;
             const data = await getGroupRoleUsersApi(groups[0]?.id);
             if (!data || data.roles.length === 0) {
                 setRoles([]);
@@ -29,7 +30,7 @@ export const useModule_Role = (moduleName) => {
             setRoles(data.roles);
             }
             initializationRole();
-        },[groups]);
+        },[groups[0]?.id]);
 
     useEffect(() => {
         let isMounted = true;

@@ -663,7 +663,7 @@ export const useModule_List = (moduleName) => {
         })();
 
         return () => { alive = false; };
-        }, [roleInfo?.roleName, roleInfo?.listPerm, records]);
+        }, [roleInfo?.roleName, roleInfo?.listPerm, records,roleInfoGroup?.roleName, roleInfoGroup?.listPerm]);
 
         // ===== VIEW: ID được xem theo viewPerm (TRẢ VỀ ID) =====
         const viewSeqRef = useRef(0);
@@ -706,7 +706,8 @@ export const useModule_List = (moduleName) => {
         })();
 
         return () => { alive = false; };
-        }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
+        }, [roleInfo?.roleName, roleInfo?.viewPerm, records,roleInfoGroup?.roleName, roleInfoGroup?.viewPerm]);
+
 
 
     return {

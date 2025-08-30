@@ -59,32 +59,36 @@ export default function LoginScreen() {
     checkExistingAuth();
   }, []);
 
-  useEffect(() => {
-    if (showWebsiteModal) return; //fetch after website modal is closed
-    const fetchLanguages = async () => {
-      try {
-        setLanguageLoading(true);
-        const langs = await getAvailableLanguagesApi();
-        console.log("Fetched languagess:", langs);
-        // Store original langs for mapping later
-        setOriginalLangs(langs);
-
-        // Convert locale codes to display names
-        const convertedLangs = langs.map(lang => convertLocaleCode(lang));
-        setLanguageList(convertedLangs);
-
-        // Set initial language label based on selectedLanguage from hook
-        if (selectedLanguage && langs.includes(selectedLanguage)) {
-          setSelectedLanguageLabel(convertLocaleCode(selectedLanguage));
-        }
-      } catch (error) {
-        console.warn('Failed to fetch languages', error);
-      } finally {
-        setLanguageLoading(false);
+  const fetchLanguages = async () => {
+    try {
+      setLanguageLoading(true);
+      const langs = await getAvailableLanguagesApi();
+      setOriginalLangs(langs);
+      setLanguageList(langs.map(lang => convertLocaleCode(lang)));
+      // Nếu selectedLanguage không còn hợp lệ, reset về mặc định
+      if (!langs.includes(selectedLanguage)) {
+        setSelectedLanguageLabel('Language');
+        handleLanguageSelect('');
       }
-    };
+    } catch (error) {
+      console.warn('Failed to fetch languages', error);
+    } finally {
+      setLanguageLoading(false);
+    }
+  };
+
+  // Fetch languages only when website modal is closed
+  useEffect(() => {
+    if (showWebsiteModal) return;
     fetchLanguages();
-  }, [selectedLanguage]);
+  }, [showWebsiteModal]);
+
+  // Update selectedLanguageLabel when selectedLanguage changes
+  useEffect(() => {
+    if (selectedLanguage && originalLangs.includes(selectedLanguage)) {
+      setSelectedLanguageLabel(convertLocaleCode(selectedLanguage));
+    }
+  }, [selectedLanguage, originalLangs]);
 
   const handleSelectLanguage = (displayName) => {
     setLangModalVisible(false);
