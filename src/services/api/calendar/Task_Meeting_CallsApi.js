@@ -105,7 +105,6 @@ export const getCallsByMonthApi = async (startDate, endDate) => {
                 'sort': '-date_start'
             }
         });
-        console.log("Calls by Month API response:", response.data);
         return response.data;
     } catch (error) {
         console.warn("Get Calls by Month API error:", error);

@@ -71,8 +71,8 @@ export const getModuleRecordsApi = async (moduleName, pageSize = 10, pageNumber 
         const response = await axiosInstance.get(`/Api/V8/module/${moduleName}`, {
             params: {
                 'filter[operator]': 'or',
-              //  'filter[assigned_user_id]': userId,
-               // 'filter[created_by]': userId,
+                //  'filter[assigned_user_id]': userId,
+                // 'filter[created_by]': userId,
                 'filter[deleted][eq]': 0,
                 [`fields[${moduleName}]`]: nameFields + ',created_by,assigned_user_id',
                 'page[size]': pageSize,
@@ -108,17 +108,29 @@ export const getModuleDetailApi = async (moduleName, recordId, nameFields) => {
 export const createModuleRecordApi = async (moduleName, recordData) => {
     try {
         const token = await AsyncStorage.getItem('token');
-        const userId = getUserIdFromToken(token);
-
-        const response = await axiosInstance.post(`/Api/V8/module`, {
-            data: {
-                type: moduleName,
-                attributes: {
-                    assigned_user_id: userId,
-                    ...recordData
+        let response;
+        if (recordData.assigned_user_id == null) {
+            const userId = getUserIdFromToken(token);
+            response = await axiosInstance.post(`/Api/V8/module`, {
+                data: {
+                    type: moduleName,
+                    attributes: {
+                        assigned_user_id: userId,
+                        ...recordData
+                    }
                 }
-            }
-        });
+            });
+        } else{
+            response = await axiosInstance.post(`/Api/V8/module`, {
+                data: {
+                    type: moduleName,
+                    attributes: {
+                        ...recordData
+                    }
+                }
+            });
+        }
+        console.log(`Create ${moduleName} API response:`, response);
         return response.data;
     } catch (error) {
         console.warn(`Create ${moduleName} API error:`, error);
@@ -189,14 +201,14 @@ export const searchModuleByFilterApi = async (moduleName, pageSize = 10, pageNum
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         // Base parameters
         const params = {
             //'filter[operator]': 'and',
-           // 'filter[assigned_user_id][eq]': userId,
-          //  'filter[created_by][eq]': userId,
+            // 'filter[assigned_user_id][eq]': userId,
+            //  'filter[created_by][eq]': userId,
             'filter[deleted][eq]': 0,
-            [`fields[${moduleName}]`]: nameFields+',created_by,assigned_user_id',
+            [`fields[${moduleName}]`]: nameFields + ',created_by,assigned_user_id',
             'page[size]': pageSize,
             'page[number]': pageNumber,
             'sort': `-${sortField}`
@@ -227,7 +239,7 @@ export const checkRecordExistsApi = async (targetModule, recordName) => {
                 [`fields[${targetModule}]`]: 'name'
             }
         });
-        
+
         if (response.data && response.data.data && response.data.data.length > 0) {
             return response.data.data[0].attributes.name;
         } else {
@@ -248,7 +260,7 @@ export const getRecordByIdApi = async (moduleName, recordId, fields = 'name') =>
                 [`fields[${moduleName}]`]: fields
             }
         });
-        
+
         if (response.data.data !== null) {
             return response.data.data.attributes;
         } else {
@@ -292,7 +304,7 @@ export const deleteModuleRelationshipApi = async (parentModule, parentId, relate
 // Helper function to build date filters for common time periods
 export const buildDateFilter = (dateType, fieldName = 'date_entered') => {
     if (!dateType || !dateType.trim()) return {};
-    
+
     const today = new Date();
     let startDate, endDate;
 
@@ -301,30 +313,30 @@ export const buildDateFilter = (dateType, fieldName = 'date_entered') => {
             startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
             break;
-        
+
         case 'this_week':
             const dayOfWeek = today.getDay();
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - dayOfWeek);
             startOfWeek.setHours(0, 0, 0, 0);
-            
+
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 7);
-            
+
             startDate = startOfWeek;
             endDate = endOfWeek;
             break;
-        
+
         case 'this_month':
             startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             break;
-        
+
         case 'this_year':
             startDate = new Date(today.getFullYear(), 0, 1);
             endDate = new Date(today.getFullYear() + 1, 0, 1);
             break;
-        
+
         default:
             return {};
     }
@@ -343,9 +355,9 @@ export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
                 [`fields[${moduleName}]`]: 'parent_id,parent_type'
             }
         });
-        
+
         const attributes = response.data.data.attributes || {};
-        
+
         // Return the attributes, defaulting to null if fields don't exist
         return {
             parent_id: attributes.parent_id || null,
@@ -353,7 +365,7 @@ export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
         };
     } catch (error) {
         console.warn(`Get Parent ID by ID API error for ${moduleName}:`, error);
-        
+
         // If the error is specifically about the fields not existing (400), 
         // return null values instead of throwing
         if (error.response && (error.response.status === 400 || error.response.status === 422)) {
@@ -373,8 +385,24 @@ export const getParentId_typeByModuleIdApi = async (moduleName, id) => {
                 parent_type: null
             };
         }
-        
+
         // For other errors, still throw
+        throw error;
+    }
+};
+
+//GET /Api/V8/custom/enum/{moduleName}?fields=&lang=vi_VN
+export const getEnumsApi = async (moduleName, enumFields, lang) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/enum/${moduleName}`, {
+            params: {
+                fields: enumFields,
+                lang: lang
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn("Get Enum API error:", error);
         throw error;
     }
 };

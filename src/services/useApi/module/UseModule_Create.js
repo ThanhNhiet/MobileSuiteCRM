@@ -4,27 +4,24 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { createModuleRecordApi, createModuleRelationshipApi, getModuleEditFieldsApi, getModuleFieldsRequiredApi } from '../../api/module/ModuleApi';
+import { createModuleRecordApi, createModuleRelationshipApi, getEnumsApi, getModuleEditFieldsApi, getModuleFieldsRequiredApi } from '../../api/module/ModuleApi';
 
 export const useModule_Create = (moduleName) => {
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
-    
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
-    
+
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({});
-    
+
     // Fields configuration
     const [createFields, setCreateFields] = useState([]);
 
-    // Check if module supports parent relationships
-    const getModuleSupportsParent = (module) => {
-        const modulesWithParent = ['Notes', 'Tasks', 'Meetings', 'Calls', 'Emails'];
-        return modulesWithParent.includes(module);
-    };
+    // Enum fields data
+    const [enumFieldsData, setEnumFieldsData] = useState({});
 
     // Get default fields for different modules
     const getDefaultFieldsForModule = (module) => {
@@ -100,23 +97,23 @@ export const useModule_Create = (moduleName) => {
             // 1. Check cache editviewdefs.json
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
-            
+
             if (!cachedFields) {
                 // If no cache, fetch from API
                 const fieldsResponse = await getModuleEditFieldsApi(moduleName);
                 fieldsData = fieldsResponse;
-                
+
                 // Save to cache
                 await WriteCacheView.saveModuleField(moduleName, 'editviewdefs', fieldsData);
             } else {
                 // Use cached data
                 fieldsData = cachedFields;
             }
-            
+
             // 2. Get current language
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
-            
+
             // If no language data, check if language cache exists
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
@@ -124,23 +121,23 @@ export const useModule_Create = (moduleName) => {
                     // Language cache missing - user needs to login to fetch data
                 }
             }
-            
+
             // 3. Get required fields from cache or API
             let requiredFields;
             const cachedRequiredFields = await ReadCacheView.getModuleField(moduleName, 'requiredfields');
-            
+
             if (!cachedRequiredFields) {
                 // If no cache, fetch from API
                 const requiredFieldsResponse = await getModuleFieldsRequiredApi(moduleName);
                 requiredFields = requiredFieldsResponse.data.attributes;
-                
+
                 // Save to cache with name requiredfields.json
                 await WriteCacheView.saveModuleField(moduleName, 'requiredfields', requiredFields);
             } else {
                 // Use cached data
                 requiredFields = cachedRequiredFields;
             }
-            
+
             // Get mod_strings and app_strings from language data structure
             let modStrings = null;
             let appStrings = null;
@@ -148,7 +145,7 @@ export const useModule_Create = (moduleName) => {
                 modStrings = languageData.data.mod_strings;
                 appStrings = languageData.data.app_strings;
             }
-            
+
             // Function to find translation
             const findTranslation = (key) => {
                 if (modStrings && modStrings[key]) {
@@ -159,28 +156,48 @@ export const useModule_Create = (moduleName) => {
                 }
                 return null;
             };
-            
+
             // Check if fieldsData is valid
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
                 // Use default fields structure
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
-            
+
+            // Find enum fields (type === 'enum' or type === 'parent_type')
+            const enumFields = [];
+            Object.entries(requiredFields).forEach(([fieldKey, fieldInfo]) => {
+                if (fieldInfo.type === 'enum' || fieldInfo.type === 'parent_type') {
+                    enumFields.push(fieldKey);
+                }
+            });
+
+            // Fetch enum data if there are enum fields
+            if (enumFields.length > 0) {
+                try {
+                    const enumsResponse = await getEnumsApi(moduleName, enumFields.join(','), selectedLanguage);
+                    if (enumsResponse && enumsResponse.success && enumsResponse.fields) {
+                        setEnumFieldsData(enumsResponse.fields);
+                    }
+                } catch (enumErr) {
+                    console.warn(`Error fetching enum data for ${moduleName}:`, enumErr);
+                }
+            }
+
             // 4. Create createFields with translation and required info
             let createFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
                 let vietnameseLabel = fieldKey; // Default fallback
-                
+
                 if ((modStrings || appStrings) && labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
                     const translation = findTranslation(labelValue);
                     if (translation) {
                         vietnameseLabel = translation;
                     }
                 }
-                
+
                 // If no translation found, try multiple patterns
                 if (vietnameseLabel === fieldKey) {
                     let translation = null;
-                    
+
                     // Handle special cases for each field
                     if (fieldKey === 'assigned_user_name') {
                         const patterns = ['LBL_ASSIGNED_TO', 'LBL_LIST_ASSIGNED_TO_NAME', 'LBL_ASSIGNED_TO_USER'];
@@ -204,36 +221,50 @@ export const useModule_Create = (moduleName) => {
                         // Try standard patterns
                         const lblKey = `LBL_${fieldKey.toUpperCase()}`;
                         translation = findTranslation(lblKey);
-                        
+
                         if (!translation) {
                             const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
                             translation = findTranslation(listKey);
                         }
                     }
-                    
+
                     vietnameseLabel = translation || labelValue || fieldKey;
                 }
-                
+
                 // Get required info from requiredFields
                 const fieldInfo = requiredFields[fieldKey] || {};
                 const isRequired = fieldInfo.required === true || fieldInfo.required === 'true';
-                
+
                 // Add red * for required fields
                 const finalLabel = isRequired ? `${vietnameseLabel} *` : vietnameseLabel;
-                
+
+                // Determine field type
+                const fieldType = fieldInfo.type || 'text';
+
+                // Special handling for enum and parent_type fields
+                if (fieldType === 'enum' || fieldType === 'parent_type') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'select', // Use select type for UI rendering
+                        fieldType: fieldType, // Store the original field type for API
+                        required: isRequired
+                    };
+                }
+
                 return {
                     key: fieldKey,
                     label: finalLabel,
-                    type: fieldInfo.type || 'text',
+                    type: fieldType,
                     required: isRequired
                 };
             });
-            
-            // If parent_name exists in editviewdefs and module supports parent, add parent_type
-            const hasParentName = fieldsData.hasOwnProperty('parent_name');
-            const supportsParent = getModuleSupportsParent(moduleName);
-            
-            if (hasParentName && supportsParent) {
+
+            // Make sure parent_type is before parent_name if both exist
+            const hasParentName = createFieldsData.some(field => field.key === 'parent_name');
+            const hasParentType = createFieldsData.some(field => field.key === 'parent_type');
+
+            if (hasParentName && !hasParentType && requiredFields.parent_type) {
                 // Get translation for parent_type
                 let parentTypeLabel = 'parent_type';
                 const patterns = ['LBL_PARENT_TYPE', 'LBL_TYPE', 'LBL_LIST_PARENT_TYPE'];
@@ -244,35 +275,26 @@ export const useModule_Create = (moduleName) => {
                         break;
                     }
                 }
-                
+
                 // Add parent_type field (modal)
                 const parentTypeField = {
                     key: 'parent_type',
                     label: parentTypeLabel,
                     type: 'select',
-                    required: false
+                    fieldType: 'parent_type',
+                    required: requiredFields.parent_type.required === true || requiredFields.parent_type.required === 'true'
                 };
-                
+
                 // Find appropriate position to insert parent_type before parent_name
                 const parentNameIndex = createFieldsData.findIndex(field => field.key === 'parent_name');
                 if (parentNameIndex !== -1) {
                     // Insert parent_type before parent_name
                     createFieldsData.splice(parentNameIndex, 0, parentTypeField);
-                } else {
-                    // Fallback: find position after name
-                    const nameIndex = createFieldsData.findIndex(field => field.key === 'name');
-                    if (nameIndex !== -1) {
-                        // Insert parent_type after name
-                        createFieldsData.splice(nameIndex + 1, 0, parentTypeField);
-                    } else {
-                        // If no name found, add to beginning
-                        createFieldsData.unshift(parentTypeField);
-                    }
                 }
             }
-            
+
             setCreateFields(createFieldsData);
-            
+
             // Initialize form data with empty values
             const initialFormData = {};
             createFieldsData.forEach(field => {
@@ -282,7 +304,7 @@ export const useModule_Create = (moduleName) => {
             initialFormData['parent_id'] = '';
             initialFormData['assigned_user_id'] = '';
             setFormData(initialFormData);
-            
+
         } catch (err) {
             console.warn('Initialize create fields error:', err);
             const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình tạo mới';
@@ -297,7 +319,7 @@ export const useModule_Create = (moduleName) => {
             ...prev,
             [fieldKey]: value
         }));
-        
+
         // Clear validation error when field is updated
         if (validationErrors[fieldKey]) {
             setValidationErrors(prev => {
@@ -312,37 +334,55 @@ export const useModule_Create = (moduleName) => {
     const validateForm = useCallback(async () => {
         const errors = {};
         
-        // Check required fields
+        // Check required fields and validate numeric fields
         for (const field of createFields) {
-            if (field.required && !formData[field.key]?.trim()) {
+            const fieldValue = formData[field.key]?.trim() || '';
+            
+            // Check required fields
+            if (field.required && !fieldValue) {
                 const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
                 errors[field.key] = `${requiredMessage}`;
+                continue;
+            }
+            
+            // Validate numeric fields
+            if (fieldValue && (field.type === 'int' || field.type === 'currency')) {
+                // For int fields, verify it's a valid integer
+                if (field.type === 'int' && !/^[0-9]+$/.test(fieldValue)) {
+                    const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_INTEGER') || 'Phải là số nguyên';
+                    errors[field.key] = errorMessage;
+                }
+                
+                // For currency fields, verify it's a valid number
+                if (field.type === 'currency' && !/^[0-9]*\.?[0-9]*$/.test(fieldValue)) {
+                    const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_CURRENCY') || 'Phải là số';
+                    errors[field.key] = errorMessage;
+                }
             }
         }
         
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
-    }, [formData, createFields]);
-
-    // Create record
+    }, [formData, createFields]);    // Create record
     const createRecord = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            
+
             // Validate form
             const isValid = await validateForm();
             if (!isValid) {
                 setLoading(false);
                 return false;
             }
-            
+
             // Prepare record data (exclude only parent_id and assigned_user_id from API call, include parent_type)
             const excludeFields = ['parent_id', 'assigned_user_id']; // Exclude temporary ID fields
             const recordData = {};
-            
+
             Object.keys(formData).forEach(key => {
                 if (!excludeFields.includes(key) && formData[key]?.trim()) {
+                    // For enum fields, we store the key (not the translated value)
                     recordData[key] = formData[key].trim();
                 }
             });
@@ -351,13 +391,20 @@ export const useModule_Create = (moduleName) => {
             if (formData.assigned_user_id?.trim()) {
                 recordData.assigned_user_id = formData.assigned_user_id.trim();
             }
-            
+
             // Create the record first
+            if (
+                recordData?.duration_hours &&
+                recordData?.duration_minutes === undefined
+            ) {
+                recordData.duration_minutes = "0";
+            }
+            console.log('Creating record in', moduleName, 'with data:', recordData);
             const response = await createModuleRecordApi(moduleName, recordData);
-            
+
             // Extract record ID from response - handle multiple possible structures
             let recordId = null;
-            
+
             // Try different ways to extract the ID
             if (response?.data?.id) {
                 recordId = response.data.id;
@@ -376,18 +423,18 @@ export const useModule_Create = (moduleName) => {
                     console.warn('Failed to parse ID from string response:', parseErr);
                 }
             }
-            
+
             if (!recordId) {
                 console.error('Full response structure:', JSON.stringify(response, null, 2));
                 const extractError = await systemLanguageUtils.translate('ERROR_EXTRACT_RECORD_ID') || 'Cannot extract record ID from response';
                 throw new Error(extractError);
             }
-            
-            // Create parent relationship if specified and module supports it
-            if (formData.parent_type && formData.parent_id?.trim() && getModuleSupportsParent(moduleName)) {
+
+            // Create parent relationship if specified
+            if (formData.parent_type && formData.parent_id?.trim()) {
                 await createModuleRelationshipApi(formData.parent_type, formData.parent_id.trim(), moduleName, recordId);
             }
-            
+
             return {
                 success: true,
                 recordId: recordId
@@ -440,11 +487,11 @@ export const useModule_Create = (moduleName) => {
     // Check if form is valid for submission
     const isFormValid = useCallback(() => {
         // Find the primary field (name, first_name, etc.)
-        const primaryField = createFields.find(field => 
+        const primaryField = createFields.find(field =>
             field.key === 'name' || field.key === 'first_name' || field.key === 'subject'
         );
         const primaryValue = primaryField ? formData[primaryField.key]?.trim() : '';
-        
+
         return primaryValue && Object.keys(validationErrors).length === 0;
     }, [formData, validationErrors, createFields]);
 
@@ -453,7 +500,7 @@ export const useModule_Create = (moduleName) => {
         return createFields.some(field => field.key === 'parent_name');
     }, [createFields]);
 
-    // Get translated parent type options
+    // THIS FUNCTION IS FALLBACK. Get translated parent type options
     const getParentTypeOptions = useCallback(async () => {
         const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
         let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
@@ -497,12 +544,12 @@ export const useModule_Create = (moduleName) => {
             if (option.value === moduleName) {
                 return false;
             }
-            
+
             // If current module is not Notes, exclude Notes from options
             if (moduleName !== 'Notes' && option.value === 'Notes') {
                 return false;
             }
-            
+
             return true;
         });
 
@@ -535,6 +582,38 @@ export const useModule_Create = (moduleName) => {
         }
     }, [initializeCreateFields, moduleName]);
 
+    // Get enum field options for a specific field
+    const getEnumOptions = useCallback((fieldKey) => {
+        // If we have enum data for this field
+        if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values) {
+            // Convert the values object to an array of options
+            return Object.entries(enumFieldsData[fieldKey].values).map(([key, value]) => ({
+                value: key,     // This is the actual value to store (e.g., "Planned")
+                label: value    // This is the translated value to display (e.g., "Đã lên kế hoạch")
+            }));
+        }
+
+        // Default empty array if no options found
+        return [];
+    }, [enumFieldsData]);
+
+    // Get translated label for an enum value
+    const getEnumLabel = useCallback((fieldKey, value) => {
+        // If we have enum data for this field and the value exists
+        if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values && enumFieldsData[fieldKey].values[value]) {
+            return enumFieldsData[fieldKey].values[value];
+        }
+
+        // Return the original value if no translation found
+        return value;
+    }, [enumFieldsData]);
+
+    // Check if field is an enum type (enum or parent_type)
+    const isEnumField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
+    }, [createFields]);
+
     return {
         // Data
         formData,
@@ -542,19 +621,23 @@ export const useModule_Create = (moduleName) => {
         loading,
         error,
         validationErrors,
-        
+        enumFieldsData,
+
         // Actions
         updateField,
         createRecord,
         resetForm,
         validateForm,
-        
+
         // Helpers
         getFieldValue,
         getFieldLabel,
         getFieldError,
         isFormValid,
         hasParentNameField,
-        getParentTypeOptions
+        getParentTypeOptions,
+        getEnumOptions,
+        getEnumLabel,
+        isEnumField
     };
 };
