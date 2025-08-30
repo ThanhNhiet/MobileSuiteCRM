@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Axios instance configuration
-const axiosInstance = axios.create();
+const axiosInstance = axios.create({
+  timeout: 30000, // 30 seconds
+});
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
@@ -47,6 +49,15 @@ axiosInstance.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
     const isTokenEndpoint = originalRequest.url?.includes('/Api/access_token');
+
+    // Handle timeout error
+    if (error.code === 'ECONNABORTED' && error.message && error.message.includes('timeout')) {
+      return Promise.reject({
+        message: 'error network',
+        code: 'NETWORK_TIMEOUT',
+        originalError: error,
+      });
+    }
 
     // Don't retry token endpoints
     if (isTokenEndpoint) {
