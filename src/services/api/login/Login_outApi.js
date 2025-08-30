@@ -59,6 +59,7 @@ export const getAvailableLanguagesApi = async () => {
   try {
     const storedUrl = await AsyncStorage.getItem('url');
     const response = await axios.get(`${storedUrl}/custom/public/api/get_languages.php`);
+   // console.log("Available languages fetched:", response.data);
     return response.data;
   } catch (error) {
     console.warn("Get API languages error:", error);

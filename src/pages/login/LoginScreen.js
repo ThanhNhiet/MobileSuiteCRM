@@ -65,7 +65,7 @@ export default function LoginScreen() {
       try {
         setLanguageLoading(true);
         const langs = await getAvailableLanguagesApi();
-
+        console.log("Fetched languagess:", langs);
         // Store original langs for mapping later
         setOriginalLangs(langs);
 
