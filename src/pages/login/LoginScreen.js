@@ -84,7 +84,7 @@ export default function LoginScreen() {
       }
     };
     fetchLanguages();
-  }, [selectedLanguage, showWebsiteModal]);
+  }, [selectedLanguage]);
 
   const handleSelectLanguage = (displayName) => {
     setLangModalVisible(false);
