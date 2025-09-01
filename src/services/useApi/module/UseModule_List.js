@@ -176,8 +176,7 @@ export const useModule_List = (moduleName) => {
             //     fieldEntries = allFieldEntries.slice(0, 2);
             // }
             //remove set_complete field
-            fieldEntries = allFieldEntries.filter(([key]) => key !== 'set_complete');
-            fieldEntries = fieldEntries.slice(0, 2);
+            fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE').slice(0, 2);
 
             // Build nameFields string from field definitions
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
