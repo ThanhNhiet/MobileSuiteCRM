@@ -7,6 +7,7 @@ import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import {
     createModuleRelationshipApi,
     deleteModuleRelationshipApi,
+    getEnumsApi,
     getModuleEditFieldsApi,
     getModuleFieldsRequiredApi,
     updateModuleRecordApi
@@ -21,51 +22,122 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
     const [validationErrors, setValidationErrors] = useState({});
 
     // Form fields - will be initialized dynamically based on editviewdefs
-    const [formData, setFormData] = useState({
-        id: '',
-        name: '',
-        description: '',
-        assigned_user_name: '',
-        assigned_user_id: '',
-        parent_name: '',
-        parent_type: '',
-        parent_id: ''
-    });
+    const [formData, setFormData] = useState({});
 
     // Track original data for comparison
     const [originalData, setOriginalData] = useState({});
 
     // Fields configuration
     const [updateFields, setUpdateFields] = useState([]);
+    
+    // Enum fields data - similar to useModule_Create
+    const [enumFieldsData, setEnumFieldsData] = useState({});
 
-    // Initialize update fields and language
+    // Get default fields for different modules - just like useModule_Create
+    const getDefaultFieldsForModule = (module) => {
+        const defaultFields = {
+            'Notes': {
+                "contact_name": "",
+                "parent_name": "",
+                "name": "",
+                "filename": "",
+                "description": "LBL_NOTE_STATUS",
+                "assigned_user_name": "LBL_ASSIGNED_TO"
+            },
+            'Tasks': {
+                "name": "LBL_SUBJECT",
+                "status": "LBL_STATUS",
+                "priority": "LBL_PRIORITY",
+                "date_due": "LBL_DUE_DATE",
+                "parent_name": "",
+                "assigned_user_name": "LBL_ASSIGNED_TO",
+                "description": "LBL_DESCRIPTION"
+            },
+            'Meetings': {
+                "name": "LBL_SUBJECT",
+                "date_start": "LBL_DATE_TIME",
+                "duration_hours": "LBL_DURATION",
+                "location": "LBL_LOCATION",
+                "parent_name": "",
+                "assigned_user_name": "LBL_ASSIGNED_TO",
+                "description": "LBL_DESCRIPTION"
+            },
+            'Accounts': {
+                "name": "LBL_NAME",
+                "account_type": "LBL_TYPE",
+                "industry": "LBL_INDUSTRY",
+                "annual_revenue": "LBL_ANNUAL_REVENUE",
+                "phone_office": "LBL_PHONE_OFFICE",
+                "email1": "LBL_EMAIL_ADDRESS",
+                "billing_address_city": "LBL_CITY",
+                "assigned_user_name": "LBL_ASSIGNED_TO",
+                "description": "LBL_DESCRIPTION"
+            },
+            'Contacts': {
+                "first_name": "LBL_FIRST_NAME",
+                "last_name": "LBL_LAST_NAME",
+                "title": "LBL_TITLE",
+                "phone_work": "LBL_OFFICE_PHONE",
+                "email1": "LBL_EMAIL_ADDRESS",
+                "account_name": "LBL_ACCOUNT_NAME",
+                "assigned_user_name": "LBL_ASSIGNED_TO"
+            },
+            'Opportunities': {
+                "name": "LBL_OPPORTUNITY_NAME",
+                "account_name": "LBL_ACCOUNT_NAME",
+                "sales_stage": "LBL_SALES_STAGE",
+                "amount": "LBL_AMOUNT",
+                "date_closed": "LBL_DATE_CLOSED",
+                "probability": "LBL_PROBABILITY",
+                "assigned_user_name": "LBL_ASSIGNED_TO",
+                "description": "LBL_DESCRIPTION"
+            },
+            'Calls': {
+                "name": "LBL_SUBJECT", 
+                "status": "LBL_STATUS",
+                "direction": "LBL_DIRECTION",
+                "date_start": "LBL_DATE",
+                "parent_name": "",
+                "assigned_user_name": "LBL_ASSIGNED_TO",
+                "description": "LBL_DESCRIPTION"
+            }
+        };
+
+        return defaultFields[module] || {
+            "name": "LBL_NAME",
+            "assigned_user_name": "LBL_ASSIGNED_TO",
+            "description": "LBL_DESCRIPTION"
+        };
+    };
+
+    // Initialize update fields and language - similar to initializeCreateFields in useModule_Create
     const initializeUpdateFields = useCallback(async () => {
         try {
             if (!moduleName) {
                 throw new Error('Module name is required');
             }
 
-            // 1. Kiểm tra cache editviewdefs.json có tồn tại không
+            // 1. Check cache editviewdefs.json
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
 
             if (!cachedFields) {
-                // Nếu chưa có cache, fetch từ API
+                // If no cache, fetch from API
                 const fieldsResponse = await getModuleEditFieldsApi(moduleName);
                 fieldsData = fieldsResponse;
 
-                // Lưu vào cache
+                // Save to cache
                 await WriteCacheView.saveModuleField(moduleName, 'editviewdefs', fieldsData);
             } else {
-                // Nếu có cache, sử dụng cache
+                // Use cached data
                 fieldsData = cachedFields;
             }
 
-            // 2. Lấy ngôn ngữ hiện tại
+            // 2. Get current language
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
 
-            // Nếu không có language data, thử fetch lại
+            // If no language data, check if language cache exists
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
@@ -73,23 +145,23 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 }
             }
 
-            // 3. Lấy required fields từ cache hoặc API
+            // 3. Get required fields from cache or API
             let requiredFields;
             const cachedRequiredFields = await ReadCacheView.getModuleField(moduleName, 'requiredfields');
 
             if (!cachedRequiredFields) {
-                // Nếu chưa có cache, fetch từ API
+                // If no cache, fetch from API
                 const requiredFieldsResponse = await getModuleFieldsRequiredApi(moduleName);
                 requiredFields = requiredFieldsResponse.data.attributes;
 
-                // Lưu vào cache với tên requiredfields.json
+                // Save to cache with name requiredfields.json
                 await WriteCacheView.saveModuleField(moduleName, 'requiredfields', requiredFields);
             } else {
-                // Nếu có cache, sử dụng cache
+                // Use cached data
                 requiredFields = cachedRequiredFields;
             }
 
-            // Lấy mod_strings và app_strings từ cấu trúc language data
+            // Get mod_strings and app_strings from language data structure
             let modStrings = null;
             let appStrings = null;
             if (languageData && languageData.data) {
@@ -97,188 +169,163 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 appStrings = languageData.data.app_strings;
             }
 
-            // Kiểm tra fieldsData có hợp lệ không
+            // Function to find translation
+            const findTranslation = (key) => {
+                if (modStrings && modStrings[key]) {
+                    return modStrings[key];
+                }
+                if (appStrings && appStrings[key]) {
+                    return appStrings[key];
+                }
+                return null;
+            };
+
+            // Check if fieldsData is valid
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                // Using default fields structure
-                fieldsData = {
-                    "name": "LBL_NAME",
-                    "description": "LBL_DESCRIPTION",
-                    "assigned_user_name": "LBL_ASSIGNED_TO"
-                };
+                // Use default fields structure
+                fieldsData = getDefaultFieldsForModule(moduleName);
             }
 
-            // 4. Tạo updateFields với bản dịch và required info
-            const updateFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
+            // Find enum fields (type === 'enum' or type === 'parent_type')
+            const enumFields = [];
+            Object.entries(requiredFields).forEach(([fieldKey, fieldInfo]) => {
+                if (fieldInfo.type === 'enum' || fieldInfo.type === 'parent_type') {
+                    enumFields.push(fieldKey);
+                }
+            });
+
+            // Fetch enum data if there are enum fields - like in useModule_Create
+            if (enumFields.length > 0) {
+                try {
+                    const enumsResponse = await getEnumsApi(moduleName, enumFields.join(','), selectedLanguage);
+                    if (enumsResponse && enumsResponse.success && enumsResponse.fields) {
+                        setEnumFieldsData(enumsResponse.fields);
+                    }
+                } catch (enumErr) {
+                    console.warn(`Error fetching enum data for ${moduleName}:`, enumErr);
+                }
+            }
+
+            // 4. Create updateFields with translation and required info - similar to createFields in useModule_Create
+            let updateFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
                 let vietnameseLabel = fieldKey; // Default fallback
 
-                if (modStrings || appStrings) {
-                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                        // Sử dụng labelValue từ API để tìm trong modStrings trước, sau đó app_strings
-                        let translation = null;
-
-                        if (modStrings && modStrings[labelValue]) {
-                            translation = modStrings[labelValue];
-                        } else if (appStrings && appStrings[labelValue]) {
-                            translation = appStrings[labelValue];
-                        }
-
-                        // Nếu không tìm thấy, thử tìm với các pattern khác
-                        if (!translation) {
-                            const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
-                            if (modStrings && modStrings[listKey]) {
-                                translation = modStrings[listKey];
-                            } else if (appStrings && appStrings[listKey]) {
-                                translation = appStrings[listKey];
-                            }
-                        }
-
-                        vietnameseLabel = translation || labelValue;
-                    } else {
-                        // Nếu labelValue rỗng, áp dụng phương pháp cũ: chuyển thành định dạng LBL_FIELD
-                        let translation = null;
-
-                        // Xử lý trường hợp đặc biệt cho từng field
-                        if (fieldKey === 'assigned_user_name') {
-                            // Thử nhiều pattern cho assigned_user_name
-                            const patterns = ['LBL_ASSIGNED_TO', 'LBL_LIST_ASSIGNED_TO_NAME', 'LBL_ASSIGNED_TO_USER'];
-                            for (const pattern of patterns) {
-                                if (modStrings && modStrings[pattern]) {
-                                    translation = modStrings[pattern];
-                                    break;
-                                } else if (appStrings && appStrings[pattern]) {
-                                    translation = appStrings[pattern];
-                                    break;
-                                }
-                            }
-                        } else if (fieldKey === 'name') {
-                            // Thử nhiều pattern cho name field
-                            const patterns = ['LBL_NAME', 'LBL_EMAIL_ACCOUNTS_NAME', 'LBL_FIRST_NAME'];
-                            for (const pattern of patterns) {
-                                if (modStrings && modStrings[pattern]) {
-                                    translation = modStrings[pattern];
-                                    break;
-                                } else if (appStrings && appStrings[pattern]) {
-                                    translation = appStrings[pattern];
-                                    break;
-                                }
-                            }
-                        } else if (fieldKey === 'parent_name') {
-                            // Thử nhiều pattern cho parent_name field
-                            const patterns = ['LBL_PARENT_NAME', 'LBL_LIST_PARENT_NAME', 'LBL_RELATED_TO'];
-                            for (const pattern of patterns) {
-                                if (modStrings && modStrings[pattern]) {
-                                    translation = modStrings[pattern];
-                                    break;
-                                } else if (appStrings && appStrings[pattern]) {
-                                    translation = appStrings[pattern];
-                                    break;
-                                }
-                            }
-                        } else {
-                            // Các field khác
-                            const lblKey = `LBL_${fieldKey.toUpperCase()}`;
-                            if (modStrings && modStrings[lblKey]) {
-                                translation = modStrings[lblKey];
-                            } else if (appStrings && appStrings[lblKey]) {
-                                translation = appStrings[lblKey];
-                            }
-                        }
-
-                        // Thử các pattern khác nếu không tìm thấy
-                        if (!translation && !['assigned_user_name', 'name', 'parent_name'].includes(fieldKey)) {
-                            const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
-                            if (modStrings && modStrings[listKey]) {
-                                translation = modStrings[listKey];
-                            } else if (appStrings && appStrings[listKey]) {
-                                translation = appStrings[listKey];
-                            }
-                        }
-
-                        vietnameseLabel = translation || fieldKey;
-                    }
-                } else {
-                    // Nếu không có dữ liệu ngôn ngữ, sử dụng labelValue hoặc fieldKey
-                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                        vietnameseLabel = labelValue;
-                    } else if (fieldKey === 'assigned_user_name') {
-                        // Xử lý trường hợp đặc biệt cho assigned_user_name - thử nhiều pattern
-                        vietnameseLabel = 'LBL_LIST_ASSIGNED_TO_NAME';
-                    } else if (fieldKey === 'parent_name') {
-                        // Xử lý trường hợp đặc biệt cho parent_name
-                        vietnameseLabel = 'LBL_PARENT_NAME';
-                    } else {
-                        vietnameseLabel = fieldKey;
+                if ((modStrings || appStrings) && labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                    const translation = findTranslation(labelValue);
+                    if (translation) {
+                        vietnameseLabel = translation;
                     }
                 }
 
-                // Lấy thông tin required từ requiredFields
+                // If no translation found, try multiple patterns - just like in useModule_Create
+                if (vietnameseLabel === fieldKey) {
+                    let translation = null;
+
+                    // Handle special cases for each field
+                    if (fieldKey === 'assigned_user_name') {
+                        const patterns = ['LBL_ASSIGNED_TO', 'LBL_LIST_ASSIGNED_TO_NAME', 'LBL_ASSIGNED_TO_USER'];
+                        for (const pattern of patterns) {
+                            translation = findTranslation(pattern);
+                            if (translation) break;
+                        }
+                    } else if (fieldKey === 'name') {
+                        const patterns = ['LBL_NAME', 'LBL_EMAIL_ACCOUNTS_NAME', 'LBL_FIRST_NAME'];
+                        for (const pattern of patterns) {
+                            translation = findTranslation(pattern);
+                            if (translation) break;
+                        }
+                    } else if (fieldKey === 'parent_name') {
+                        const patterns = ['LBL_PARENT_NAME', 'LBL_LIST_PARENT_NAME', 'LBL_RELATED_TO'];
+                        for (const pattern of patterns) {
+                            translation = findTranslation(pattern);
+                            if (translation) break;
+                        }
+                    } else {
+                        // Try standard patterns
+                        const lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                        translation = findTranslation(lblKey);
+
+                        if (!translation) {
+                            const listKey = `LBL_LIST_${fieldKey.toUpperCase()}`;
+                            translation = findTranslation(listKey);
+                        }
+                    }
+
+                    vietnameseLabel = translation || labelValue || fieldKey;
+                }
+
+                // Get required info from requiredFields
                 const fieldInfo = requiredFields[fieldKey] || {};
                 const isRequired = fieldInfo.required === true || fieldInfo.required === 'true';
 
-                // Thêm dấu * đỏ cho required fields
+                // Add red * for required fields
                 const finalLabel = isRequired ? `${vietnameseLabel} *` : vietnameseLabel;
+
+                // Determine field type
+                const fieldType = fieldInfo.type || 'text';
+
+                // Special handling for enum and parent_type fields - just like in useModule_Create
+                if (fieldType === 'enum' || fieldType === 'parent_type') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'select', // Use select type for UI rendering
+                        fieldType: fieldType, // Store the original field type for API
+                        required: isRequired
+                    };
+                }
 
                 return {
                     key: fieldKey,
                     label: finalLabel,
-                    type: fieldInfo.type || 'text',
+                    type: fieldType,
                     required: isRequired
                 };
             });
 
-            // Nếu có parent_name trong editviewdefs, thêm parent_type để có modal
-            const hasParentName = fieldsData.hasOwnProperty('parent_name');
-            if (hasParentName) {
-                // Lấy bản dịch cho parent_type
+            // Make sure parent_type is before parent_name if both exist - just like in useModule_Create
+            const hasParentName = updateFieldsData.some(field => field.key === 'parent_name');
+            const hasParentType = updateFieldsData.some(field => field.key === 'parent_type');
+
+            if (hasParentName && !hasParentType && requiredFields.parent_type) {
+                // Get translation for parent_type
                 let parentTypeLabel = 'parent_type';
-                if (modStrings || appStrings) {
-                    const patterns = ['LBL_PARENT_TYPE', 'LBL_TYPE', 'LBL_LIST_PARENT_TYPE'];
-                    for (const pattern of patterns) {
-                        if (modStrings && modStrings[pattern]) {
-                            parentTypeLabel = modStrings[pattern];
-                            break;
-                        } else if (appStrings && appStrings[pattern]) {
-                            parentTypeLabel = appStrings[pattern];
-                            break;
-                        }
+                const patterns = ['LBL_PARENT_TYPE', 'LBL_TYPE', 'LBL_LIST_PARENT_TYPE'];
+                for (const pattern of patterns) {
+                    const translation = findTranslation(pattern);
+                    if (translation) {
+                        parentTypeLabel = translation;
+                        break;
                     }
                 }
 
-                // Thêm parent_type field (modal)
+                // Add parent_type field (modal)
                 const parentTypeField = {
                     key: 'parent_type',
                     label: parentTypeLabel,
                     type: 'select',
-                    required: false
+                    fieldType: 'parent_type',
+                    required: requiredFields.parent_type.required === true || requiredFields.parent_type.required === 'true'
                 };
 
-                // Tìm vị trí thích hợp để chèn parent_type
+                // Find appropriate position to insert parent_type before parent_name
                 const parentNameIndex = updateFieldsData.findIndex(field => field.key === 'parent_name');
                 if (parentNameIndex !== -1) {
-                    // Chèn parent_type trước parent_name để parent_type hiển thị trước
+                    // Insert parent_type before parent_name
                     updateFieldsData.splice(parentNameIndex, 0, parentTypeField);
-                } else {
-                    // Fallback: tìm vị trí sau name
-                    const nameIndex = updateFieldsData.findIndex(field => field.key === 'name');
-                    if (nameIndex !== -1) {
-                        // Chèn parent_type sau name
-                        updateFieldsData.splice(nameIndex + 1, 0, parentTypeField);
-                    } else {
-                        // Nếu không tìm thấy name, thêm vào đầu danh sách
-                        updateFieldsData.unshift(parentTypeField);
-                    }
                 }
             }
 
             setUpdateFields(updateFieldsData);
 
-            // Initialize form data with empty values for all fields
+            // Initialize form data with empty values
             const initialFormData = { id: '' };
             updateFieldsData.forEach(field => {
                 if (field.key !== 'id') {
                     initialFormData[field.key] = '';
                 }
             });
+            
             // Ensure these fields are always included
             initialFormData['parent_id'] = '';
             initialFormData['assigned_user_id'] = '';
@@ -287,7 +334,8 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
         } catch (err) {
             console.warn('Initialize update fields error:', err);
-            setError(systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE'));
+            const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình cập nhật';
+            setError(errorMsg);
         }
     }, [moduleName]);
 
@@ -655,6 +703,38 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         }
     }, [initialRecordData, loadRecordData]);
 
+    // Get enum field options for a specific field - copied from useModule_Create
+    const getEnumOptions = useCallback((fieldKey) => {
+        // If we have enum data for this field
+        if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values) {
+            // Convert the values object to an array of options
+            return Object.entries(enumFieldsData[fieldKey].values).map(([key, value]) => ({
+                value: key,     // This is the actual value to store (e.g., "Planned")
+                label: value    // This is the translated value to display (e.g., "Đã lên kế hoạch")
+            }));
+        }
+
+        // Default empty array if no options found
+        return [];
+    }, [enumFieldsData]);
+
+    // Get translated label for an enum value - copied from useModule_Create
+    const getEnumLabel = useCallback((fieldKey, value) => {
+        // If we have enum data for this field and the value exists
+        if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values && enumFieldsData[fieldKey].values[value]) {
+            return enumFieldsData[fieldKey].values[value];
+        }
+
+        // Return the original value if no translation found
+        return value;
+    }, [enumFieldsData]);
+
+    // Check if field is an enum type (enum or parent_type) - copied from useModule_Create
+    const isEnumField = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
+    }, [updateFields]);
+
     return {
         // Data
         formData,
@@ -663,6 +743,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         loading,
         error,
         validationErrors,
+        enumFieldsData,
 
         // Actions
         loadRecordData,
@@ -681,6 +762,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         isFormValid,
         hasChanges,
         hasParentNameField,
-        getParentTypeOptions
+        getParentTypeOptions,
+        getEnumOptions,
+        getEnumLabel,
+        isEnumField
     };
 };

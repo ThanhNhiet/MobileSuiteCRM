@@ -41,15 +41,16 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                 case 'date_modified':
                     setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
-                case 'parent_type':
-                    const typeLabels = {
-                        'Accounts': systemLanguageUtils.translate('LBL_ACCOUNTS'),
-                        'Users': systemLanguageUtils.translate('LBL_USERS'),
-                        'Tasks': systemLanguageUtils.translate('LBL_TASKS'),
-                        'Meetings': systemLanguageUtils.translate('LBL_MEETINGS')
-                    };
-                    setFormattedValue(typeLabels[value] || value);
+                case 'date_start':
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
+                case 'date_end':
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    break;
+                case 'date_due':
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    break;
+                case 'parent_type':
                 case 'annual_revenue':
                     try {
                         const numericValue = parseFloat(value);
@@ -235,37 +236,37 @@ export default function ModuleDetailScreen() {
                 translations.confirmDeleteMsg || 'Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.',
                 [
                     { text: translations.cancel || 'Hủy', style: 'cancel' },
-                {
-                    text: translations.delete || 'Xóa',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const success = await deleteRecord();
-                        if (success) {
-                            Alert.alert(
-                                translations.success || 'Thành công',
-                                translations.deleteSuccess || 'Đã xóa bản ghi thành công',
-                                [{
-                                    text: translations.ok || 'OK',
-                                    onPress: () => {
-                                        if (isNavigationReady && navigation.canGoBack()) {
-                                            navigation.navigate('ModuleListScreen', { moduleName: moduleName });
+                    {
+                        text: translations.delete || 'Xóa',
+                        style: 'destructive',
+                        onPress: async () => {
+                            const success = await deleteRecord();
+                            if (success) {
+                                Alert.alert(
+                                    translations.success || 'Thành công',
+                                    translations.deleteSuccess || 'Đã xóa bản ghi thành công',
+                                    [{
+                                        text: translations.ok || 'OK',
+                                        onPress: () => {
+                                            if (isNavigationReady && navigation.canGoBack()) {
+                                                navigation.navigate('ModuleListScreen', { moduleName: moduleName });
+                                            }
                                         }
-                                    }
-                                }]
-                            );
+                                    }]
+                                );
+                            }
                         }
                     }
-                }
-            ]
-        );
-    } else{
-             Alert.alert(
+                ]
+            );
+        } else {
+            Alert.alert(
                 translations.noPermission || 'Không có quyền',
                 translations.noDeletePermission || 'Bạn không có quyền xóa bản ghi này vì nó được giao cho người dùng khác.',
                 [{ text: translations.ok || 'OK' }]
             );
             return;
-    }
+        }
     };
 
     // Check if user can edit this record - ROLE_CHECK
@@ -295,7 +296,7 @@ export default function ModuleDetailScreen() {
                 recordData: record,
                 haveParent
             });
-        } else{
+        } else {
             Alert.alert(
                 translations.noPermission || 'Không có quyền',
                 translations.noEditPermission || 'Bạn không có quyền chỉnh sửa bản ghi này vì nó được giao cho người dùng khác.',
@@ -312,14 +313,13 @@ export default function ModuleDetailScreen() {
             case 'date_entered':
             case 'date_modified':
                 return formatDateTimeBySelectedLanguage(value);
+            case 'date_start':
+                return formatDateTimeBySelectedLanguage(value);
+            case 'date_end':
+                return formatDateTimeBySelectedLanguage(value);
+            case 'date_due':
+                return formatDateTimeBySelectedLanguage(value);
             case 'parent_type':
-                const typeLabels = {
-                    'Accounts': systemLanguageUtils.translate('LBL_ACCOUNTS'),
-                    'Users': systemLanguageUtils.translate('LBL_USERS'),
-                    'Tasks': systemLanguageUtils.translate('LBL_TASKS'),
-                    'Meetings': systemLanguageUtils.translate('LBL_MEETINGS')
-                };
-                return typeLabels[value] || value;
             case 'annual_revenue':
                 // For async formatting, use FormattedFieldValue component
                 return null; // This will be handled by component
@@ -374,9 +374,9 @@ export default function ModuleDetailScreen() {
                 <Text style={styles.fieldLabel}>{field.label}</Text>
                 {field.key === 'annual_revenue' ? (
                     <Text style={styles.fieldValue}>
-                        <FormattedFieldValue 
-                            fieldKey={field.key} 
-                            value={value} 
+                        <FormattedFieldValue
+                            fieldKey={field.key}
+                            value={value}
                             translations={translations}
                             systemLanguageUtils={systemLanguageUtils}
                         />

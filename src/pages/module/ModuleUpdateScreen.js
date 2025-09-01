@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
@@ -154,6 +155,7 @@ export default function ModuleUpdateScreen() {
     loading,
     error,
     validationErrors,
+    enumFieldsData,
     updateField,
     updateRecord,
     getFieldValue,
@@ -164,7 +166,10 @@ export default function ModuleUpdateScreen() {
     hasChanges,
     hasParentNameField,
     getParentTypeOptions,
-    handleDeleteRelationship
+    handleDeleteRelationship,
+    isEnumField,
+    getEnumOptions,
+    getEnumLabel
   } = useModuleUpdate(moduleName, recordData);
 
   // Local loading state for save button
@@ -172,6 +177,16 @@ export default function ModuleUpdateScreen() {
 
   // Modal state for parent_type selection
   const [showParentTypeModal, setShowParentTypeModal] = useState(false);
+  
+  // Enum modal states
+  const [showEnumModal, setShowEnumModal] = useState(false);
+  const [currentEnumField, setCurrentEnumField] = useState(null);
+  
+  // DateTime picker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
+  const [dateTimeMode, setDateTimeMode] = useState('date'); // 'date' or 'time'
 
   // Parent type options with translations
   const [parentTypeOptions, setParentTypeOptions] = useState([]);
@@ -248,8 +263,231 @@ export default function ModuleUpdateScreen() {
 
   // Get parent type label for display
   const getParentTypeLabel = () => {
+    // First check if it's in the enum fields data
+    if (enumFieldsData && enumFieldsData.parent_type && enumFieldsData.parent_type.values) {
+      const value = getFieldValue('parent_type');
+      if (value && enumFieldsData.parent_type.values[value]) {
+        return enumFieldsData.parent_type.values[value];
+      }
+    }
+    
+    // Fall back to the old method using parentTypeOptions
     const selectedOption = parentTypeOptions.find(opt => opt.value === getFieldValue('parent_type'));
     return selectedOption ? selectedOption.label : (translations.selectPlaceholder || '--------');
+  };
+  
+  // Show enum modal for a specific field
+  const showEnumModalForField = (fieldKey) => {
+    setCurrentEnumField(fieldKey);
+    setShowEnumModal(true);
+  };
+  
+  // Handle enum value selection
+  const handleEnumSelect = async (value) => {
+    if (currentEnumField) {
+      await updateField(currentEnumField, value);
+    }
+    setShowEnumModal(false);
+  };
+  
+  // Get enum option label for display
+  const getEnumOptionLabel = (fieldKey) => {
+    const value = getFieldValue(fieldKey);
+    if (!value) return translations.selectPlaceholder || '--------';
+    
+    // Get the translated label from enumFieldsData
+    return getEnumLabel(fieldKey, value) || value;
+  };
+  
+  // Show date picker for a datetime field
+  const showDatePickerForField = (fieldKey, mode = 'date') => {
+    setCurrentDateField(fieldKey);
+    setDateTimeMode(mode);
+    if (mode === 'date') {
+      setShowDatePicker(true);
+    } else {
+      setShowTimePicker(true);
+    }
+  };
+  
+  // Handle date selection
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || new Date();
+    setShowDatePicker(false);
+    
+    if (event.type === 'dismissed') {
+      return; // User canceled the picker
+    }
+    
+    if (currentDateField) {
+      // For datetime fields, just save the date with midnight time (00:00:00)
+      if (getFieldType(currentDateField) === 'datetime') {
+        // Create a new date with time set to midnight for consistent format
+        const newDate = new Date(currentDate);
+        newDate.setHours(0, 0, 0, 0); 
+        const formattedDateTime = formatDateTime(newDate);
+        updateField(currentDateField, formattedDateTime);
+      }
+      
+      // For datetimecombo, we need to merge existing time (if any) with the new date
+      if (getFieldType(currentDateField) === 'datetimecombo') {
+        const currentValue = getFieldValue(currentDateField);
+        let hours = 0;
+        let minutes = 0;
+        let seconds = 0;
+        
+        // Try to extract existing time from current value
+        if (currentValue && currentValue.includes(' ')) {
+          const timePart = currentValue.split(' ')[1];
+          if (timePart && timePart.includes(':')) {
+            const timeParts = timePart.split(':');
+            hours = parseInt(timeParts[0], 10) || 0;
+            minutes = parseInt(timeParts[1], 10) || 0;
+            seconds = parseInt(timeParts[2], 10) || 0;
+          }
+        }
+        
+        // Create a new date with the selected date and existing time
+        const newDate = new Date(currentDate);
+        newDate.setHours(hours, minutes, seconds, 0);
+        
+        const formattedDateTime = formatDateTime(newDate);
+        updateField(currentDateField, formattedDateTime);
+      }
+    }
+  };
+  
+  // Handle time selection
+  const handleTimeChange = (event, selectedTime) => {
+    const currentTime = selectedTime || new Date();
+    setShowTimePicker(false);
+    
+    if (event.type === 'dismissed') {
+      return; // User canceled the picker
+    }
+    
+    if (currentDateField) {
+      // For datetimecombo, we need to merge existing date with the new time
+      const currentValue = getFieldValue(currentDateField);
+      
+      // Create a base date - either from existing value or today
+      let baseDate = new Date();
+      if (currentValue && currentValue.includes(' ')) {
+        const datePart = currentValue.split(' ')[0];
+        if (datePart && datePart.includes('-')) {
+          const [y, m, d] = datePart.split('-');
+          if (y && m && d) {
+            baseDate = new Date(y, parseInt(m, 10) - 1, d);
+          }
+        }
+      }
+      
+      // Merge the date with the selected time
+      const hours = currentTime.getHours();
+      const minutes = currentTime.getMinutes();
+      const seconds = currentTime.getSeconds();
+      baseDate.setHours(hours, minutes, seconds, 0);
+      
+      const formattedDateTime = formatDateTime(baseDate);
+      updateField(currentDateField, formattedDateTime);
+    }
+  };
+  
+  // Helper function to get the field type
+  const getFieldType = (fieldKey) => {
+    const field = updateFields.find(f => f.key === fieldKey);
+    return field ? field.type : null;
+  };
+  
+  // Helper function to format date to YYYY-MM-DD
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  // Helper function to format datetime to YYYY-MM-DD HH:MM:SS
+  const formatDateTime = (date) => {
+    const dateStr = formatDate(date);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    // Add seconds to match standard MySQL datetime format
+    return `${dateStr} ${hours}:${minutes}:${seconds}`;
+  };
+  
+  // Helper function to update just the hours or minutes in a datetime string
+  const updateTimeComponent = (fieldKey, value, isHours) => {
+    if (!value.trim()) value = '0'; // Default to 0 if empty
+    const numValue = parseInt(value, 10);
+    
+    // Validate range: 0-23 for hours, 0-59 for minutes
+    const maxValue = isHours ? 23 : 59;
+    const validValue = Math.min(Math.max(0, numValue), maxValue);
+    
+    const currentValue = getFieldValue(fieldKey) || '';
+    let dateObj = new Date();
+    
+    // Try to parse existing date and time
+    if (currentValue && currentValue.includes(' ')) {
+      const [datePart, timePart] = currentValue.split(' ');
+      if (datePart && datePart.includes('-')) {
+        const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
+        dateObj = new Date(year, month - 1, day);
+      }
+      
+      if (timePart && timePart.includes(':')) {
+        const timeParts = timePart.split(':');
+        const hours = parseInt(timeParts[0], 10) || 0;
+        const minutes = parseInt(timeParts[1], 10) || 0;
+        const seconds = parseInt(timeParts[2], 10) || 0;
+        
+        // Update either hours or minutes while preserving seconds
+        dateObj.setHours(
+          isHours ? validValue : hours, 
+          isHours ? minutes : validValue,
+          seconds
+        );
+      } else {
+        dateObj.setHours(isHours ? validValue : 0, isHours ? 0 : validValue, 0);
+      }
+    } else {
+      // If there's no existing datetime, set time components accordingly
+      dateObj.setHours(isHours ? validValue : 0, isHours ? 0 : validValue, 0);
+    }
+    
+    const formattedDateTime = formatDateTime(dateObj);
+    updateField(fieldKey, formattedDateTime);
+  };
+  
+  // Helper to parse time from field value
+  const parseTimeFromField = (fieldValue, isHours) => {
+    if (!fieldValue || !fieldValue.includes(' ')) return '';
+    
+    const timePart = fieldValue.split(' ')[1];
+    if (!timePart || !timePart.includes(':')) return '';
+    
+    const timeParts = timePart.split(':');
+    // Return hours or minutes, ignoring seconds
+    return isHours ? timeParts[0] : timeParts[1];
+  };
+  
+  // Helper function to check if field is numeric (int or currency)
+  const isNumericField = (fieldType) => {
+    return fieldType === 'int' || fieldType === 'currency';
+  };
+  
+  // Helper function to check if a field is a date type
+  const isDateField = (fieldKey) => {
+    const field = updateFields.find(f => f.key === fieldKey);
+    return field && (field.type === 'date' || field.type === 'datetime');
+  };
+  
+  // Helper function to check if a field is a datetime type with time component
+  const isDateTimeField = (fieldKey) => {
+    const field = updateFields.find(f => f.key === fieldKey);
+    return field && field.type === 'datetimecombo';
   };
 
   const handleDeleteParentRelationship = async () => {
@@ -444,6 +682,96 @@ export default function ModuleUpdateScreen() {
                 );
               }
 
+              // Handle enum fields as modal dropdowns
+              if (isEnumField(field.key)) {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => showEnumModalForField(field.key)}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {getEnumOptionLabel(field.key)}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+              
+              // Handle date fields
+              if (isDateField(field.key)) {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => showDatePickerForField(field.key, 'date')}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {fieldValue ? (fieldValue.includes(' ') ? fieldValue.split(' ')[0] : fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+              
+              // Handle datetimecombo fields (date + time)
+              if (isDateTimeField(field.key)) {
+                const hoursValue = parseTimeFromField(fieldValue, true);
+                const minutesValue = parseTimeFromField(fieldValue, false);
+                
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <View style={styles.datetimeContainer}>
+                      {/* Date Selector */}
+                      <TouchableOpacity
+                        style={[styles.dateBox, fieldError && styles.errorInput]}
+                        onPress={() => showDatePickerForField(field.key, 'date')}
+                      >
+                        <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                          {fieldValue ? fieldValue.split(' ')[0] : (translations.selectPlaceholder || 'Chọn ngày')}
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      {/* Time Input */}
+                      <View style={styles.timeContainer}>
+                        <View style={styles.timeInputContainer}>
+                          <TextInput
+                            style={styles.timeInput}
+                            value={hoursValue}
+                            onChangeText={(value) => updateTimeComponent(field.key, value, true)}
+                            keyboardType="numeric"
+                            placeholder="00"
+                            maxLength={2}
+                          />
+                          <Text style={styles.timeSeparator}>:</Text>
+                          <TextInput
+                            style={styles.timeInput}
+                            value={minutesValue}
+                            onChangeText={(value) => updateTimeComponent(field.key, value, false)}
+                            keyboardType="numeric"
+                            placeholder="00"
+                            maxLength={2}
+                          />
+                        </View>
+                        
+                        <TouchableOpacity
+                          style={styles.timePickerButton}
+                          onPress={() => showDatePickerForField(field.key, 'time')}
+                        >
+                          <Text style={styles.timePickerButtonText}>🕒</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+
               // Default handling for all other fields
               return (
                 <View key={field.key} style={styles.row}>
@@ -455,8 +783,20 @@ export default function ModuleUpdateScreen() {
                         field.key === 'description' && styles.multilineInput
                       ]}
                       value={fieldValue}
-                      onChangeText={async (value) => await updateField(field.key, value)}
+                      onChangeText={async (value) => {
+                        // For int and currency fields, only allow numeric input
+                        if (isNumericField(field.type)) {
+                          // Allow only digits and decimal point for currency
+                          const regex = field.type === 'currency' ? /^[0-9]*\.?[0-9]*$/ : /^[0-9]*$/;
+                          if (value === '' || regex.test(value)) {
+                            await updateField(field.key, value);
+                          }
+                        } else {
+                          await updateField(field.key, value);
+                        }
+                      }}
                       autoCapitalize="none"
+                      keyboardType={isNumericField(field.type) ? 'numeric' : 'default'}
                       returnKeyType={field.key === 'description' ? 'default' : 'done'}
                       multiline={field.key === 'description'}
                       numberOfLines={field.key === 'description' ? 4 : 1}
@@ -520,26 +860,94 @@ export default function ModuleUpdateScreen() {
             onPress={() => setShowParentTypeModal(false)}
           >
             <View style={styles.modalContainer}>
-              
               <ScrollView 
                 style={styles.modalScrollView}
                 contentContainerStyle={styles.modalScrollContent}
                 showsVerticalScrollIndicator={true}
               >
-                {parentTypeOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={styles.modalOption}
-                    onPress={() => handleParentTypeSelect(option.value)}
-                  >
-                    <Text style={styles.modalOptionText}>{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {/* If parent_type is in enumFieldsData, use it; otherwise use parentTypeOptions */}
+                {enumFieldsData && enumFieldsData.parent_type && enumFieldsData.parent_type.values ? (
+                  // Display options from API enum data
+                  Object.entries(enumFieldsData.parent_type.values).map(([key, value]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={styles.modalOption}
+                      onPress={() => handleParentTypeSelect(key)}
+                    >
+                      <Text style={styles.modalOptionText}>{value}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  // Fall back to parentTypeOptions
+                  parentTypeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={styles.modalOption}
+                      onPress={() => handleParentTypeSelect(option.value)}
+                    >
+                      <Text style={styles.modalOptionText}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
               </ScrollView>
-              
             </View>
           </TouchableOpacity>
         </Modal>
+        
+        {/* Enum Modal for other enum fields */}
+        <Modal
+          visible={showEnumModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEnumModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowEnumModal(false)}
+          >
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                style={styles.modalScrollView}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={true}
+              >
+                {currentEnumField && enumFieldsData && enumFieldsData[currentEnumField] && enumFieldsData[currentEnumField].values && (
+                  Object.entries(enumFieldsData[currentEnumField].values).map(([key, value]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={styles.modalOption}
+                      onPress={() => handleEnumSelect(key)}
+                    >
+                      <Text style={styles.modalOptionText}>{value}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+        
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date()}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
+        
+        {/* Time Picker Modal */}
+        {showTimePicker && (
+          <DateTimePicker
+            value={new Date()}
+            mode="time"
+            is24Hour={true}
+            display="default"
+            onChange={handleTimeChange}
+          />
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -789,5 +1197,78 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#999',
+  },
+  // DateTime styles
+  datetimeContainer: {
+    width: '90%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateBox: {
+    flex: 1,
+    backgroundColor: '#e4a0a0ff',
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginRight: 10,
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '40%',
+  },
+  timeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e4a0a0ff',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flex: 1,
+    marginRight: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  timeInput: {
+    flex: 1,
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#000',
+    padding: 0,
+  },
+  timeSeparator: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginHorizontal: 2,
+  },
+  timePickerButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  timePickerButtonText: {
+    fontSize: 18,
+    color: '#fff',
   },
 });

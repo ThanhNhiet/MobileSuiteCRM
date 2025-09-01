@@ -131,92 +131,70 @@ export const getCountMyNotes = async () => {
 }
 
 const countMyRecordApi = async (module) => {
-    try {
-        const token = await AsyncStorage.getItem('token');
-        const userId = getUserIdFromToken(token);
-        const response = await axiosInstance.get(
-            `/Api/V8/module/${module}`,
-            {
-                params: {
-                    [`fields[${module}]`]: 'id',
-                    'filter[assigned_user_id][eq]': userId,
-                    'filter[deleted][eq]': 0,
-                    'page[size]': 1,
-                }
-            }
-        );
-
-        // Safe access to meta data with fallback
-        const totalPages = response?.data?.meta?.['total-pages'];
-
-        if (totalPages === undefined || totalPages === null || typeof totalPages !== 'number' || totalPages < 0) {
-            return 0;
-        }
-
-        return totalPages;
-    } catch (error) {
-        console.error(`Error fetching my ${module} count:`, error);
-        throw error;
-    }
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const userId = getUserIdFromToken(token);
+    const query = `fields[${module}]=id&filter[assigned_user_id][eq]=${userId}&filter[deleted][eq]=0&page[size]=1`;
+    const url = `/Api/V8/module/${module}?${query}`;
+    const response = await axiosInstance.get(url);
+    const totalPages = response?.data?.meta?.['total-pages'];
+    return totalPages || 0;
+  } catch (error) {
+    console.warn(`Error fetching my ${module} count:`, error);
+    return 0;
+  }
 };
 
 export const countMyRecord_EachModuleApi = async (modules) => {
-    //Except Calendar
-    try {
-        const results = {};
-        
-        // Filter out Calendar module as it doesn't have assigned_user_id concept
-        const modulesToCount = modules.filter(module => module !== 'Calendar');
-        
-        // Create promises for all modules
-        const countPromises = modulesToCount.map(async (module) => {
-            try {
-                const count = await countMyRecordApi(module);
-                return { module, count, success: true };
-            } catch (error) {
-                console.error(`Error counting my records for ${module}:`, error);
-                return { module, count: 0, success: false, error: error.message };
-            }
-        });
-        
-        // Wait for all promises to resolve
-        const countResults = await Promise.allSettled(countPromises);
-        
-        // Process results
-        countResults.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-                const { module, count, success, error } = result.value;
-                results[module] = {
-                    count: count || 0,
-                    success,
-                    error: error || null
-                };
-            } else {
-                const module = modulesToCount[index];
-                results[module] = {
-                    count: 0,
-                    success: false,
-                    error: result.reason?.message || 'Unknown error'
-                };
-            }
-        });
-        
-        return {
-            success: true,
-            results,
-            totalModules: modulesToCount.length,
-            processedModules: Object.keys(results)
+  try {
+    const results = {};
+
+    // Loại bỏ Calendar
+    const modulesToCount = modules.filter(module => module !== 'Calendar');
+
+    // Gọi song song cho tất cả module
+    const countPromises = modulesToCount.map(async (module) => {
+      try {
+        const count = await countMyRecordApi(module);
+        return { module, count, success: true };
+      } catch (error) {
+        console.error(`Error counting my records for ${module}:`, error);
+        return { module, count: 0, success: false, error: error.message };
+      }
+    });
+
+    const settledResults = await Promise.allSettled(countPromises);
+
+    settledResults.forEach((result, index) => {
+      const module = modulesToCount[index];
+      if (result.status === 'fulfilled') {
+        const { module: m, count, success, error } = result.value;
+        results[m] = { count: count || 0, success, error: error || null };
+      } else {
+        results[module] = {
+          count: 0,
+          success: false,
+          error: result.reason?.message || 'Unknown error',
         };
-        
-    } catch (error) {
-        console.error('Error in countMyRecord_EachModuleApi:', error);
-        return {
-            success: false,
-            error: error.message,
-            results: {}
-        };
-    }
+      }
+    });
+
+    return {
+      success: true,
+      results,
+      totalModules: modulesToCount.length,
+      processedModules: Object.keys(results),
+    };
+  } catch (error) {
+    console.error('Error in countMyRecord_EachModuleApi:', error);
+    return {
+      success: false,
+      error: error.message,
+      results: {},
+    };
+  }
 };
+
 
 // Get counts for all accessible modules based on user permissions
 export const getAccessibleModuleCounts = async () => {

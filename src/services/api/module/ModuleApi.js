@@ -66,7 +66,7 @@ export const getModuleRecordsApi = async (moduleName, pageSize = 10, pageNumber 
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        // console.log(`Full url: /Api/V8/module/${moduleName}?filter[operator]=or&filter[assigned_user_id][eq]=${userId}&filter[created_by][eq]=${userId}&filter[deleted][eq]=0&fields[${moduleName}]=${nameFields}&page[size]=${pageSize}&page[number]=${pageNumber}&sort=-${sortField}`);
+        console.log(`Full url: /Api/V8/module/${moduleName}?filter[operator]=or&filter[deleted][eq]=0&fields[${moduleName}]=${nameFields},created_by,assigned_user_id&page[size]=${pageSize}&page[number]=${pageNumber}&sort=-${sortField}`);
 
         const response = await axiosInstance.get(`/Api/V8/module/${moduleName}`, {
             params: {
@@ -80,6 +80,7 @@ export const getModuleRecordsApi = async (moduleName, pageSize = 10, pageNumber 
                 'sort': `-${sortField}`
             }
         });
+        console.log(`Get ${moduleName} List API response:`, response.data);
         return response.data;
     } catch (error) {
         console.warn(`Get ${moduleName} List API error:`, error);
