@@ -20,6 +20,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
 import { useModule_Detail } from "../../services/useApi/module/UseModule_Detail";
+import { useModule_PDF } from "../../services/useApi/module/UseModule_PDF";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
@@ -83,6 +84,10 @@ export default function ModuleDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId } = route.params || {};
+    // PDF export hook
+    const isQuotes = moduleName === "AOS_Quotes";
+    const { onExport, exporting} = useModule_PDF(isQuotes ? recordId : null);
+
     const [currentUserId, setCurrentUserId] = useState(null);
 
     // Check if navigation is available
@@ -479,6 +484,18 @@ export default function ModuleDetailScreen() {
                                 {detailFields.map(field => renderFieldItem(field))}
                             </View>
                         </View>
+                    )}
+                   {/* PDF */}
+                    {moduleName === "AOS_Quotes" && (
+                    <View>
+                        <TouchableOpacity
+                        style={styles.updateButton}
+                        onPress={onExport}
+                        disabled={exporting}  // ngăn bấm khi đang xử lý
+                        >
+                        <Text>{exporting ? "Đang xuất..." : "Export PDF"}</Text>
+                        </TouchableOpacity>
+                    </View>
                     )}
 
                     {/* ===== RELATIONSHIP ===== */}

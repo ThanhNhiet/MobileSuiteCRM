@@ -406,3 +406,13 @@ export const getEnumsApi = async (moduleName, enumFields, lang) => {
         throw error;
     }
 };
+//V8/module/AOS_Quotes/${id}/relationships/aos_products_quotes
+export const getAosProductsQuotesApi = async (quoteId) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/AOS_Quotes/${quoteId}/relationships/aos_products_quotes`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get AOS Products Quotes API error:", error);
+        throw error;
+    }
+};

@@ -20,7 +20,6 @@ import TopNavigation from '../../components/navigations/TopNavigation';
 import { useModule_List } from '../../services/useApi/module/UseModule_List';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
-
 /**
  * Generic ModuleListScreen component
  * Receives moduleName via route params
