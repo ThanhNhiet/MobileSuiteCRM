@@ -143,7 +143,7 @@ export default function ModuleListScreen() {
         if (!value) return '';
         
         // Format dates using formatDateBySelectedLanguage
-        if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified')) {
+        if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified') || fieldKey.includes('_due') || fieldKey.includes('_start') || fieldKey.includes('_end')) {
             try {
                 // Convert to ISO string if it's not already
                 const isoString = value.includes('T') ? value : new Date(value).toISOString();

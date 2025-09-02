@@ -168,13 +168,15 @@ export const useModule_List = (moduleName) => {
             // Use only first 2 fields
             let fieldEntries;
             const allFieldEntries = Object.entries(fieldsData);
-            if (moduleName === 'Calls') {
-                // Skip first field
-                fieldEntries = allFieldEntries.slice(1, 3);
-            } else {
-                fieldEntries = allFieldEntries.slice(0, 2);
-            }
-            
+            // if (moduleName === 'Calls' || moduleName === 'Meetings' || moduleName === 'Tasks') {
+            //     // Skip first field because that response that modules don't have set_complete
+            //     fieldEntries = allFieldEntries.slice(1, 3);
+            // } else {
+            //     fieldEntries = allFieldEntries.slice(0, 2);
+            // }
+            //remove set_complete field
+            fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE').slice(0, 2);
+
             // Build nameFields string from field definitions
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
             
