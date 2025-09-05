@@ -274,6 +274,39 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         required: isRequired
                     };
                 }
+                
+                // Special handling for bool fields (checkbox)
+                if (fieldType === 'bool') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'bool', // Use bool type for UI rendering as checkbox
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+                
+                // Special handling for function fields (disabled input)
+                if (fieldType === 'function') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'function', // Disabled input field
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+                
+                // Special handling for readonly fields (disabled input)
+                if (fieldType === 'readonly') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'readonly', // Disabled input field
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
 
                 return {
                     key: fieldKey,
@@ -348,7 +381,24 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
         // Thêm các field từ updateFields vào formData
         updateFields.forEach(field => {
-            formValues[field.key] = recordData[field.key] || '';
+            // Handle boolean fields differently - ensure they're "0" or "1" as strings
+            if (field.type === 'bool' || field.fieldType === 'bool') {
+                // Convert boolean or string values to "0" or "1"
+                const boolValue = recordData[field.key];
+                if (boolValue === true || boolValue === 'true' || boolValue === '1' || boolValue === 1) {
+                    formValues[field.key] = "1";
+                } else {
+                    formValues[field.key] = "0";
+                }
+            } 
+            // Handle function fields with default placeholder
+            else if (field.type === 'function' || field.fieldType === 'function') {
+                formValues[field.key] = recordData[field.key] || "not available to use";
+            }
+            // Handle all other fields normally
+            else {
+                formValues[field.key] = recordData[field.key] || '';
+            }
         });
         
         // Ensure these fields are always included, even if not in updateFields
@@ -402,6 +452,11 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
         // Check required fields - chỉ validate field có required = true
         for (const field of updateFields) {
+            // Skip validation for bool, function and readonly fields
+            if (field.type === 'bool' || field.type === 'function' || field.type === 'readonly') {
+                continue;
+            }
+            
             if (field.required) {
                 const fieldValue = formData[field.key];
 
@@ -447,6 +502,27 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
             const excludeFields = ['id', 'parent_id']; // Exclude parent_id but allow assigned_user_id
 
             Object.keys(formData).forEach(key => {
+                // Find the field definition to get its type
+                const fieldDef = updateFields.find(f => f.key === key);
+                
+                // Skip function fields - they're not editable
+                if (fieldDef && fieldDef.type === 'function') {
+                    return;
+                }
+                
+                // For boolean fields, always include them as 0 or 1 if changed
+                if (fieldDef && fieldDef.type === 'bool' && formData[key] !== originalData[key]) {
+                    updateData[key] = formData[key] === "1" ? "1" : "0";
+                    return;
+                }
+                
+                // For readonly fields that have changed, include them
+                if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== originalData[key]) {
+                    updateData[key] = formData[key];
+                    return;
+                }
+                
+                // For regular fields that have changed and aren't excluded
                 if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key]?.trim ? formData[key].trim() : formData[key];
                 }
@@ -734,6 +810,32 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
     }, [updateFields]);
+    
+    // Check if field is a boolean type (checkbox)
+    const isBoolField = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'bool' || field.fieldType === 'bool');
+    }, [updateFields]);
+    
+    // Check if field is a function type (disabled)
+    const isFunctionField = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'function' || field.fieldType === 'function');
+    }, [updateFields]);
+    
+    // Check if field is a readonly type (disabled)
+    const isReadonlyField = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'readonly' || field.fieldType === 'readonly');
+    }, [updateFields]);
+    
+    // Toggle boolean field value (0 or 1)
+    const toggleBoolField = useCallback((fieldKey) => {
+        const currentValue = getFieldValue(fieldKey);
+        // Toggle between "1" and "0" (as strings to match API requirements)
+        const newValue = currentValue === "1" ? "0" : "1";
+        updateField(fieldKey, newValue);
+    }, [getFieldValue, updateField]);
 
     return {
         // Data
@@ -765,6 +867,10 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         getParentTypeOptions,
         getEnumOptions,
         getEnumLabel,
-        isEnumField
+        isEnumField,
+        isBoolField,
+        isFunctionField,
+        isReadonlyField,
+        toggleBoolField
     };
 };

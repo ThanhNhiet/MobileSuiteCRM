@@ -79,7 +79,9 @@ export default function ModuleCreateScreen() {
                     'LBL_CANCEL',
                     'LBL_SAVE',
                     'LBL_SELECT_BUTTON_LABEL',
-                    'LBL_EMAIL_CANCEL'
+                    'LBL_EMAIL_CANCEL',
+                    'Yes',
+                    'No'
                 ]);
 
                 setTranslations({
@@ -100,31 +102,12 @@ export default function ModuleCreateScreen() {
                     tasks: translatedLabels.LBL_TASKS || 'Nhiệm vụ',
                     meetings: translatedLabels.LBL_MEETINGS || 'Cuộc họp',
                     checkToVerify: '',
-                    notification: translatedLabels.LBL_ALT_INFO || 'Thông báo'
+                    notification: translatedLabels.LBL_ALT_INFO || 'Thông báo',
+                    yes: translatedLabels.Yes || 'Yes',
+                    no: translatedLabels.No || 'No'
                 });
             } catch (error) {
                 console.error(`ModuleCreateScreen (${moduleName}): Error loading translations:`, error);
-                // Set fallback translations
-                setTranslations({
-                    mdName: moduleName,
-                    createModule: `Tạo ${moduleName}`,
-                    loadingText: 'Đang tải...',
-                    successTitle: 'Thành công',
-                    successMessage: `Tạo ${moduleName} thành công!`,
-                    errorTitle: 'Lỗi',
-                    errorMessage: `Không thể tạo ${moduleName}`,
-                    ok: 'OK',
-                    createButton: 'Tạo',
-                    checkButton: 'Check',
-                    checkPlaceholder: 'Nhập để kiểm tra',
-                    selectPlaceholder: '--------',
-                    accounts: 'Khách hàng',
-                    users: 'Người dùng',
-                    tasks: 'Nhiệm vụ',
-                    meetings: 'Cuộc họp',
-                    checkToVerify: '',
-                    notification: 'Thông báo'
-                });
             }
         };
 
@@ -150,7 +133,11 @@ export default function ModuleCreateScreen() {
         getParentTypeOptions,
         getEnumOptions,
         getEnumLabel,
-        isEnumField
+        isEnumField,
+        isBoolField,
+        isFunctionField,
+        isReadonlyField,
+        toggleBoolField
     } = useModule_Create(moduleName);
 
     // Load parent type options when component mounts
@@ -624,6 +611,71 @@ export default function ModuleCreateScreen() {
                 );
             }
 
+            // Handle boolean fields (checkbox)
+            if (field.type === 'bool' || isBoolField(field.key)) {
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <View style={[styles.valueBoxWithCheckbox, fieldError && styles.errorInput]}>
+                            <Text style={styles.value}>
+                                {getFieldValue(field.key) === "1" 
+                                    ? (translations.yes || "Yes") 
+                                    : (translations.no || "No")
+                                }
+                            </Text>
+                            <TouchableOpacity 
+                                style={styles.checkboxContainer}
+                                onPress={() => toggleBoolField(field.key)}
+                            >
+                                <View style={[
+                                    styles.checkbox,
+                                    getFieldValue(field.key) === "1" && styles.checkboxChecked
+                                ]}>
+                                    {getFieldValue(field.key) === "1" && (
+                                        <Text style={styles.checkmark}>✓</Text>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
+            
+            // Handle function fields (disabled input)
+            if (field.type === 'function' || isFunctionField(field.key)) {
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <View style={[styles.valueBox, styles.disabledValueBox]}>
+                            <TextInput
+                                style={[styles.value, styles.disabledText]}
+                                value={fieldValue || "Not available"}
+                                editable={false}
+                            />
+                        </View>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
+            
+            // Handle readonly fields (disabled input but styled differently)
+            if (field.type === 'readonly' || isReadonlyField(field.key)) {
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <View style={[styles.valueBox, styles.readonlyValueBox]}>
+                            <TextInput
+                                style={[styles.value, styles.readonlyText]}
+                                value={fieldValue}
+                                editable={false}
+                            />
+                        </View>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
+
             // Default handling for all other fields (TextInput)
             return (
                 <View key={field.key} style={styles.row}>
@@ -873,6 +925,46 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 2,
     },
+    
+    // Checkbox styles
+    valueBoxWithCheckbox: {
+        backgroundColor: '#e4a0a0ff',
+        borderRadius: 6,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        width: '90%',
+        alignSelf: 'center',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.12,
+        shadowOffset: { width: 0, height: 1 },
+        shadowRadius: 2,
+    },
+    checkboxContainer: {
+        padding: 6,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: '#007AFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+    },
+    checkboxChecked: {
+        backgroundColor: '#007AFF',
+        borderColor: '#007AFF',
+    },
+    checkmark: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
 
     disabledValueBox: {
         backgroundColor: '#f5f5f5',
@@ -880,6 +972,18 @@ const styles = StyleSheet.create({
     },
     disabledText: {
         color: '#999',
+    },
+    
+    // Readonly field styles
+    readonlyValueBox: {
+        backgroundColor: '#f8f9fa',
+        borderWidth: 1,
+        borderColor: '#dee2e6',
+        opacity: 0.85,
+    },
+    readonlyText: {
+        color: '#495057',
+        fontStyle: 'italic',
     },
 
     value: {

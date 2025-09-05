@@ -242,12 +242,45 @@ export const useModule_Create = (moduleName) => {
                 const fieldType = fieldInfo.type || 'text';
 
                 // Special handling for enum and parent_type fields
-                if (fieldType === 'enum' || fieldType === 'parent_type') {
+                if (fieldType === 'enum' || fieldType === 'radioenum' || fieldType === 'parent_type') {
                     return {
                         key: fieldKey,
                         label: finalLabel,
                         type: 'select', // Use select type for UI rendering
                         fieldType: fieldType, // Store the original field type for API
+                        required: isRequired
+                    };
+                }
+                
+                // Special handling for bool fields (checkbox)
+                if (fieldType === 'bool') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'bool', // Use bool type for UI rendering as checkbox
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+                
+                // Special handling for function fields (disabled input)
+                if (fieldType === 'function') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'function', // Disabled input field
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+                
+                // Special handling for readonly fields (disabled input)
+                if (fieldType === 'readonly') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'readonly', // Disabled input field
+                        fieldType: fieldType,
                         required: isRequired
                     };
                 }
@@ -298,7 +331,17 @@ export const useModule_Create = (moduleName) => {
             // Initialize form data with empty values
             const initialFormData = {};
             createFieldsData.forEach(field => {
-                initialFormData[field.key] = '';
+                // Set default values based on field type
+                if (field.type === 'bool') {
+                    // For boolean fields, default to "0" (unchecked)
+                    initialFormData[field.key] = "0";
+                } else if (field.type === 'function') {
+                    // For function fields, use "not available to use" as placeholder
+                    initialFormData[field.key] = "not available to use";
+                } else {
+                    // For other fields, use empty string
+                    initialFormData[field.key] = '';
+                }
             });
             // Ensure these fields are always included
             initialFormData['parent_id'] = '';
@@ -336,9 +379,20 @@ export const useModule_Create = (moduleName) => {
         
         // Check required fields and validate numeric fields
         for (const field of createFields) {
-            const fieldValue = formData[field.key]?.trim() || '';
+            const fieldValue = formData[field.key]?.trim ? formData[field.key]?.trim() : formData[field.key] || '';
             
-            // Check required fields
+            // Special handling for boolean fields - they're always valid with values "0" or "1"
+            if (field.type === 'bool') {
+                // Skip further validation for boolean fields
+                continue;
+            }
+            
+            // Skip validation for function and readonly fields
+            if (field.type === 'function' || field.type === 'readonly') {
+                continue;
+            }
+            
+            // Check required fields (except for bool/function/readonly fields)
             if (field.required && !fieldValue) {
                 const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
                 errors[field.key] = `${requiredMessage}`;
@@ -381,7 +435,28 @@ export const useModule_Create = (moduleName) => {
             const recordData = {};
 
             Object.keys(formData).forEach(key => {
-                if (!excludeFields.includes(key) && formData[key]?.trim()) {
+                // Find the field definition to get its type
+                const fieldDef = createFields.find(f => f.key === key);
+                
+                // Skip function fields - they're not editable and shouldn't be submitted
+                if (fieldDef && fieldDef.type === 'function') {
+                    return;
+                }
+                
+                // For boolean fields, always include them as 0 or 1
+                if (fieldDef && fieldDef.type === 'bool') {
+                    recordData[key] = formData[key] === "1" ? "1" : "0";
+                    return;
+                }
+                
+                // For readonly fields, include them even if empty
+                if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== undefined) {
+                    recordData[key] = formData[key].trim ? formData[key].trim() : formData[key];
+                    return;
+                }
+                
+                // For regular fields, only include if they're not in excludeFields and have a value
+                if (!excludeFields.includes(key) && formData[key]?.trim && formData[key].trim()) {
                     // For enum fields, we store the key (not the translated value)
                     recordData[key] = formData[key].trim();
                 }
@@ -458,7 +533,17 @@ export const useModule_Create = (moduleName) => {
         // Reset to initial empty values based on current createFields
         const initialFormData = {};
         createFields.forEach(field => {
-            initialFormData[field.key] = '';
+            // Set default values based on field type
+            if (field.type === 'bool') {
+                // For boolean fields, default to "0" (unchecked)
+                initialFormData[field.key] = "0";
+            } else if (field.type === 'function') {
+                // For function fields, use "not available to use" as placeholder
+                initialFormData[field.key] = "not available to use";
+            } else {
+                // For other fields, use empty string
+                initialFormData[field.key] = '';
+            }
         });
         // Ensure these fields are always included
         initialFormData['parent_id'] = '';
@@ -613,6 +698,32 @@ export const useModule_Create = (moduleName) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
     }, [createFields]);
+    
+    // Check if field is a boolean type (checkbox)
+    const isBoolField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'bool' || field.fieldType === 'bool');
+    }, [createFields]);
+    
+    // Check if field is a function type (disabled)
+    const isFunctionField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'function' || field.fieldType === 'function');
+    }, [createFields]);
+    
+    // Check if field is a readonly type (disabled)
+    const isReadonlyField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'readonly' || field.fieldType === 'readonly');
+    }, [createFields]);
+    
+    // Toggle boolean field value (0 or 1)
+    const toggleBoolField = useCallback((fieldKey) => {
+        const currentValue = getFieldValue(fieldKey);
+        // Toggle between "1" and "0" (as strings to match API requirements)
+        const newValue = currentValue === "1" ? "0" : "1";
+        updateField(fieldKey, newValue);
+    }, [getFieldValue, updateField]);
 
     return {
         // Data
@@ -628,6 +739,7 @@ export const useModule_Create = (moduleName) => {
         createRecord,
         resetForm,
         validateForm,
+        toggleBoolField,
 
         // Helpers
         getFieldValue,
@@ -638,6 +750,9 @@ export const useModule_Create = (moduleName) => {
         getParentTypeOptions,
         getEnumOptions,
         getEnumLabel,
-        isEnumField
+        isEnumField,
+        isBoolField,
+        isFunctionField,
+        isReadonlyField
     };
 };
