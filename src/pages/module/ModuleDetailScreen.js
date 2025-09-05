@@ -85,9 +85,7 @@ export default function ModuleDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId } = route.params || {};
-    // PDF export hook
-    const isQuotes = moduleName === "AOS_Quotes";
-    const { onExport, exporting} = useModule_PDF(isQuotes ? recordId : null);
+    
 
     const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -180,6 +178,24 @@ export default function ModuleDetailScreen() {
         getFieldLabel,
         shouldDisplayField
     } = useModule_Detail(moduleName, recordId);
+    const [lang, setLang] = useState(null);
+    useEffect(() => {
+        const fetchLanguage = async () => {
+            try {
+                const lang = await AsyncStorage.getItem("selectedLanguage");
+                console.log("Selected language:", lang);
+                setLang(lang);
+            }
+            catch (error) {
+                console.error("Error fetching selected language:", error);
+            }
+        };
+        fetchLanguage();
+      }, []);
+
+    // PDF Export hook
+    const isQuotes = moduleName === "AOS_Quotes";
+    const { onExport, exporting} = useModule_PDF(isQuotes ? {quoteId: recordId, record,detailFields,getFieldValue,lang} : null);
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);

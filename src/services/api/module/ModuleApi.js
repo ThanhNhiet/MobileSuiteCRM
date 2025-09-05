@@ -416,3 +416,14 @@ export const getAosProductsQuotesApi = async (quoteId) => {
         throw error;
     }
 };
+
+///Api/V8/custom/aos_products_quotes/language/lang=en_us
+export const getAosProductsQuotesLangApi = async (lang) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/AOS_products_quotes/language/lang=${lang}`);
+        return response.data;
+    } catch (error) {
+        console.warn("Get AOS Products Quotes Language API error:", error);
+        throw error;
+    }
+}
