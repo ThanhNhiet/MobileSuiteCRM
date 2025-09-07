@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { getFileApi } from '../../api/external/ExternalApi';
 import {
     getUserDetailFieldsApi,
     getUserProfileApi
@@ -14,6 +15,7 @@ export const useUserProfile = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [fieldLabels, setFieldLabels] = useState({});
     const [nameFields, setNameFields] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
 
     const userLanguageUtils = UserLanguageUtils.getInstance();
 
@@ -173,7 +175,24 @@ export const useUserProfile = () => {
 
             // Then fetch profile data with the fields
             const response = await getUserProfileApi(fieldsString);
-            setProfileData(response.data);
+            const userData = response.data;
+            
+            // If user has a photo field, fetch the image URL
+            if (userData && userData.attributes && userData.attributes.photo) {
+                try {
+                    // Use user ID from response to fetch the photo
+                    const userId = userData.id;
+                    const photoResponse = await getFileApi('Users', userId);
+                    
+                    // Check if we got a valid image response
+                    if (photoResponse && photoResponse.success && photoResponse.is_image) {
+                        setAvatarUrl(`${photoResponse.native_url}&t=${Date.now()}`);
+                    }
+                } catch (photoErr) {
+                    console.warn('Failed to fetch user photo:', photoErr);
+                }
+            }
+            setProfileData(userData);
         } catch (err) {
             setError(err.message || 'Unable to load user information');
             console.warn('Fetch profile error:', err);
@@ -201,6 +220,7 @@ export const useUserProfile = () => {
         refreshProfile,
         fetchProfile,
         fieldLabels,
-        nameFields
+        nameFields,
+        avatarUrl
     };
 };
