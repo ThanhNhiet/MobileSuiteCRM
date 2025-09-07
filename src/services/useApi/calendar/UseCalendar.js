@@ -68,25 +68,45 @@ export const useCalendar = () => {
         };
     };
 
-    // Load language labels once
+    // Load language labels once with error handling for individual modules
     const loadLanguageLabels = useCallback(async () => {
         if (labelsLoaded) return;
 
+        let hasTaskLabels = false, hasMeetingLabels = false, hasCallLabels = false;
+        
+        // Load Tasks language
         try {
-            const [tasksLang, meetingsLang, callsLang] = await Promise.all([
-                getTasksLanguageApi(),
-                getMeetingsLanguageApi(),
-                getCallsLanguageApi()
-            ]);
-
+            const tasksLang = await getTasksLanguageApi();
             setTaskLabels(tasksLang);
+            hasTaskLabels = true;
+        } catch (taskError) {
+            console.log('Failed to load Tasks language:', taskError.message);
+            // Continue with default labels
+        }
+        
+        // Load Meetings language
+        try {
+            const meetingsLang = await getMeetingsLanguageApi();
             setMeetingLabels(meetingsLang);
+            hasMeetingLabels = true;
+        } catch (meetingError) {
+            console.log('Failed to load Meetings language:', meetingError.message);
+            // Continue with default labels
+        }
+        
+        // Load Calls language
+        try {
+            const callsLang = await getCallsLanguageApi();
             setCallLabels(callsLang);
+            hasCallLabels = true;
+        } catch (callError) {
+            console.log('Failed to load Calls language:', callError.message);
+            // Continue with default labels
+        }
+        
+        // Mark as loaded if we got at least some language data
+        if (hasTaskLabels || hasMeetingLabels || hasCallLabels) {
             setLabelsLoaded(true);
-        } catch (error) {
-            console.error('Error loading language labels:', error);
-            const errorMessage = await systemLanguageUtils.translate('LBL_EMAIL_LOADING') || 'Không thể tải nhãn ngôn ngữ';
-            setError(errorMessage);
         }
     }, [labelsLoaded]);
 
@@ -184,16 +204,32 @@ export const useCalendar = () => {
 
             const { startDate, endDate } = getMonthDateRange(targetDate);
 
-            // Load tasks and meetings for the month
-            const [tasksResponse, meetingsResponse, callsResponse] = await Promise.all([
-                getTasksByMonthApi(startDate, endDate),
-                getMeetingsByMonthApi(startDate, endDate),
-                getCallsByMonthApi(startDate, endDate)
-            ]);
-
-            const tasksData = tasksResponse.data || [];
-            const meetingsData = meetingsResponse.data || [];
-            const callsData = callsResponse.data || [];
+            // Load tasks, meetings and calls independently to handle partial failures
+            let tasksData = [], meetingsData = [], callsData = [];
+            
+            try {
+                const tasksResponse = await getTasksByMonthApi(startDate, endDate);
+                tasksData = tasksResponse.data || [];
+            } catch (taskError) {
+                console.log('Failed to load tasks:', taskError.message);
+                // Continue with empty tasks array
+            }
+            
+            try {
+                const meetingsResponse = await getMeetingsByMonthApi(startDate, endDate);
+                meetingsData = meetingsResponse.data || [];
+            } catch (meetingError) {
+                console.log('Failed to load meetings:', meetingError.message);
+                // Continue with empty meetings array
+            }
+            
+            try {
+                const callsResponse = await getCallsByMonthApi(startDate, endDate);
+                callsData = callsResponse.data || [];
+            } catch (callError) {
+                console.log('Failed to load calls:', callError.message);
+                // Continue with empty calls array
+            }
 
             setTasks(tasksData);
             setMeetings(meetingsData);
@@ -205,8 +241,12 @@ export const useCalendar = () => {
 
         } catch (error) {
             console.error('Error loading calendar data:', error);
-            const errorMessage = await systemLanguageUtils.translate('LBL_LOADING_PAGE') || 'Không thể tải dữ liệu lịch';
-            setError(errorMessage);
+            
+            // Only show error if we have no data at all
+            if (tasksData.length === 0 && meetingsData.length === 0 && callsData.length === 0) {
+                const errorMessage = await systemLanguageUtils.translate('LBL_LOADING_PAGE') || 'Không thể tải dữ liệu lịch';
+                setError(errorMessage);
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);
