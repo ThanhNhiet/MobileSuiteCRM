@@ -1,6 +1,5 @@
 import { getUserIdFromToken } from '@/src/utils/DecodeToken';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import axiosInstance from '../../../configs/AxiosConfig';
 
 //Search by keywords
@@ -195,13 +194,12 @@ export const uploadFileApi = async (module, id, file) => {
       name: file.name,
     });
 
-    const response = await axios.post(
-      `http://localhost/suitecrm7/Api/V8/custom/file/${module}/${id}`,
+    const response = await axiosInstance.post(
+      `/Api/V8/custom/file/${module}/${id}`,
       formData,
       {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${yourAccessToken}`,
         },
       }
     );
