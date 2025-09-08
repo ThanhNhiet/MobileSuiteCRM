@@ -2,12 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Dimensions,
     FlatList,
+    Image,
+    Modal,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -88,7 +93,7 @@ export default function ModuleDetailScreen() {
     
 
     const [currentUserId, setCurrentUserId] = useState(null);
-
+    const [showPreview, setShowPreview] = useState(false);
     // Check if navigation is available
     const isNavigationReady = navigation && typeof navigation.goBack === 'function';
 
@@ -176,7 +181,8 @@ export default function ModuleDetailScreen() {
         deleteRecord,
         getFieldValue,
         getFieldLabel,
-        shouldDisplayField
+        shouldDisplayField,
+        fileMeta,
     } = useModule_Detail(moduleName, recordId);
     const [lang, setLang] = useState(null);
     useEffect(() => {
@@ -192,10 +198,10 @@ export default function ModuleDetailScreen() {
         };
         fetchLanguage();
       }, []);
-
     // PDF Export hook
     const isQuotes = moduleName === "AOS_Quotes";
-    const { onExport, exporting} = useModule_PDF(isQuotes ? {quoteId: recordId, record,detailFields,getFieldValue,lang} : null);
+    const isRecord = record && Object.keys(record).length > 0;
+    const { onExport, exporting} = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang });
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -361,9 +367,48 @@ export default function ModuleDetailScreen() {
             }
         }
     };
+    const onView = async () => {
+    // Ảnh: xem trong app
+    //const fileMeta = await getLinkFile(moduleName,fileName);
+    if (fileMeta?.is_image && fileMeta?.link) {
+      setShowPreview(true);
+      return;
+    }
+    // Không phải ảnh: mở preview_url nếu có, fallback mở file_url/download_url
+    const openUrl = fileMeta.link || fileMeta.downloadLink || fileMeta.downloadLinkNative;
+    if (openUrl) {
+      await WebBrowser.openBrowserAsync(openUrl);
+    } else {
+      Alert.alert("Không có URL để xem.");
+    }
+  };
+  const onDownload = async () => {
+    try {
+      const url = fileMeta.downloadLink;
+      if (!url) return Alert.alert("Không có URL tải.");
+      // đặt tên file khi lưu
+      let name = getFieldValue('filename') || 'file';
+      if (!/\.[a-z0-9]+$/i.test(name)) {
+        const ext = extFromMime(fileMeta.mime);
+        name = ext ? `${name}.${ext}` : `${name}.bin`;
+      }
+      const dest = FileSystem.documentDirectory + name;
+      const { uri } = await FileSystem.downloadAsync(url, dest);
+
+      // Mở share sheet
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri);
+      } else {
+        Alert.alert("Đã tải xong", uri);
+      }
+    } catch (e) {
+      Alert.alert("Lỗi tải file", String(e?.message || e));
+    }
+  };
 
     // Render field item
-    const renderFieldItem = (field) => {
+    const renderFieldItem = async (field) => {
         const value = getFieldValue(field.key);
 
         if (!shouldDisplayField(field.key)) {
@@ -387,6 +432,39 @@ export default function ModuleDetailScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+            );
+        }
+        if (field.key === 'filename') {
+            return (
+            <>
+                <View key={field.key} style={styles.fieldContainer}>
+                    <Text style={styles.fieldValue}>
+                            {formatFieldValue(field.key, value)}
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
+                            <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={onDownload} style={styles?.btnGhost || styles.btnGhost}>
+                            <Text style={styles?.btnGhostText || styles.btnGhostText}>Tải</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                <Modal visible={showPreview} transparent animationType="fade" onRequestClose={() => setShowPreview(false)}>
+                    <View style={styles.modalBackdrop}>
+                    <View style={styles.modalCard}>
+                        {fileMeta?.link ? (
+                        <Image source={{ uri: fileMeta.link }} style={styles.previewImage} />
+                        ) : (
+                        <Text>Không có ảnh để hiển thị.</Text>
+                        )}
+                        <TouchableOpacity onPress={() => setShowPreview(false)} style={[styles.btnPrimary, { marginTop: 12 }]}>
+                        <Text style={styles.btnPrimaryText}>Đóng</Text>
+                        </TouchableOpacity>
+                    </View>
+                    </View>
+                </Modal>
+            </>
             );
         }
 
@@ -844,4 +922,53 @@ const styles = StyleSheet.create({
         lineHeight: 16,
         numberOfLines: 3,
     },
+    btnPrimary: { backgroundColor: "#111827", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
+    btnPrimaryText: { color: "#fff", fontWeight: "700" },
+    btnGhost: { borderWidth: 1, borderColor: "#111827", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
+    btnGhostText: { color: "#111827", fontWeight: "700" },
+    modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 16 },
+    modalCard: { width: "100%", backgroundColor: "white", borderRadius: 12, padding: 12, alignItems: "center" },
+    previewImage: { width: "100%", height: 360, resizeMode: "contain", borderRadius: 8 },
+    fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    },
+    btnPrimary: {
+    backgroundColor: "#111827",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    },
+    btnPrimaryText: { color: "#fff", fontWeight: "700" },
+    btnGhost: {
+    borderWidth: 1,
+    borderColor: "#111827",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    },
+    btnGhostText: { color: "#111827", fontWeight: "700" },
+    modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+    },
+    modalCard: {
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    },
+    previewImage: {
+    width: "100%",
+    height: 360,
+    resizeMode: "contain",
+    borderRadius: 8,
+    },
+
 });

@@ -4,7 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { createModuleRecordApi, createModuleRelationshipApi, getEnumsApi, getModuleEditFieldsApi, getModuleFieldsRequiredApi } from '../../api/module/ModuleApi';
+import { createModuleRecordApi, createModuleRelationshipApi, getEnumsApi, getModuleEditFieldsApi, getModuleFieldsRequiredApi, postFileModuleApi } from '../../api/module/ModuleApi';
 
 export const useModule_Create = (moduleName) => {
     // SystemLanguageUtils instance
@@ -364,7 +364,7 @@ export const useModule_Create = (moduleName) => {
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [formData, createFields]);    // Create record
-    const createRecord = useCallback(async () => {
+    const createRecord = useCallback(async (uploadedFilename = null, mime_type = null) => {
         try {
             setLoading(true);
             setError(null);
@@ -373,7 +373,10 @@ export const useModule_Create = (moduleName) => {
             const isValid = await validateForm();
             if (!isValid) {
                 setLoading(false);
-                return false;
+                return {
+                    success: false,
+                    message: 'Form validation failed'
+                };
             }
 
             // Prepare record data (exclude only parent_id and assigned_user_id from API call, include parent_type)
@@ -399,7 +402,37 @@ export const useModule_Create = (moduleName) => {
             ) {
                 recordData.duration_minutes = "0";
             }
-            console.log('Creating record in', moduleName, 'with data:', recordData);
+            
+            // Add filename from uploaded file (ưu tiên filename từ upload)
+            if (uploadedFilename) {
+                console.log('Adding uploaded filename to recordData:', uploadedFilename);
+                recordData.filename = uploadedFilename;
+                
+                // Chỉ thêm mime_type nếu có giá trị hợp lệ
+                if (mime_type && mime_type !== 'application/x-empty') {
+                    console.log('Adding mime_type to recordData:', mime_type);
+                    recordData.file_mime_type = mime_type;
+                } else {
+                    // Fallback: xác định mime_type từ file extension
+                    const fileExtension = uploadedFilename.split('.').pop().toLowerCase();
+                    const mimeTypeMap = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg', 
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'pdf': 'application/pdf',
+                        'doc': 'application/msword',
+                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'txt': 'text/plain'
+                    };
+                    recordData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
+                }
+            } else if (formData.filename && formData.filename.trim() !== '') {
+                console.log('Filename from formData:', formData.filename);
+                recordData.filename = formData.filename.trim();
+                recordData.file_mime_type = mime_type || 'application/octet-stream';
+            }
+            console.log('Record data to create:', recordData);
             const response = await createModuleRecordApi(moduleName, recordData);
 
             // Extract record ID from response - handle multiple possible structures
@@ -446,7 +479,7 @@ export const useModule_Create = (moduleName) => {
             console.warn('Create record error:', err);
             return {
                 success: false,
-                error: errorMessage
+                message: errorMessage
             };
         } finally {
             setLoading(false);
@@ -608,28 +641,58 @@ export const useModule_Create = (moduleName) => {
         return value;
     }, [enumFieldsData]);
 
+
     // Check if field is an enum type (enum or parent_type)
     const isEnumField = useCallback((fieldKey) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
     }, [createFields]);
+    const [isFile,setIsFile] = useState(false);
+
+    useEffect(() => {
+        createFields.forEach(field => {
+            if (field.key === 'filename') {
+                setIsFile(true);
+            }
+        });
+    },[createFields]);
+    // Save file to module
+    const saveFile = useCallback(async (moduleName,file) => {
+        try {
+            if (!file || !moduleName) return;
+            const data = await postFileModuleApi(moduleName, file);
+            if (!data || !data.success) {
+                console.warn('Save File API response error:', data.message);
+                const errorMsg = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tải tệp lên';
+                throw new Error(errorMsg);
+            }
+            const kq = {
+                success: data.success,
+                fileName: data.fileName,
+                original_filename: data.original_filename,
+                fileUrl: data.file_url,
+                mime_type: data.mime_type,
+                preview: data.preview_url,
+                download: data.download_url
+            };
+            return kq;
+        } catch (error) {
+            console.warn("Save File API error:", error);
+            throw error;
+        }
+    }, [moduleName]);
 
     return {
-        // Data
         formData,
+        setFormData, // Thêm dòng này
         createFields,
         loading,
         error,
         validationErrors,
         enumFieldsData,
-
-        // Actions
         updateField,
         createRecord,
         resetForm,
-        validateForm,
-
-        // Helpers
         getFieldValue,
         getFieldLabel,
         getFieldError,
@@ -638,6 +701,8 @@ export const useModule_Create = (moduleName) => {
         getParentTypeOptions,
         getEnumOptions,
         getEnumLabel,
-        isEnumField
+        isEnumField,
+        saveFile,
+        isFile
     };
 };

@@ -7,7 +7,7 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
-import { deleteModuleRecordApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
+import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 export const useModule_Detail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -600,8 +600,36 @@ export const useModule_Detail = (moduleName, recordId) => {
         return () => { alive = false; };
         }, [roleInfo?.editPerm, roleInfo?.roleName, record?.id]);
 
+        // get link file
+        const [fileMeta, setFileMeta] = useState(null); // metadata of the file to preview
+        const fileName = getFieldValue('filename');
+        useEffect(() => {
+            const getLinkFile = async () => {
+                
+                if(!moduleName || !fileName) return '';
+                try {
+                    const data = await getLinkFileModuleApi(moduleName,fileName);
+                    if (!data || !data.success){
+                        console.warn(`No link file found for module: ${moduleName} and file: ${fileName}`);
+                        return '';
+                    }
+                const link = {
+                    link: data.native_url,
+                    downloadLink : data.download_url,
+                    downloadLinkNative : data.download_url_native,
+                    mime_type: data.mime_type,
+                    is_image: data.is_image,
+                }
+                setFileMeta(link);
 
-    
+            } catch (error) {
+                console.warn("Get Link File error:", error);
+                return '';
+            }
+        };
+        getLinkFile();
+    }, [moduleName,fileName]);
+
 
     return {
         // Data
@@ -625,6 +653,9 @@ export const useModule_Detail = (moduleName, recordId) => {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField,
-        formatFieldValue
+        formatFieldValue,
+
+        //get link file
+        fileMeta,
     };
 };

@@ -126,17 +126,22 @@ export const createModuleRecordApi = async (moduleName, recordData) => {
                     type: moduleName,
                     attributes: {
                         ...recordData
+                    },
+                    headers: {
+                        Accept: 'application/vnd.api+json',
+                        'Content-Type': 'application/vnd.api+json'
                     }
                 }
             });
         }
-        console.log(`Create ${moduleName} API response:`, response);
+       // console.log(`Create ${moduleName} API response:`, response);
         return response.data;
     } catch (error) {
         console.warn(`Create ${moduleName} API error:`, error);
         throw error;
     }
 };
+
 
 //PATCH /Api/V8/module
 // body: { "data": { "type": "{ModuleName}", "id": "", "attributes": { "name": "", "description": "", ... } } }
@@ -424,6 +429,43 @@ export const getAosProductsQuotesLangApi = async (lang) => {
         return response.data;
     } catch (error) {
         console.warn("Get AOS Products Quotes Language API error:", error);
+        throw error;
+    }
+}
+
+//POST /Api/V8/custom/file/{ModuleName}
+//http://192.168.1.10/suitecrm7/Api/V8/custom/file/Notes/Classdiragram-Page-1.png
+export const postFileModuleApi = async (moduleName, file) => {
+    try {
+        
+        // Tạo FormData để upload file
+        const formData = new FormData();
+            formData.append('file', {
+                uri: file.uri,
+                name: file.name,
+                type: file.mimeType
+            });
+
+            const url = `/Api/V8/custom/file/${moduleName}/${file.name}`;
+        const response = await axiosInstance.post(url, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            }
+        });
+        
+        return response.data;
+    } catch (error) {
+        console.warn("Post File Module API error:", error);
+        throw error;
+    }
+}
+//{{suitecrm.url}}/V8/custom/file/Notes/8062c3a4-4b27-6f4d-0763-68a599955a7e
+export const getLinkFileModuleApi = async (moduleName, fileName) => {
+    try{
+        const response = await axiosInstance.get(`/Api/V8/custom/file/${moduleName}/${fileName}`);
+        return response.data;
+    }catch (error){
+        console.warn("Get Link File Module API error:", error);
         throw error;
     }
 }
