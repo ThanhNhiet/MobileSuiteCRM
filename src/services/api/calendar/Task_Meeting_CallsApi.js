@@ -9,7 +9,8 @@ export const getTasksLanguageApi = async (lang = "vi_vn") => {
         return response.data;
     } catch (error) {
         console.warn("Get Tasks Language API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: {} };
     }
 }
 
@@ -20,7 +21,8 @@ export const getMeetingsLanguageApi = async (lang = "vi_vn") => {
         return response.data;
     } catch (error) {
         console.warn("Get Meetings Language API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: {} };
     }
 }
 
@@ -31,7 +33,8 @@ export const getCallsLanguageApi = async (lang = "vi_vn") => {
         return response.data;
     } catch (error) {
         console.warn("Get Calls Language API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: {} };
     }
 }
 
@@ -58,7 +61,8 @@ export const getTasksByMonthApi = async (startDate, endDate) => {
         return response.data;
     } catch (error) {
         console.warn("Get Tasks by Month API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: [] };
     }
 }
 
@@ -85,7 +89,8 @@ export const getMeetingsByMonthApi = async (startDate, endDate) => {
         return response.data;
     } catch (error) {
         console.warn("Get Meetings by Month API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: [] };
     }
 }
 
@@ -108,6 +113,7 @@ export const getCallsByMonthApi = async (startDate, endDate) => {
         return response.data;
     } catch (error) {
         console.warn("Get Calls by Month API error:", error);
-        throw error;
+        // Return empty data structure instead of throwing
+        return { data: [] };
     }
 }

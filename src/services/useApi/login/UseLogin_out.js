@@ -128,7 +128,8 @@ export const useLogin_out = () => {
             headers: {
               'Authorization': `Bearer ${existingToken}`,
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000 // 10 seconds
           });
           
           if (testResponse.ok) {

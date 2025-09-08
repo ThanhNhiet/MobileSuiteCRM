@@ -20,10 +20,10 @@ export const searchModulesApi = async (parent_type, keyword, page = 1) => {
 };
 
 //Get all modules
-//GET /Api/V8/meta/modules
+//GET /Api/V8/custom/setup/get-modules-list
 export const getAllModulesApi = async () => {
     try {
-        const response = await axiosInstance.get(`/Api/V8/meta/modules`);
+        const response = await axiosInstance.get(`/Api/V8/custom/setup/get-modules-list`);
         return response.data;
     } catch (error) {
         console.warn("Get All Modules API error:", error);
@@ -170,3 +170,43 @@ export const getGroupRoleActionsApi = async (role_id) =>{
     throw error;
   }
 }
+
+//GET /Api/V8/custom/file/{module}/{id}
+export const getFileApi = async (module, id) =>{
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/file/${module}/${id}`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get User File API error:", error);
+    throw error;
+  }
+}
+
+//POST /Api/V8/custom/file/{module}/{id}
+//body form-data: file
+//Content-Type: multipart/form-data
+export const uploadFileApi = async (module, id, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: file.uri, // file local url
+      type: file.type,
+      name: file.name,
+    });
+
+    const response = await axiosInstance.post(
+      `/Api/V8/custom/file/${module}/${id}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.warn("Upload File API error:", error.response?.data || error.message);
+    throw error;
+  }
+};

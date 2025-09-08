@@ -65,7 +65,9 @@ export default function ModuleUpdateScreen() {
           'LBL_ALT_INFO',
           'WARN_UNSAVED_CHANGES',
           'LBL_DELETE',
-          'LBL_USERS'
+          'LBL_USERS',
+          'Yes',
+          'No'
         ]);
 
         // Get module specific translation
@@ -103,45 +105,12 @@ export default function ModuleUpdateScreen() {
           altInfo: translatedLabels.LBL_ALT_INFO || 'Thông tin',
           emailLoading: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
           uploadRequestError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
-          users: translatedLabels.LBL_USERS || 'Người dùng'
+          users: translatedLabels.LBL_USERS || 'Người dùng',
+          yes: translatedLabels.Yes || 'Yes',
+          no: translatedLabels.No || 'No'
         });
       } catch (error) {
         console.warn('Translation initialization error:', error);
-        // Set fallback translations
-        // setTranslations({
-        //   mdName: moduleName || 'Module',
-        //   updateModule: `Cập nhật ${moduleName || 'Module'}`,
-        //   loadingText: 'Đang tải...',
-        //   successTitle: 'Thành công',
-        //   successMessage: 'Cập nhật bản ghi thành công!',
-        //   errorTitle: 'Lỗi',
-        //   errorMessage: 'Không thể cập nhật bản ghi',
-        //   ok: 'OK',
-        //   saveButton: 'Lưu',
-        //   confirmTitle: 'Xác nhận',
-        //   unsavedChanges: 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
-        //   cancel: 'Hủy',
-        //   exit: 'Thoát',
-        //   notification: 'Thông báo',
-        //   noRelationship: 'Không có mối quan hệ nào để xóa',
-        //   confirmDeleteRelation: 'Xác nhận xóa',
-        //   confirmDeleteRelationMsg: 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
-        //   success: 'Thành công',
-        //   deleteRelationSuccess: 'Đã xóa mối quan hệ thành công',
-        //   deleteRelationError: 'Không thể xóa mối quan hệ',
-        //   deleteRelation: 'Xóa mối quan hệ',
-        //   clearButton: 'Xóa',
-        //   checkButton: 'Check',
-        //   checkPlaceholder: 'Nhập để kiểm tra',
-        //   selectPlaceholder: '--------',
-        //   checkToVerify: '',
-        //   parentIdLabel: 'ID Cha',
-        //   removeConfirmation: 'Bạn có chắc bạn muốn loại bỏ mối quan hệ này? Chỉ có các mối quan hệ sẽ được gỡ bỏ. Hồ sơ sẽ không bị xóa.',
-        //   altInfo: 'Thông tin',
-        //   emailLoading: 'Đang tải...',
-        //   uploadRequestError: 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
-        //   users: 'Người dùng'
-        // });
       }
     };
 
@@ -169,7 +138,11 @@ export default function ModuleUpdateScreen() {
     handleDeleteRelationship,
     isEnumField,
     getEnumOptions,
-    getEnumLabel
+    getEnumLabel,
+    isBoolField,
+    isFunctionField,
+    isReadonlyField,
+    toggleBoolField
   } = useModuleUpdate(moduleName, recordData);
 
   // Local loading state for save button
@@ -772,6 +745,71 @@ export default function ModuleUpdateScreen() {
                 );
               }
 
+              // Handle boolean fields (checkbox)
+              if (field.type === 'bool' || isBoolField(field.key)) {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <View style={[styles.valueBoxWithCheckbox, fieldError && styles.errorInput]}>
+                      <Text style={styles.value}>
+                        {getFieldValue(field.key) === "1" 
+                          ? (translations.yes || "Yes") 
+                          : (translations.no || "No")
+                        }
+                      </Text>
+                      <TouchableOpacity 
+                        style={styles.checkboxContainer}
+                        onPress={() => toggleBoolField(field.key)}
+                      >
+                        <View style={[
+                          styles.checkbox,
+                          getFieldValue(field.key) === "1" && styles.checkboxChecked
+                        ]}>
+                          {getFieldValue(field.key) === "1" && (
+                            <Text style={styles.checkmark}>✓</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+              
+              // Handle function fields (disabled input)
+              if (field.type === 'function' || isFunctionField(field.key)) {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <View style={[styles.valueBox, styles.disabledValueBox]}>
+                      <TextInput
+                        style={[styles.value, styles.disabledText]}
+                        value={fieldValue || "Not available"}
+                        editable={false}
+                      />
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+              
+              // Handle readonly fields (disabled input but styled differently)
+              if (field.type === 'readonly' || isReadonlyField(field.key)) {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <View style={[styles.valueBox, styles.readonlyValueBox]}>
+                      <TextInput
+                        style={[styles.value, styles.readonlyText]}
+                        value={fieldValue}
+                        editable={false}
+                      />
+                    </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+
               // Default handling for all other fields
               return (
                 <View key={field.key} style={styles.row}>
@@ -973,6 +1011,48 @@ const styles = StyleSheet.create({
     color: '#f44336',
     fontWeight: 'bold',
   },
+  
+  // Checkbox styles
+  valueBoxWithCheckbox: {
+    backgroundColor: '#e4a0a0ff',
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    width: '90%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  checkboxContainer: {
+    padding: 6,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
+  // Readonly and function field styles
   readOnlyBox: {
     backgroundColor: '#f5f5f5',
     borderWidth: 1,
@@ -980,6 +1060,16 @@ const styles = StyleSheet.create({
   },
   readOnlyText: {
     color: '#666',
+    fontStyle: 'italic',
+  },
+  readonlyValueBox: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    opacity: 0.85,
+  },
+  readonlyText: {
+    color: '#495057',
     fontStyle: 'italic',
   },
   checkLabelContainer: {

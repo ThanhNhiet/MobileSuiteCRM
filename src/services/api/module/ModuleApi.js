@@ -134,7 +134,6 @@ export const createModuleRecordApi = async (moduleName, recordData) => {
                 }
             });
         }
-       // console.log(`Create ${moduleName} API response:`, response);
         return response.data;
     } catch (error) {
         console.warn(`Create ${moduleName} API error:`, error);

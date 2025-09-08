@@ -22,7 +22,8 @@ export default function ProfileScreen({ navigation }) {
         error, 
         refreshing, 
         refreshProfile, 
-        fieldLabels
+        fieldLabels,
+        avatarUrl
     } = useUserProfile();
     
     // Language translations
@@ -205,7 +206,7 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleEditProfile = () => {
-        navigation.navigate('UpdateProfileScreen', { profileData: displayData });
+        navigation.navigate('UpdateProfileScreen', { profileData: displayData, avatarUrl: avatarUrl });
     };
 
     const handleChangePassword = () => {
@@ -246,9 +247,9 @@ export default function ProfileScreen({ navigation }) {
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.avatarContainer}>
-                            {displayData.photo ? (
+                            {avatarUrl ? (
                                 <Image 
-                                    source={{ uri: displayData.photo }} 
+                                    source={{ uri: avatarUrl }} 
                                     style={styles.avatar}
                                 />
                             ) : (

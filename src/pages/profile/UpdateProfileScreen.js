@@ -3,6 +3,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Image,
     Modal,
@@ -19,7 +20,7 @@ import { useUpdateProfile } from '../../services/useApi/user/UseUser_UpdateProfi
 export default function UpdateProfileScreen() {
     const route = useRoute();
     const navigation = useNavigation();
-    const { profileData } = route.params;
+    const { profileData, avatarUrl } = route.params;
 
     const {
         updating,
@@ -83,9 +84,23 @@ export default function UpdateProfileScreen() {
         clearError();
         
         try {
+            // Show different message if uploading a photo
+            const isUploadingPhoto = selectedImage && selectedImage !== avatarUrl;
+            // const loadingMessage = isUploadingPhoto ? 
+            //     'Updating profile and uploading photo...' : 
+            //     'Updating profile...';
+                
+            // if (isUploadingPhoto) {
+            //     Alert.alert('Uploading', loadingMessage);
+            // }
+            
             const result = await updateProfile();
             if (result) {
-                Alert.alert('Thành công', 'Thông tin đã được cập nhật.', [
+                const successMessage = isUploadingPhoto ? 
+                    'Profile information and photo have been updated.' : 
+                    'Profile information has been updated.';
+                    
+                Alert.alert('Success', successMessage, [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
             }
@@ -96,12 +111,12 @@ export default function UpdateProfileScreen() {
 
     const handleImagePicker = () => {
         Alert.alert(
-            'Chọn ảnh',
-            'Bạn muốn chọn ảnh từ đâu?',
+            'Select Image',
+            'Where would you like to select the image from?',
             [
-                { text: 'Hủy', style: 'cancel' },
-                { text: 'Thư viện', onPress: () => pickImage('library') },
-                { text: 'Chụp ảnh', onPress: () => pickImage('camera') }
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Library', onPress: () => pickImage('library') },
+                { text: 'Camera', onPress: () => pickImage('camera') }
             ]
         );
     };
@@ -130,29 +145,43 @@ export default function UpdateProfileScreen() {
                 updateField('photo', result.assets[0].uri);
             }
         } catch (error) {
-            Alert.alert('Lỗi', 'Không thể chọn ảnh');
+            Alert.alert('Error', 'Unable to select image');
         }
     };
 
     const renderPhotoSection = () => (
         <View style={styles.photoSection}>
-            <Text style={styles.sectionTitle}>Ảnh đại diện</Text>
-            <TouchableOpacity style={styles.photoContainer} onPress={handleImagePicker}>
-                {selectedImage || profileData.photo ? (
+            <Text style={styles.sectionTitle}>Avatar</Text>
+            <TouchableOpacity 
+                style={styles.photoContainer} 
+                onPress={handleImagePicker}
+                disabled={updating}
+            >
+                {updating && selectedImage ? (
+                    <View style={[styles.photoPlaceholder, styles.uploadingContainer]}>
+                        <ActivityIndicator size="large" color="#007BFF" />
+                        <Text style={styles.uploadingText}>Uploading...</Text>
+                    </View>
+                ) : selectedImage || avatarUrl ? (
                     <Image
-                        source={{ uri: selectedImage || profileData.photo }}
+                        source={{ uri: selectedImage || avatarUrl }}
                         style={styles.photo}
                     />
                 ) : (
                     <View style={styles.photoPlaceholder}>
                         <Ionicons name="camera-outline" size={40} color="#999" />
-                        <Text style={styles.photoPlaceholderText}>Chọn ảnh</Text>
+                        <Text style={styles.photoPlaceholderText}>Select Image</Text>
                     </View>
                 )}
-                <View style={styles.photoOverlay}>
-                    <Ionicons name="camera-outline" size={20} color="white" />
-                </View>
+                {!updating && (
+                    <View style={styles.photoOverlay}>
+                        <Ionicons name="camera-outline" size={20} color="white" />
+                    </View>
+                )}
             </TouchableOpacity>
+            {selectedImage && selectedImage !== profileData.photo && (
+                <Text style={styles.photoHint}>New photo will be uploaded when saving</Text>
+            )}
         </View>
     );
 
@@ -198,7 +227,7 @@ export default function UpdateProfileScreen() {
                         style={[styles.input, multiline && { height: '100%', textAlignVertical: 'top' }]}
                         value={value}
                         onChangeText={(text) => updateField(fieldName, text)}
-                        placeholder={`Nhập ${label.toLowerCase()}`}
+                        placeholder={`Enter ${label.toLowerCase()}`}
                         multiline={multiline}
                         keyboardType={keyboardType}
                     />
@@ -223,7 +252,7 @@ export default function UpdateProfileScreen() {
                 >
                     <Ionicons name="chatbox-outline" size={20} color="gray" style={styles.icon} />
                     <Text style={[styles.input, { color: value ? '#333' : '#999' }]}>
-                        {selectedOption?.label || 'Chọn loại messenger'}
+                        {selectedOption?.label || 'Select Messenger Type'}
                     </Text>
                     <Ionicons name="chevron-down-outline" size={20} color="gray" />
                 </TouchableOpacity>
@@ -254,7 +283,7 @@ export default function UpdateProfileScreen() {
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Chọn loại Messenger</Text>
+                        <Text style={styles.modalTitle}>Select Messenger Type</Text>
                         <TouchableOpacity onPress={() => setMessengerModalVisible(false)}>
                             <Ionicons name="close-outline" size={24} color="#333" />
                         </TouchableOpacity>
@@ -294,7 +323,7 @@ export default function UpdateProfileScreen() {
             <SafeAreaProvider>
                 <SafeAreaView style={styles.container}>
                     <View style={styles.loadingContainer}>
-                        <Text>Đang tải...</Text>
+                        <Text>Loading...</Text>
                     </View>
                 </SafeAreaView>
             </SafeAreaProvider>
@@ -322,7 +351,7 @@ export default function UpdateProfileScreen() {
                     {success && (
                         <View style={styles.successContainer}>
                             <Ionicons name="checkmark-circle-outline" size={20} color="#34C759" />
-                            <Text style={styles.successText}>Cập nhật thành công!</Text>
+                            <Text style={styles.successText}>Update successful!</Text>
                         </View>
                     )}
 
@@ -330,9 +359,9 @@ export default function UpdateProfileScreen() {
                     {renderPhotoSection()}
 
                     {/* Dynamic Sections */}
-                    {renderSection('Thông tin cơ bản', sections.general)}
-                    {renderSection('Thông tin liên lạc', sections.phone)}
-                    {renderSection('Địa chỉ', sections.address)}
+                    {renderSection('General Information', sections.general)}
+                    {renderSection('Contact Information', sections.phone)}
+                    {renderSection('Address', sections.address)}
                     {renderSection('Messenger', sections.messenger, true)}
 
                     <TouchableOpacity
@@ -341,7 +370,9 @@ export default function UpdateProfileScreen() {
                         disabled={updating}
                     >
                         <Text style={styles.buttonText}>
-                            {updating ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+                            {updating ? 
+                                (selectedImage && selectedImage !== avatarUrl ? 'Uploading Photo...' : 'Updating...') 
+                                : 'Save Changes'}
                         </Text>
                     </TouchableOpacity>
 
@@ -453,6 +484,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 2,
         borderColor: 'white',
+    },
+    uploadingContainer: {
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+    },
+    uploadingText: {
+        marginTop: 10,
+        fontSize: 14,
+        color: '#007BFF',
+        fontWeight: '600',
+    },
+    photoHint: {
+        marginTop: 8,
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
+        textAlign: 'center',
     },
     section: {
         marginBottom: 25,

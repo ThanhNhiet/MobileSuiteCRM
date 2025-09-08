@@ -1,7 +1,11 @@
+import { getCurrentDateTimeString } from '@/src/utils/DateNow';
+import { getUserIdFromToken } from '@/src/utils/DecodeToken';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { UserLanguageUtils } from '../../../utils/cacheViewManagement/Users/UserLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { uploadFileApi } from '../../api/external/ExternalApi';
 import { getUserEditFieldsApi, getUserProfileApi, getUsernameApi, updateUserProfileApi } from '../../api/user/UserApi';
 
 export const useUpdateProfile = () => {
@@ -13,12 +17,17 @@ export const useUpdateProfile = () => {
     const [nameFields, setNameFields] = useState('');
     const [formData, setFormData] = useState({});
     const [profileDetailData, setProfileDetailData] = useState({});
+    const [photoUploadStatus, setPhotoUploadStatus] = useState({
+        uploading: false,
+        success: false,
+        error: null
+    });
 
     const userLanguageUtils = UserLanguageUtils.getInstance();
 
     // Hidden fields
     const hiddenFields = ['status', 'UserType', 'factor_auth', 'employee_status', 'show_on_employees', 'reports_to_name'];
-    
+
     // Required fields
     const requiredFields = ['user_name', 'last_name'];
 
@@ -35,35 +44,35 @@ export const useUpdateProfile = () => {
         try {
             // Try to get edit fields from cache
             let editFields = await ReadCacheView.getModuleField('Users', 'editviewdefs');
-            
+
             if (!editFields) {
                 // Fetch from API and cache
                 const response = await getUserEditFieldsApi();
                 editFields = response;
-                
+
                 // Save to cache
                 await WriteCacheView.saveModuleField('Users', 'editviewdefs', editFields);
             }
 
             // Filter out hidden fields
-            const visibleFields = Object.keys(editFields).filter(fieldName => 
+            const visibleFields = Object.keys(editFields).filter(fieldName =>
                 !hiddenFields.includes(fieldName)
             );
-            
+
             const nameFieldsString = visibleFields.join(',');
             setNameFields(nameFieldsString);
 
             // Generate field labels with fallback system - always translate keys to values
             const fieldLabelFallbacks = {
                 "user_name": "LBL_USER_NAME",
-                "first_name": "LBL_FIRST_NAME", 
+                "first_name": "LBL_FIRST_NAME",
                 "last_name": "LBL_LAST_NAME",
                 "photo": "LBL_PHOTO",
                 "title": "LBL_TITLE",
                 "phone_work": "LBL_WORK_PHONE",
                 "department": "LBL_DEPARTMENT",
                 "phone_mobile": "LBL_MOBILE_PHONE",
-                "phone_other": "LBL_OTHER_PHONE", 
+                "phone_other": "LBL_OTHER_PHONE",
                 "phone_fax": "LBL_FAX_PHONE",
                 "phone_home": "LBL_HOME_PHONE",
                 "messenger_type": "LBL_MESSENGER_TYPE",
@@ -80,14 +89,14 @@ export const useUpdateProfile = () => {
             for (const fieldName of visibleFields) {
                 // Try multiple translation strategies
                 let translatedLabel = null;
-                
+
                 // 1. Try primary LBL_FIELDNAME pattern
                 const primaryLblKey = `LBL_${fieldName.toUpperCase()}`;
                 const primaryResult = await userLanguageUtils.translate(primaryLblKey, null);
                 if (primaryResult && primaryResult !== primaryLblKey) {
                     translatedLabel = primaryResult;
                 }
-                
+
                 // 2. Try fallback key if primary failed
                 if (!translatedLabel) {
                     const fallbackKey = fieldLabelFallbacks[fieldName];
@@ -98,7 +107,7 @@ export const useUpdateProfile = () => {
                         }
                     }
                 }
-                
+
                 // 3. Try direct field value from API (if it's a translation key)
                 if (!translatedLabel) {
                     const fieldValue = editFields[fieldName];
@@ -109,24 +118,24 @@ export const useUpdateProfile = () => {
                         }
                     }
                 }
-                
+
                 // 4. Final fallback - use formatted field name
                 if (!translatedLabel) {
                     translatedLabel = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                 }
-                
+
                 labels[fieldName] = translatedLabel;
             }
-            
+
             setFieldLabels(labels);
             return nameFieldsString;
         } catch (error) {
-            console.warn('Error loading edit fields:', error);
-            
+            // Fall back to default fields if loading fails
+
             // Fallback to default fields (excluding hidden ones)
             const defaultFields = 'user_name,first_name,last_name,photo,title,phone_work,department,phone_mobile,phone_other,phone_fax,phone_home,messenger_type,messenger_id,address_street,address_city,address_state,address_postalcode,address_country,description';
             setNameFields(defaultFields);
-            
+
             // Generate fallback field labels
             const fieldLabelFallbacks = {
                 "user_name": "LBL_USER_NAME",
@@ -154,25 +163,25 @@ export const useUpdateProfile = () => {
             const fallbackFieldNames = defaultFields.split(',');
             for (const fieldName of fallbackFieldNames) {
                 let translatedLabel = null;
-                
+
                 const primaryLblKey = `LBL_${fieldName.toUpperCase()}`;
                 translatedLabel = await userLanguageUtils.translate(primaryLblKey, null);
-                
+
                 if (!translatedLabel) {
                     const fallbackKey = fieldLabelFallbacks[fieldName];
                     if (fallbackKey) {
                         translatedLabel = await userLanguageUtils.translate(fallbackKey, null);
                     }
                 }
-                
+
                 if (!translatedLabel) {
                     translatedLabel = await userLanguageUtils.translateFieldName(fieldName);
                 }
-                
+
                 fallbackLabels[fieldName] = translatedLabel;
             }
             setFieldLabels(fallbackLabels);
-            
+
             return defaultFields;
         }
     };
@@ -183,21 +192,21 @@ export const useUpdateProfile = () => {
             // Use getUserProfileApi to get the actual data for the fields
             const response = await getUserProfileApi(nameFieldsString);
             const profileData = response?.data?.attributes || {};
-            
+
             // Also fetch username since getUserProfileApi never returns user_name
             const usernameResponse = await getUsernameApi();
             const usernameData = usernameResponse || {};
-            
+
             // Merge profile data with username data
             const completeProfileData = {
                 ...profileData,
                 ...usernameData
             };
-            
+
             setProfileDetailData(completeProfileData);
             return completeProfileData;
         } catch (error) {
-            console.warn('Error fetching profile data:', error);
+            // Return empty data if fetch fails
             return {};
         }
     };
@@ -208,11 +217,11 @@ export const useUpdateProfile = () => {
         const dataToUse = Object.keys(profileDetailData).length > 0 ? profileDetailData : profileData;
         const initialData = {};
         const fieldNames = nameFields.split(',');
-        
+
         for (const fieldName of fieldNames) {
             initialData[fieldName] = dataToUse[fieldName] || '';
         }
-        
+
         setFormData(initialData);
     };
 
@@ -227,7 +236,7 @@ export const useUpdateProfile = () => {
     // Validate form
     const validateForm = async () => {
         const errors = [];
-        
+
         for (const fieldName of requiredFields) {
             if (!formData[fieldName] || formData[fieldName].trim() === '') {
                 const fieldLabel = fieldLabels[fieldName] || fieldName;
@@ -235,8 +244,59 @@ export const useUpdateProfile = () => {
                 errors.push(`${translatedLabel}: ${fieldLabel}`);
             }
         }
-        
+
         return errors;
+    };
+
+    // Upload and process profile photo
+    const updateProfilePhoto = async (imageFile) => {
+        try {
+            setError(null);
+            
+            // Get user ID from token
+            const token = await AsyncStorage.getItem('token');
+            const userId = getUserIdFromToken(token);
+            
+            if (!userId) {
+                throw new Error('User ID not available');
+            }
+            
+            // Upload image to server
+            const response = await uploadFileApi('Users', userId, imageFile);
+
+            if (response && response.success) {
+                // Update form data with new image info
+                setFormData(prev => ({
+                    ...prev,
+                    photo: response.filename || response.original_filename || imageFile.name
+                }));
+
+                return {
+                    success: true,
+                    imageUrl: response.download_url || response.file_url,
+                    filename: response.filename || response.original_filename || imageFile.name
+                };
+            } else {
+                if (response && response.error && response.error.includes('size')) {
+                    throw new Error('Image file is too large. Maximum size is 10MB.');
+                }
+                throw new Error('Failed to update profile photo');
+            }
+        } catch (err) {
+            // Handle size-related errors
+            if (err.message?.includes('413') || err.message?.includes('size')) {
+                return {
+                    success: false,
+                    error: 'Image file is too large. Maximum size is 10MB.'
+                };
+            }
+            
+            // Return general error
+            return {
+                success: false,
+                error: err.message || 'Unable to update profile photo'
+            };
+        }
     };
 
     // Update profile
@@ -253,17 +313,93 @@ export const useUpdateProfile = () => {
                 return false;
             }
 
-            // Prepare update data (exclude photo from regular update)
+            // Prepare update data
             const updateData = {};
             for (const [fieldName, value] of Object.entries(formData)) {
                 if (fieldName !== 'photo') {
-                    updateData[fieldName] = value?.toString().trim() || '';
+                    updateData[fieldName] = value?.toString().trim?.() || value || '';
                 }
             }
-
-            const response = await updateUserProfileApi(updateData);
-            setSuccess(true);
             
+            // Handle photo upload if a new photo was selected
+            let photoName = null;
+            if (formData.photo && formData.photo.startsWith('file://')) {
+                try {
+                    // Set upload status to in-progress
+                    setPhotoUploadStatus({
+                        uploading: true,
+                        success: false,
+                        error: null
+                    });
+                    
+                    // Generate unique filename with timestamp
+                    const ext = formData.photo.split('.').pop().toLowerCase();
+                    const filename = `profile_photo_${getCurrentDateTimeString()}.${ext}`;
+                    photoName = filename;
+                    
+                    // Determine file type based on extension
+                    const fileExtension = filename.split('.').pop().toLowerCase();
+                    
+                    // Check if extension is an image type
+                    const validImageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                    if (!validImageExtensions.includes(fileExtension)) {
+                        throw new Error('Unsupported image format. Please use JPG, PNG, or GIF.');
+                    }
+                    
+                    // Size validation will be handled by the server
+                    
+                    const fileType = fileExtension === 'png' ? 'image/png' :
+                        fileExtension === 'gif' ? 'image/gif' : 'image/jpeg';
+                    
+                    // Create file object
+                    const imageFile = {
+                        uri: formData.photo,
+                        name: filename,
+                        type: fileType
+                    };
+                    
+                    // Upload the photo first
+                    const photoResponse = await updateProfilePhoto(imageFile);
+                    
+                    if (photoResponse.success) {
+                        // Update photo upload status
+                        setPhotoUploadStatus({
+                            uploading: false,
+                            success: true,
+                            error: null,
+                            filename: photoResponse.filename || filename
+                        });
+                    } else {
+                        setPhotoUploadStatus({
+                            uploading: false,
+                            success: false,
+                            error: photoResponse.error || 'Failed to upload photo'
+                        });
+                        throw new Error(photoResponse.error || 'Failed to upload photo');
+                    }
+                } catch (photoErr) {
+                    // Handle photo upload errors
+                    setPhotoUploadStatus({
+                        uploading: false,
+                        success: false,
+                        error: photoErr.message || 'Error uploading photo'
+                    });
+                    setError(photoErr.message || 'Error uploading photo. File may be too large (max 10MB).');
+                    setUpdating(false);
+                    return false;
+                }
+            }
+            
+            // Add photo filename to update data if available
+            if (photoName) {
+                updateData.photo = photoName;
+            }
+            
+            // Update profile with all data
+            const response = await updateUserProfileApi(updateData);
+
+            setSuccess(true);
+
             // Auto clear success message after 3 seconds
             setTimeout(() => {
                 setSuccess(false);
@@ -290,20 +426,21 @@ export const useUpdateProfile = () => {
         setError(null);
     };
 
-    // Load fields on mount
+    // Initialize profile data on component mount
     useEffect(() => {
         const loadFields = async () => {
             try {
                 setLoading(true);
                 const nameFieldsString = await loadEditFields();
-                // After loading edit fields, fetch the actual profile data
+                // Fetch profile data after loading field definitions
                 await fetchProfileData(nameFieldsString);
             } catch (err) {
+                // Error handling is done in the called functions
             } finally {
                 setLoading(false);
             }
         };
-        
+
         loadFields();
     }, []);
 
@@ -318,6 +455,7 @@ export const useUpdateProfile = () => {
         profileDetailData,
         requiredFields,
         messengerOptions,
+        photoUploadStatus,
         updateProfile,
         resetState,
         clearError,
