@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAlert } from '../../services/useApi/alert/UseAlert';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime';
+import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 const AlertModal = ({ visible, onClose }) => {
     // Translation state

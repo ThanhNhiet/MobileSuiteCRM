@@ -7,6 +7,7 @@ import ModulesConfig from '../../../configs/ModulesConfig';
 import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { fetchWithTimeout } from '../../../utils/FetchTimeOut';
+import { initializeLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
@@ -212,7 +213,8 @@ export const useLogin_out = () => {
         await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
         await AsyncStorage.setItem('selectedLanguage', selectedLanguage);
-
+        await initializeLocaleCache();
+        
         // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
 

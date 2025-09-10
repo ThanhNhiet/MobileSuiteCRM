@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCalendar } from '../../services/useApi/calendar/UseCalendar';
 import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
-import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function CalendarScreen({ navigation }) {
     // Language translations

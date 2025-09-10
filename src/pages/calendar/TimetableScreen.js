@@ -1,4 +1,4 @@
-import { formatDateTimeBySelectedLanguage } from '@/src/utils/format/FormatDateTime';
+import { formatDateTimeBySelectedLanguage } from '@/src/utils/format/FormatDateTime_Zones';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
