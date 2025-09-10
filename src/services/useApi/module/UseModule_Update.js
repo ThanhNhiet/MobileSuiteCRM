@@ -4,6 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
     createModuleRelationshipApi,
     deleteModuleRelationshipApi,
@@ -574,6 +575,21 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
+                }
+                if (updateData.date_start) {
+                    const timezone_store = await AsyncStorage.getItem('timezone') || '';
+                    const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
+                    if (timezone_utc) {
+                        updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
+                    }
+                }
+                if (updateData.date_end) {
+                    const timezone_store = await AsyncStorage.getItem("timezone") || "";
+                    const timezone_utc = parseTimezoneString(timezone_store).utc;
+
+                    if (timezone_utc) {
+                        updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
+                    }
                 }
                 await updateModuleRecordApi(moduleName, formData.id, updateData);
             }

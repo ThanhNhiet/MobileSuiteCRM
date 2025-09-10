@@ -61,21 +61,46 @@ const parseIsoIgnoreOffset = (isoString) => {
 };
 
 // Parse timezone string format: "VN*Asia/Bangkok*+07:00"
-const parseTimezoneString = (timezoneString) => {
+export const parseTimezoneString = (timezoneString) => {
     if (!timezoneString || typeof timezoneString !== 'string') {
         return null;
     }
-    
+
     const parts = timezoneString.split('*');
     if (parts.length !== 3) {
         return null;
     }
-    
+
     return {
         code: parts[0],
         name: parts[1],
         utc: parts[2]
     };
+};
+
+// parse "YYYY-MM-DD HH:mm:ss" to Date
+const parseDateTimeString = (dateTimeStr) => {
+    const [datePart, timePart] = dateTimeStr.split(" ");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute, second] = timePart.split(":").map(Number);
+    return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+};
+
+// convert from local + offset -> UTC
+export const convertToUTC = (dateTimeStr, offset = "+00:00") => {
+    if (!dateTimeStr) return null;
+
+    const date = parseDateTimeString(dateTimeStr);
+
+    // offset like "+07:00" or "-07:00"
+    const sign = offset.startsWith("-") ? -1 : 1;
+    const [h, m] = offset.slice(1).split(":").map(Number);
+    const offsetMinutes = sign * (h * 60 + m);
+
+    // local = UTC + offset => UTC = local - offset
+    const utcDate = new Date(date.getTime() - offsetMinutes * 60 * 1000);
+
+    return utcDate.toISOString().slice(0, 19).replace("T", " ");
 };
 
 // Get timezone info from cache or fallback to language
@@ -136,7 +161,7 @@ const getPopularFormatForLocale = (localeCode) => {
             }
         }
     }
-    
+
     // Fallback to language locale
     if (!localeCode) {
         const timezoneInfo = getTimezoneInfo();

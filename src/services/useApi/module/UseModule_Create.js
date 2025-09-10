@@ -4,6 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
     createModuleRecordApi,
     createModuleRelationshipApi,
@@ -275,7 +276,7 @@ export const useModule_Create = (moduleName) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for bool fields (checkbox)
                 if (fieldType === 'bool') {
                     return {
@@ -286,7 +287,7 @@ export const useModule_Create = (moduleName) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for function fields (disabled input)
                 if (fieldType === 'function') {
                     return {
@@ -297,7 +298,7 @@ export const useModule_Create = (moduleName) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for readonly fields (disabled input)
                 if (fieldType === 'readonly') {
                     return {
@@ -410,29 +411,29 @@ export const useModule_Create = (moduleName) => {
     // Validate form
     const validateForm = useCallback(async () => {
         const errors = {};
-        
+
         // Check required fields and validate numeric fields
         for (const field of createFields) {
             const fieldValue = formData[field.key]?.trim ? formData[field.key]?.trim() : formData[field.key] || '';
-            
+
             // Special handling for boolean fields - they're always valid with values "0" or "1"
             if (field.type === 'bool') {
                 // Skip further validation for boolean fields
                 continue;
             }
-            
+
             // Skip validation for function and readonly fields
             if (field.type === 'function' || field.type === 'readonly') {
                 continue;
             }
-            
+
             // Check required fields (except for bool/function/readonly fields)
             if (field.required && !fieldValue) {
                 const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
                 errors[field.key] = `${requiredMessage}`;
                 continue;
             }
-            
+
             // Validate numeric fields
             if (fieldValue && (field.type === 'int' || field.type === 'currency')) {
                 // For int fields, verify it's a valid integer
@@ -440,7 +441,7 @@ export const useModule_Create = (moduleName) => {
                     const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_INTEGER') || 'Phải là số nguyên';
                     errors[field.key] = errorMessage;
                 }
-                
+
                 // For currency fields, verify it's a valid number
                 if (field.type === 'currency' && !/^[0-9]*\.?[0-9]*$/.test(fieldValue)) {
                     const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_CURRENCY') || 'Phải là số';
@@ -448,7 +449,7 @@ export const useModule_Create = (moduleName) => {
                 }
             }
         }
-        
+
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [formData, createFields]);    // Create record
@@ -474,24 +475,24 @@ export const useModule_Create = (moduleName) => {
             Object.keys(formData).forEach(key => {
                 // Find the field definition to get its type
                 const fieldDef = createFields.find(f => f.key === key);
-                
+
                 // Skip function fields - they're not editable and shouldn't be submitted
                 if (fieldDef && fieldDef.type === 'function') {
                     return;
                 }
-                
+
                 // For boolean fields, always include them as 0 or 1
                 if (fieldDef && fieldDef.type === 'bool') {
                     recordData[key] = formData[key] === "1" ? "1" : "0";
                     return;
                 }
-                
+
                 // For readonly fields, include them even if empty
                 if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== undefined) {
                     recordData[key] = formData[key].trim ? formData[key].trim() : formData[key];
                     return;
                 }
-                
+
                 // For regular fields, only include if they're not in excludeFields and have a value
                 if (!excludeFields.includes(key) && formData[key]?.trim && formData[key].trim()) {
                     // For enum fields, we store the key (not the translated value)
@@ -511,12 +512,12 @@ export const useModule_Create = (moduleName) => {
             ) {
                 recordData.duration_minutes = "0";
             }
-            
+
             // Add filename from uploaded file (ưu tiên filename từ upload)
             if (uploadedFilename) {
                 console.log('Adding uploaded filename to recordData:', uploadedFilename);
                 recordData.filename = uploadedFilename;
-                
+
                 // Chỉ thêm mime_type nếu có giá trị hợp lệ
                 if (mime_type && mime_type !== 'application/x-empty') {
                     console.log('Adding mime_type to recordData:', mime_type);
@@ -526,7 +527,7 @@ export const useModule_Create = (moduleName) => {
                     const fileExtension = uploadedFilename.split('.').pop().toLowerCase();
                     const mimeTypeMap = {
                         'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg', 
+                        'jpeg': 'image/jpeg',
                         'png': 'image/png',
                         'gif': 'image/gif',
                         'pdf': 'application/pdf',
@@ -542,7 +543,29 @@ export const useModule_Create = (moduleName) => {
                 recordData.file_mime_type = mime_type || 'application/octet-stream';
             }
 
-            console.log('Record data to create:', recordData);
+            if (recordData.duration) {
+                const totalSeconds = parseInt(recordData.duration, 10) || 0;
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+                recordData.duration_hours = hours;
+                recordData.duration_minutes = minutes;
+            }
+            if (recordData.date_start) {
+                const timezone_store = await AsyncStorage.getItem('timezone') || '';
+                const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
+                if (timezone_utc) {
+                    recordData.date_start = convertToUTC(recordData.date_start, timezone_utc);
+                }
+            }
+            if (recordData.date_end) {
+                const timezone_store = await AsyncStorage.getItem("timezone") || "";
+                const timezone_utc = parseTimezoneString(timezone_store).utc;
+
+                if (timezone_utc) {
+                    recordData.date_end = convertToUTC(recordData.date_end, timezone_utc);
+                }
+            }
             const response = await createModuleRecordApi(moduleName, recordData);
 
             // Extract record ID from response - handle multiple possible structures
@@ -767,7 +790,7 @@ export const useModule_Create = (moduleName) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
     }, [createFields]);
-    const [isFile,setIsFile] = useState(false);
+    const [isFile, setIsFile] = useState(false);
 
     useEffect(() => {
         createFields.forEach(field => {
@@ -775,9 +798,9 @@ export const useModule_Create = (moduleName) => {
                 setIsFile(true);
             }
         });
-    },[createFields]);
+    }, [createFields]);
     // Save file to module
-    const saveFile = useCallback(async (moduleName,file) => {
+    const saveFile = useCallback(async (moduleName, file) => {
         try {
             if (!file || !moduleName) return;
             const data = await postFileModuleApi(moduleName, file);
@@ -806,13 +829,13 @@ export const useModule_Create = (moduleName) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'bool' || field.fieldType === 'bool');
     }, [createFields]);
-    
+
     // Check if field is a function type (disabled)
     const isFunctionField = useCallback((fieldKey) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'function' || field.fieldType === 'function');
     }, [createFields]);
-    
+
     // Check if field is a readonly type (disabled)
     const isReadonlyField = useCallback((fieldKey) => {
         const field = createFields.find(f => f.key === fieldKey);
@@ -824,7 +847,7 @@ export const useModule_Create = (moduleName) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'relate' || field.fieldType === 'relate');
     }, [createFields]);
-    
+
     // Get the related module name for a relate field
     const getRelatedModuleName = useCallback((fieldKey) => {
         if (relateModuleData && relateModuleData[fieldKey] && relateModuleData[fieldKey].module_relate) {
@@ -832,7 +855,7 @@ export const useModule_Create = (moduleName) => {
         }
         return null;
     }, [relateModuleData]);
-    
+
     // Toggle boolean field value (0 or 1)
     const toggleBoolField = useCallback((fieldKey) => {
         const currentValue = getFieldValue(fieldKey);
