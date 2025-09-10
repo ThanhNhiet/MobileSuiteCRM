@@ -27,7 +27,13 @@ const ProfileSettingScreen = ({ navigation }) => {
         translations,
         showDateFormatModal,
         showCurrencyModal,
+        showTimezoneModal,
         dateFormatOptions,
+        listTimezone,
+        filteredTimezones,
+        selectedTimezone,
+        timezoneSearchQuery,
+        isLoadingTimezones,
         loadCurrencies,
         saveDateFormat,
         saveCurrency,
@@ -36,8 +42,12 @@ const ProfileSettingScreen = ({ navigation }) => {
         getCurrencyExample,
         setShowDateFormatModal,
         setShowCurrencyModal,
+        setShowTimezoneModal,
         handleRefreshLanguage,
-        handleRefreshFields
+        handleRefreshFields,
+        searchTimezones,
+        saveTimezone,
+        setTimezoneSearchQuery
     } = useUserSetting();
 
     useEffect(() => {
@@ -94,6 +104,28 @@ const ProfileSettingScreen = ({ navigation }) => {
         </TouchableOpacity>
     );
 
+    const renderTimezoneItem = ({ item }) => (
+        <TouchableOpacity
+            style={[
+                styles.modalItem,
+                selectedTimezone?.id === item.id && styles.selectedItem
+            ]}
+            onPress={() => saveTimezone(item)}
+        >
+            <View style={styles.modalItemContent}>
+                <Text style={styles.modalItemText}>
+                    {item.displayName}
+                </Text>
+                <Text style={styles.modalItemExample}>
+                    {item.zoneName} - {item.popular_format}
+                </Text>
+            </View>
+            {selectedTimezone?.id === item.id && (
+                <Ionicons name="checkmark" size={20} color="#4B84FF" />
+            )}
+        </TouchableOpacity>
+    );
+
     return (
         <SafeAreaProvider>
             <SafeAreaView style={styles.container}>
@@ -143,6 +175,28 @@ const ProfileSettingScreen = ({ navigation }) => {
                             </Text>
                             <Text style={styles.selectButton}>
                                 {translations.selectButton}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Timezone Section */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>
+                            Timezone
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.selectionButton}
+                            onPress={() => setShowTimezoneModal(true)}
+                            disabled={isLoadingTimezones}
+                        >
+                            <Text style={styles.selectionText}>
+                                {selectedTimezone ?
+                                    selectedTimezone.displayName :
+                                    isLoadingTimezones ? 'Loading timezones...' : 'Select timezone'
+                                }
+                            </Text>
+                            <Text style={styles.selectButton}>
+                                {translations.selectButton || 'Select'}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -277,6 +331,54 @@ const ProfileSettingScreen = ({ navigation }) => {
                                     renderItem={renderCurrencyItem}
                                     keyExtractor={(item) => item.id}
                                     style={styles.modalList}
+                                />
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Timezone Modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={showTimezoneModal}
+                    onRequestClose={() => setShowTimezoneModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>
+                                    Select Timezone
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowTimezoneModal(false)}
+                                >
+                                    <Ionicons name="close" size={24} color="black" />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            {/* Search Input */}
+                            <View style={styles.searchContainer}>
+                                <TextInput
+                                    style={styles.searchInput}
+                                    placeholder="Search by country or timezone..."
+                                    value={timezoneSearchQuery}
+                                    onChangeText={searchTimezones}
+                                />
+                                <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+                            </View>
+
+                            {isLoadingTimezones ? (
+                                <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" color="#4B84FF" />
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={filteredTimezones}
+                                    renderItem={renderTimezoneItem}
+                                    keyExtractor={(item) => item.id}
+                                    style={styles.modalList}
+                                    showsVerticalScrollIndicator={true}
                                 />
                             )}
                         </View>
@@ -431,6 +533,24 @@ const styles = StyleSheet.create({
     loadingContainer: {
         padding: 40,
         alignItems: 'center',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F5F5',
+        borderRadius: 8,
+        marginBottom: 16,
+        paddingHorizontal: 12,
+    },
+    searchInput: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingRight: 8,
+        fontSize: 16,
+        color: 'black',
+    },
+    searchIcon: {
+        marginLeft: 8,
     },
 });
 

@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { useEffect, useState } from 'react';
+import timezonesData from '../../../assets/timezones.json';
 import ModulesConfig from '../../../configs/ModulesConfig';
 import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { initializeLocaleCache, updateLocaleCache } from '../../../utils/format/FormatDateTime';
+import { initializeLocaleCache, updateLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
 import {
     getActiveCurrenciesNameApi,
     getDetailCurrenciesApi,
@@ -27,6 +28,15 @@ export const useUserSetting = () => {
     // Modal states
     const [showDateFormatModal, setShowDateFormatModal] = useState(false);
     const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+    const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+    
+    // Timezone states
+    const [listTimezone, setListTimezone] = useState([]);
+    const [filteredTimezones, setFilteredTimezones] = useState([]);
+    const [selectedTimezone, setSelectedTimezone] = useState(null);
+    const [selectedTimezoneIndex, setSelectedTimezoneIndex] = useState(0);
+    const [timezoneSearchQuery, setTimezoneSearchQuery] = useState("");
+    const [isLoadingTimezones, setIsLoadingTimezones] = useState(false);
 
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
 
@@ -73,7 +83,7 @@ export const useUserSetting = () => {
     const dateFormatOptions = [
         { value: 'dd/MM/yyyy', label: 'dd/MM/yyyy', example: '25/12/2024' },
         { value: 'MM/dd/yyyy', label: 'MM/dd/yyyy', example: '12/25/2024' },
-        { value: 'yyyy-MM-dd', label: 'yyyy-MM-dd', example: '2024-12-25' }
+        { value: 'yyyy/MM/dd', label: 'yyyy/MM/dd', example: '2024/12/25' }
     ];
 
     // Load translations
@@ -145,17 +155,20 @@ export const useUserSetting = () => {
                 const savedThousandsSeparator = await AsyncStorage.getItem('thousandsSeparator');
                 const savedDecimalSymbol = await AsyncStorage.getItem('decimalSymbol');
                 const savedCurrency = await AsyncStorage.getItem('selectedCurrency');
+                const savedTimezone = await AsyncStorage.getItem('selectedTimezone');
 
                 if (savedDateFormat) setDateFormat(savedDateFormat);
                 if (savedThousandsSeparator) setThousandsSeparator(savedThousandsSeparator);
                 if (savedDecimalSymbol) setDecimalSymbol(savedDecimalSymbol);
                 if (savedCurrency) setSelectedCurrency(JSON.parse(savedCurrency));
+                if (savedTimezone) setSelectedTimezone(JSON.parse(savedTimezone));
             } catch (error) {
                 console.warn('Error loading settings:', error);
             }
         };
 
         loadSettings();
+        loadTimezones();
     }, []);
 
     // Load currencies
@@ -290,6 +303,140 @@ export const useUserSetting = () => {
             await AsyncStorage.setItem('decimalSymbol', symbol);
         } catch (error) {
             console.error('Error saving decimal symbol:', error);
+        }
+    };
+
+    // Load timezones from local data
+    const loadTimezones = async () => {
+        try {
+            setIsLoadingTimezones(true);
+            
+            // Process timezone data to match the required format: "country. timezones.name timezones.utc"
+            const processedTimezones = [];
+            
+            timezonesData.forEach((countryData) => {
+                if (countryData && countryData.timezones && countryData.timezones.length > 0) {
+                    countryData.timezones.forEach((timezone) => {
+                        if (timezone) {
+                            processedTimezones.push({
+                                id: `${countryData.code || 'unknown'}_${timezone.name || 'unknown'}`,
+                                country: countryData.country || 'Unknown',
+                                countryCode: countryData.code || 'unknown',
+                                zoneName: timezone.name || 'unknown',
+                                name: timezone.name || 'Unknown',
+                                utc: timezone.utc || '+00:00',
+                                popular_format: timezone.popular_format || 'dd/MM/yyyy',
+                                locale_code: timezone.locale_code || 'en_US',
+                                displayName: `${countryData.country || 'Unknown'}. ${timezone.name || 'Unknown'}. UTC ${timezone.utc || '+00:00'}`,
+                                //VN*Asia/Bangkok*+07:00
+                                storage: `${countryData.code || 'VN'}*${timezone.name || 'Asia/Bangkok'}*${timezone.utc || '+07:00'}`
+                            });
+                        }
+                    });
+                }
+            });
+            
+            // Sort by country name first, then by timezone name
+            processedTimezones.sort((a, b) => {
+                if (a.country !== b.country) {
+                    return (a.country || '').localeCompare(b.country || '');
+                }
+                return (a.name || '').localeCompare(b.name || '');
+            });
+            
+            setListTimezone(processedTimezones);
+            setFilteredTimezones(processedTimezones);
+            
+            // Set default timezone if none selected (check both state and AsyncStorage)
+            const savedTimezone = await AsyncStorage.getItem('selectedTimezone');
+            const savedTimezoneStorage = await AsyncStorage.getItem('timezone');
+            
+            if (!selectedTimezone && !savedTimezone && !savedTimezoneStorage && processedTimezones.length > 0) {
+                // Try to find a Vietnam timezone as default
+                const defaultTimezone = processedTimezones.find(tz => {
+                    const country = tz.country || '';
+                    const zoneName = tz.zoneName || '';
+                    return country.toLowerCase().includes('vietnam') || 
+                           zoneName === 'Asia/Ho_Chi_Minh';
+                }) || processedTimezones[0];
+                
+                if (defaultTimezone) {
+                    setSelectedTimezone(defaultTimezone);
+                    await AsyncStorage.setItem('selectedTimezone', JSON.stringify(defaultTimezone));
+                    await AsyncStorage.setItem('timezone', defaultTimezone.storage);
+                    
+                    // Find index for selected timezone
+                    const index = processedTimezones.findIndex(tz => tz.id === defaultTimezone.id);
+                    setSelectedTimezoneIndex(index >= 0 ? index : 0);
+                }
+            } else if (savedTimezone && !selectedTimezone) {
+                // Restore timezone from AsyncStorage if it exists but state is empty
+                try {
+                    const parsedTimezone = JSON.parse(savedTimezone);
+                    setSelectedTimezone(parsedTimezone);
+                    
+                    // Find index for selected timezone
+                    const index = processedTimezones.findIndex(tz => tz.id === parsedTimezone.id);
+                    setSelectedTimezoneIndex(index >= 0 ? index : 0);
+                } catch (error) {
+                    console.warn('Error parsing saved timezone:', error);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading timezones:', error);
+        } finally {
+            setIsLoadingTimezones(false);
+        }
+    };
+
+    // Search timezones
+    const searchTimezones = (query) => {
+        setTimezoneSearchQuery(query);
+        
+        if (!query.trim()) {
+            setFilteredTimezones(listTimezone);
+            return;
+        }
+        
+        const lowerQuery = query.toLowerCase();
+        const filtered = listTimezone.filter(timezone => {
+            const country = timezone.country || '';
+            const name = timezone.name || '';
+            const zoneName = timezone.zoneName || '';
+            const utc = timezone.utc || '';
+            
+            return country.toLowerCase().includes(lowerQuery) ||
+                   name.toLowerCase().includes(lowerQuery) ||
+                   zoneName.toLowerCase().includes(lowerQuery) ||
+                   utc.toLowerCase().includes(lowerQuery);
+        });
+        
+        setFilteredTimezones(filtered);
+    };
+
+    // Save timezone
+    const saveTimezone = async (timezone) => {
+        try {
+            setSelectedTimezone(timezone);
+            await AsyncStorage.setItem('selectedTimezone', JSON.stringify(timezone));
+            
+            // Find and set index
+            const index = listTimezone.findIndex(tz => tz.id === timezone.id);
+            setSelectedTimezoneIndex(index);
+            
+            // Update locale cache for FormatDateTime with timezone info - sử dụng key 'timezone' thay vì 'selectedTimezoneConfig'
+            await AsyncStorage.setItem('timezone', timezone.storage);
+            
+            // Update the cached values in FormatDateTime
+            const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'en_us';
+            updateLocaleCache(dateFormat, selectedLanguage, timezone.locale_code);
+            
+            // Reload cache để các function sync có thể sử dụng ngay lập tức
+            await initializeLocaleCache();
+            
+            setShowTimezoneModal(false);
+        } catch (error) {
+            console.error('Error saving timezone:', error);
         }
     };
 
@@ -500,7 +647,16 @@ export const useUserSetting = () => {
         translations,
         showDateFormatModal,
         showCurrencyModal,
+        showTimezoneModal,
         dateFormatOptions,
+        
+        // Timezone state
+        listTimezone,
+        filteredTimezones,
+        selectedTimezone,
+        selectedTimezoneIndex,
+        timezoneSearchQuery,
+        isLoadingTimezones,
         
         // Actions
         loadCurrencies,
@@ -511,9 +667,16 @@ export const useUserSetting = () => {
         getCurrencyExample,
         setShowDateFormatModal,
         setShowCurrencyModal,
+        setShowTimezoneModal,
         handleRefreshLanguage,
         handleRefreshFields,
         refreshLanguageCache,
-        refreshFieldsCache
+        refreshFieldsCache,
+        
+        // Timezone actions
+        loadTimezones,
+        searchTimezones,
+        saveTimezone,
+        setTimezoneSearchQuery
     };
 };
