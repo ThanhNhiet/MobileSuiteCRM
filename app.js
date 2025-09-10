@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppRouter from "./src/commons/AppRouter";
-import { initializeLocaleCache } from './src/utils/format/FormatDateTime';
+import { initializeLocaleCache } from './src/utils/format/FormatDateTime_Zones';
 
 export default function App() {
   // Initialize locale cache for date and time formatting
