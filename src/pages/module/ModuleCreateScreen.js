@@ -146,6 +146,7 @@ export default function ModuleCreateScreen() {
         error,
         validationErrors,
         enumFieldsData,
+        relateModuleData,
         updateField,
         createRecord,
         resetForm,
@@ -163,6 +164,8 @@ export default function ModuleCreateScreen() {
         isBoolField,
         isFunctionField,
         isReadonlyField,
+        isRelateField,
+        getRelatedModuleName,
         toggleBoolField
     } = useModule_Create(moduleName);
 
@@ -409,6 +412,29 @@ export default function ModuleCreateScreen() {
         await updateField('parent_id', selectedItem.id); // Store the parent ID
     };
 
+    // Handle relate field selection  
+    const handleRelateFieldSelect = async (fieldKey, selectedItem) => {
+        await updateField(fieldKey, selectedItem.name);
+        // Store the related ID in a hidden field, replace the "name" of the relate field by id: ex: account_name -> account_id
+        if (!fieldKey.endsWith('_id')) {
+            const idFieldKey = fieldKey.replace(/_name$/, '_id');
+            await updateField(idFieldKey, selectedItem.id);
+        }
+    };
+
+    // Get module name for relate field (example: getModuleName('account_name') returns 'Accounts')
+    const getModuleName = (fieldKey) => {
+        return getRelatedModuleName(fieldKey);
+    };
+
+    // Get translated module name
+    const getModuleTranslation = async (moduleName) => {
+        if (!moduleName) return '';
+        const translationKey = `LBL_${moduleName.toUpperCase()}`;
+        const translated = await systemLanguageUtils.translate(translationKey);
+        return translated || moduleName;
+    };
+
     // Handle assigned user selection
     const handleAssignedUserSelect = async (selectedItem) => {
         await updateField('assigned_user_name', selectedItem.name);
@@ -628,6 +654,34 @@ export default function ModuleCreateScreen() {
                                 !fieldValue && styles.placeholderText,
                                 !getFieldValue('parent_type') && styles.disabledText
                             ]}>
+                                {fieldValue || (translations.selectPlaceholder || '--------')}
+                            </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
+
+            // Handle relate fields as search modal (similar to parent_name but no parent_type required)
+            if (isRelateField(field.key)) {
+                const relatedModuleName = getModuleName(field.key);
+
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <TouchableOpacity
+                            style={[styles.valueBox, fieldError && styles.errorInput]}
+                            onPress={async () => {
+                                const moduleLabel = await getModuleTranslation(relatedModuleName);
+
+                                navigation.navigate('SearchModulesScreen', {
+                                    parentType: relatedModuleName,
+                                    title: moduleLabel,
+                                    onSelect: (selectedItem) => handleRelateFieldSelect(field.key, selectedItem)
+                                });
+                            }}
+                        >
+                            <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
                                 {fieldValue || (translations.selectPlaceholder || '--------')}
                             </Text>
                         </TouchableOpacity>

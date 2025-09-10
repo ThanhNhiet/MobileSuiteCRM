@@ -4,7 +4,15 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { createModuleRecordApi, createModuleRelationshipApi, getEnumsApi, getModuleEditFieldsApi, getModuleFieldsRequiredApi, postFileModuleApi } from '../../api/module/ModuleApi';
+import {
+    createModuleRecordApi,
+    createModuleRelationshipApi,
+    getEnumsApi,
+    getModuleEditFieldsApi,
+    getModuleFieldsRequiredApi,
+    getRelateModuleApi,
+    postFileModuleApi
+} from '../../api/module/ModuleApi';
 
 export const useModule_Create = (moduleName) => {
     // SystemLanguageUtils instance
@@ -13,6 +21,7 @@ export const useModule_Create = (moduleName) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
+    const [relateModuleData, setRelateModuleData] = useState({});
 
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({});
@@ -163,11 +172,14 @@ export const useModule_Create = (moduleName) => {
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
 
-            // Find enum fields (type === 'enum' or type === 'parent_type')
+            // Find enum fields (type === 'enum' or type === 'parent_type' or type === 'relate')
             const enumFields = [];
+            const relateFields = [];
             Object.entries(requiredFields).forEach(([fieldKey, fieldInfo]) => {
                 if (fieldInfo.type === 'enum' || fieldInfo.type === 'parent_type') {
                     enumFields.push(fieldKey);
+                } else if (fieldInfo.type === 'relate') {
+                    relateFields.push(fieldKey);
                 }
             });
 
@@ -180,6 +192,18 @@ export const useModule_Create = (moduleName) => {
                     }
                 } catch (enumErr) {
                     console.warn(`Error fetching enum data for ${moduleName}:`, enumErr);
+                }
+            }
+            // Fetch relate module data if there are relate fields
+            if (relateFields.length > 0) {
+                try {
+                    const fields_relateType = relateFields.join(',');
+                    const relateResponse = await getRelateModuleApi(moduleName, fields_relateType);
+                    if (relateResponse && relateResponse.success && relateResponse.fields) {
+                        setRelateModuleData(relateResponse.fields);
+                    }
+                } catch (relateErr) {
+                    console.warn(`Error fetching relate module data for ${moduleName}:`, relateErr);
                 }
             }
 
@@ -280,6 +304,16 @@ export const useModule_Create = (moduleName) => {
                         key: fieldKey,
                         label: finalLabel,
                         type: 'readonly', // Disabled input field
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+                // Special handling for relate fields
+                if (fieldType === 'relate') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'relate',
                         fieldType: fieldType,
                         required: isRequired
                     };
@@ -507,6 +541,7 @@ export const useModule_Create = (moduleName) => {
                 recordData.filename = formData.filename.trim();
                 recordData.file_mime_type = mime_type || 'application/octet-stream';
             }
+
             console.log('Record data to create:', recordData);
             const response = await createModuleRecordApi(moduleName, recordData);
 
@@ -783,6 +818,20 @@ export const useModule_Create = (moduleName) => {
         const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'readonly' || field.fieldType === 'readonly');
     }, [createFields]);
+
+    // Check if field is a relate type
+    const isRelateField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'relate' || field.fieldType === 'relate');
+    }, [createFields]);
+    
+    // Get the related module name for a relate field
+    const getRelatedModuleName = useCallback((fieldKey) => {
+        if (relateModuleData && relateModuleData[fieldKey] && relateModuleData[fieldKey].module_relate) {
+            return relateModuleData[fieldKey].module_relate;
+        }
+        return null;
+    }, [relateModuleData]);
     
     // Toggle boolean field value (0 or 1)
     const toggleBoolField = useCallback((fieldKey) => {
@@ -800,6 +849,7 @@ export const useModule_Create = (moduleName) => {
         error,
         validationErrors,
         enumFieldsData,
+        relateModuleData,
         updateField,
         createRecord,
         resetForm,
@@ -821,6 +871,8 @@ export const useModule_Create = (moduleName) => {
 
         isBoolField,
         isFunctionField,
-        isReadonlyField
+        isReadonlyField,
+        isRelateField,
+        getRelatedModuleName
     };
 };

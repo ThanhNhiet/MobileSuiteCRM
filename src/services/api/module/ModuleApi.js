@@ -126,11 +126,12 @@ export const createModuleRecordApi = async (moduleName, recordData) => {
                     type: moduleName,
                     attributes: {
                         ...recordData
-                    },
-                    headers: {
-                        Accept: 'application/vnd.api+json',
-                        'Content-Type': 'application/vnd.api+json'
                     }
+                }
+            }, {
+                headers: {
+                    Accept: 'application/vnd.api+json',
+                    'Content-Type': 'application/vnd.api+json'
                 }
             });
         }
@@ -468,3 +469,18 @@ export const getLinkFileModuleApi = async (moduleName, fileName) => {
         throw error;
     }
 }
+
+//GET /Api/V8/custom/relate/{module}?fields={fields_relateType}
+export const getRelateModuleApi = async (moduleName, fields_relateType) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/custom/relate/${moduleName}`, {
+            params: {
+                fields: fields_relateType
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn("Get Relate Module API error:", error);
+        throw error;
+    }
+};

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -142,7 +142,10 @@ export default function ModuleUpdateScreen() {
     isBoolField,
     isFunctionField,
     isReadonlyField,
-    toggleBoolField
+    toggleBoolField,
+    isRelateField,
+    getRelatedModuleName,
+    handleRelateFieldSelect
   } = useModuleUpdate(moduleName, recordData);
 
   // Local loading state for save button
@@ -175,6 +178,22 @@ export default function ModuleUpdateScreen() {
     await updateField('assigned_user_name', selectedItem.name);
     await updateField('assigned_user_id', selectedItem.id); // Store the assigned user ID
   };
+
+  // Handle relate field selection
+  const handleRelateSelect = async (selectedItem, fieldKey) => {
+    await handleRelateFieldSelect(fieldKey, selectedItem);
+  };
+
+  // Get module translation for relate field
+  const getModuleTranslation = useCallback(async (moduleName) => {
+    try {
+      const translation = await systemLanguageUtils.translate(moduleName);
+      return translation || moduleName;
+    } catch (error) {
+      console.warn('Error translating module name:', error);
+      return moduleName;
+    }
+  }, []);
 
   // Load parent type options
   useEffect(() => {
@@ -801,6 +820,35 @@ export default function ModuleUpdateScreen() {
                         editable={false}
                       />
                     </View>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+
+              // Handle relate fields as search modal
+              if (isRelateField(field.key)) {
+                const relatedModuleName = getRelatedModuleName(field.key);
+                
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={async () => {
+                        if (relatedModuleName) {
+                          const moduleTitle = await getModuleTranslation(relatedModuleName);
+                          navigation.navigate('SearchModulesScreen', {
+                            parentType: relatedModuleName,
+                            title: moduleTitle,
+                            onSelect: (selectedItem) => handleRelateSelect(selectedItem, field.key)
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {fieldValue || (translations.selectPlaceholder || '--------')}
+                      </Text>
+                    </TouchableOpacity>
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
                   </View>
                 );

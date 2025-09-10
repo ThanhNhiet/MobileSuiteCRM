@@ -10,6 +10,7 @@ import {
     getEnumsApi,
     getModuleEditFieldsApi,
     getModuleFieldsRequiredApi,
+    getRelateModuleApi,
     updateModuleRecordApi
 } from '../../api/module/ModuleApi';
 
@@ -29,9 +30,12 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
     // Fields configuration
     const [updateFields, setUpdateFields] = useState([]);
-    
+
     // Enum fields data - similar to useModule_Create
     const [enumFieldsData, setEnumFieldsData] = useState({});
+
+    // Relate fields data - store relate module information
+    const [relateModuleData, setRelateModuleData] = useState({});
 
     // Get default fields for different modules - just like useModule_Create
     const getDefaultFieldsForModule = (module) => {
@@ -93,7 +97,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 "description": "LBL_DESCRIPTION"
             },
             'Calls': {
-                "name": "LBL_SUBJECT", 
+                "name": "LBL_SUBJECT",
                 "status": "LBL_STATUS",
                 "direction": "LBL_DIRECTION",
                 "date_start": "LBL_DATE",
@@ -188,9 +192,14 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
             // Find enum fields (type === 'enum' or type === 'parent_type')
             const enumFields = [];
+            // Find relate fields (type === 'relate')
+            const relateFields = [];
+
             Object.entries(requiredFields).forEach(([fieldKey, fieldInfo]) => {
                 if (fieldInfo.type === 'enum' || fieldInfo.type === 'parent_type') {
                     enumFields.push(fieldKey);
+                } else if (fieldInfo.type === 'relate') {
+                    relateFields.push(fieldKey);
                 }
             });
 
@@ -203,6 +212,18 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     }
                 } catch (enumErr) {
                     console.warn(`Error fetching enum data for ${moduleName}:`, enumErr);
+                }
+            }
+
+            // Fetch relate data if there are relate fields
+            if (relateFields.length > 0) {
+                try {
+                    const relateResponse = await getRelateModuleApi(moduleName, relateFields.join(','));
+                    if (relateResponse && relateResponse.success && relateResponse.fields) {
+                        setRelateModuleData(relateResponse.fields);
+                    }
+                } catch (relateErr) {
+                    console.warn(`Error fetching relate data for ${moduleName}:`, relateErr);
                 }
             }
 
@@ -274,7 +295,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for bool fields (checkbox)
                 if (fieldType === 'bool') {
                     return {
@@ -285,7 +306,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for function fields (disabled input)
                 if (fieldType === 'function') {
                     return {
@@ -296,13 +317,24 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         required: isRequired
                     };
                 }
-                
+
                 // Special handling for readonly fields (disabled input)
                 if (fieldType === 'readonly') {
                     return {
                         key: fieldKey,
                         label: finalLabel,
                         type: 'readonly', // Disabled input field
+                        fieldType: fieldType,
+                        required: isRequired
+                    };
+                }
+
+                // Special handling for relate fields
+                if (fieldType === 'relate') {
+                    return {
+                        key: fieldKey,
+                        label: finalLabel,
+                        type: 'relate', // Use relate type for UI rendering
                         fieldType: fieldType,
                         required: isRequired
                     };
@@ -358,7 +390,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     initialFormData[field.key] = '';
                 }
             });
-            
+
             // Ensure these fields are always included
             initialFormData['parent_id'] = '';
             initialFormData['assigned_user_id'] = '';
@@ -390,7 +422,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 } else {
                     formValues[field.key] = "0";
                 }
-            } 
+            }
             // Handle function fields with default placeholder
             else if (field.type === 'function' || field.fieldType === 'function') {
                 formValues[field.key] = recordData[field.key] || "not available to use";
@@ -400,7 +432,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 formValues[field.key] = recordData[field.key] || '';
             }
         });
-        
+
         // Ensure these fields are always included, even if not in updateFields
         formValues['parent_id'] = recordData['parent_id'] || '';
         formValues['assigned_user_id'] = recordData['assigned_user_id'] || '';
@@ -456,7 +488,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
             if (field.type === 'bool' || field.type === 'function' || field.type === 'readonly') {
                 continue;
             }
-            
+
             if (field.required) {
                 const fieldValue = formData[field.key];
 
@@ -504,24 +536,24 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
             Object.keys(formData).forEach(key => {
                 // Find the field definition to get its type
                 const fieldDef = updateFields.find(f => f.key === key);
-                
+
                 // Skip function fields - they're not editable
                 if (fieldDef && fieldDef.type === 'function') {
                     return;
                 }
-                
+
                 // For boolean fields, always include them as 0 or 1 if changed
                 if (fieldDef && fieldDef.type === 'bool' && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key] === "1" ? "1" : "0";
                     return;
                 }
-                
+
                 // For readonly fields that have changed, include them
                 if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key];
                     return;
                 }
-                
+
                 // For regular fields that have changed and aren't excluded
                 if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key]?.trim ? formData[key].trim() : formData[key];
@@ -535,6 +567,14 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
             // Update basic record data if there are changes
             if (Object.keys(updateData).length > 0) {
+                if (updateData.duration) {
+                    const totalSeconds = parseInt(updateData.duration, 10) || 0;
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+                    updateData.duration_hours = hours;
+                    updateData.duration_minutes = minutes;
+                }
                 await updateModuleRecordApi(moduleName, formData.id, updateData);
             }
 
@@ -682,12 +722,12 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
             if (option.value === moduleName) {
                 return false;
             }
-            
+
             // If current module is not Notes, exclude Notes from options
             if (moduleName !== 'Notes' && option.value === 'Notes') {
                 return false;
             }
-            
+
             return true;
         });
 
@@ -810,25 +850,25 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
     }, [updateFields]);
-    
+
     // Check if field is a boolean type (checkbox)
     const isBoolField = useCallback((fieldKey) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field && (field.type === 'bool' || field.fieldType === 'bool');
     }, [updateFields]);
-    
+
     // Check if field is a function type (disabled)
     const isFunctionField = useCallback((fieldKey) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field && (field.type === 'function' || field.fieldType === 'function');
     }, [updateFields]);
-    
+
     // Check if field is a readonly type (disabled)
     const isReadonlyField = useCallback((fieldKey) => {
         const field = updateFields.find(f => f.key === fieldKey);
         return field && (field.type === 'readonly' || field.fieldType === 'readonly');
     }, [updateFields]);
-    
+
     // Toggle boolean field value (0 or 1)
     const toggleBoolField = useCallback((fieldKey) => {
         const currentValue = getFieldValue(fieldKey);
@@ -836,6 +876,34 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         const newValue = currentValue === "1" ? "0" : "1";
         updateField(fieldKey, newValue);
     }, [getFieldValue, updateField]);
+
+    // Check if field is a relate type
+    const isRelateField = useCallback((fieldKey) => {
+        const field = updateFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'relate' || field.fieldType === 'relate');
+    }, [updateFields]);
+
+    // Get related module name for a relate field
+    const getRelatedModuleName = useCallback((fieldKey) => {
+        if (relateModuleData && relateModuleData[fieldKey] && relateModuleData[fieldKey].module) {
+            return relateModuleData[fieldKey].module;
+        }
+        return null;
+    }, [relateModuleData]);
+
+    // Handle relate field selection (when user selects a record from SearchModulesScreen)
+    const handleRelateFieldSelect = useCallback(async (fieldKey, selectedRecord) => {
+        if (!selectedRecord) return;
+
+        // Update the relate field with selected record name
+        await updateField(fieldKey, selectedRecord.name || '');
+
+        // Also update the corresponding ID field if it exists
+        const idFieldKey = fieldKey.replace('_name', '_id');
+        if (selectedRecord.id) {
+            await updateField(idFieldKey, selectedRecord.id);
+        }
+    }, [updateField]);
 
     return {
         // Data
@@ -846,6 +914,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         error,
         validationErrors,
         enumFieldsData,
+        relateModuleData,
 
         // Actions
         loadRecordData,
@@ -871,6 +940,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         isBoolField,
         isFunctionField,
         isReadonlyField,
-        toggleBoolField
+        toggleBoolField,
+        isRelateField,
+        getRelatedModuleName,
+        handleRelateFieldSelect
     };
 };
