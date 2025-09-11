@@ -183,6 +183,7 @@ export default function ModuleDetailScreen() {
         getFieldLabel,
         shouldDisplayField,
         fileMeta,
+        relaFor,
     } = useModule_Detail(moduleName, recordId);
     const [lang, setLang] = useState(null);
     useEffect(() => {
@@ -231,7 +232,8 @@ export default function ModuleDetailScreen() {
                     navigation.navigate('RelationshipListScreen_New', {
                         relationship: item,
                         sourceModule: moduleName,
-                        sourceRecordId: record?.id
+                        sourceRecordId: record?.id,
+                        relaFor: relaFor || null,
                     });
                 }}
                 style={({ pressed }) => [

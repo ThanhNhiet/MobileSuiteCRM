@@ -100,3 +100,18 @@ export const getDataRelationshipApi = async (relatedLink) => {
         throw error;
     }
 };
+
+export const getRecordByIdApi = async (relaFor) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/${relaFor.moduleName}/${relaFor.recordId}`);
+
+        if (response.data.data !== null) {
+            return response.data.data.attributes;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.warn(`Get Record By ID from ${relaFor.moduleName} API error:`, error);
+        throw error;
+    }
+};

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +25,28 @@ export default function ModuleUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { moduleName, recordData, haveParent } = route.params || {};
+  const [file, setFile] = useState(null);
+  
+      const pickFile = async () => {
+          try {
+              const result = await DocumentPicker.getDocumentAsync({
+                  multiple: false,
+                  copyToCacheDirectory: true,
+              });
+  
+              if (result.canceled) return;
+  
+              // API mới trả về mảng assets
+              const asset = result.assets?.[0] || result;
+              if (asset) {
+                  setFile(asset);
+                  console.log("File đã chọn:", asset);
+              }
+          } catch (err) {
+              console.log("Lỗi chọn file:", err);
+          }
+      };
+  
 
   // SystemLanguageUtils instance
   const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -145,7 +168,10 @@ export default function ModuleUpdateScreen() {
     toggleBoolField,
     isRelateField,
     getRelatedModuleName,
-    handleRelateFieldSelect
+    handleRelateFieldSelect,
+     saveFile,
+      isFile,
+
   } = useModuleUpdate(moduleName, recordData);
 
   // Local loading state for save button
@@ -208,7 +234,24 @@ export default function ModuleUpdateScreen() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const result = await updateRecord();
+       // Upload file trước nếu có
+            let uploadedFilename = null;
+            let mime_type = null;
+            if (isFile && file) {
+                const fileResponse = await saveFile(moduleName, file);
+
+                if (fileResponse.success && fileResponse.original_filename) {
+                    uploadedFilename = fileResponse.original_filename;
+                    mime_type = fileResponse.mime_type;
+                } else {
+                    Alert.alert(
+                        translations.errorTitle || 'Lỗi',
+                        `Không thể tải lên file: ${fileResponse.message || 'Unknown error'}`
+                    );
+                    return;
+                }
+            }
+      const result = await updateRecord(uploadedFilename, mime_type);
       if (result.success) {
         Alert.alert(
           translations.successTitle || 'Thành công',
@@ -853,6 +896,72 @@ export default function ModuleUpdateScreen() {
                   </View>
                 );
               }
+              if (field.key === 'filename') {
+                              return (
+                                  <View key={field.key} style={styles.row}>
+                                   {renderFieldLabel(field.key)}
+                                      <TouchableOpacity
+                                          onPress={pickFile}
+                                          style={styles.valueFile}
+                                      >
+                                          <Text style={{ color: "white", fontWeight: "bold" }}>{fieldValue}</Text>
+                                      </TouchableOpacity>
+                                      {file && (
+                                          <View
+                                              style={{
+                                                  marginTop: 20,
+                                                  padding: 15,
+                                                  borderRadius: 12,
+                                                  backgroundColor: "#f3f4f6",
+                                                  shadowColor: "#000",
+                                                  shadowOffset: { width: 0, height: 2 },
+                                                  shadowOpacity: 0.1,
+                                                  shadowRadius: 4,
+                                                  elevation: 3,
+                                              }}
+                                          >
+                                              <View
+                                                  style={{
+                                                      flexDirection: "row",
+                                                      justifyContent: "space-between",
+                                                      alignItems: "center",
+                                                  }}
+                                              >
+                                                  <Text style={{ fontSize: 16, fontWeight: "600", flex: 1 }}>
+                                                      📄 {file.name}
+                                                  </Text>
+              
+                                                  <TouchableOpacity
+                                                      onPress={() => setFile(null)}
+                                                      style={{
+                                                          backgroundColor: "#ef4444",
+                                                          paddingVertical: 6,
+                                                          paddingHorizontal: 12,
+                                                          borderRadius: 8,
+                                                      }}
+                                                  >
+                                                      <Text style={{ color: "white", fontWeight: "bold" }}>Xóa</Text>
+                                                  </TouchableOpacity>
+                                              </View>
+              
+                                              <Text style={{ fontSize: 14, color: "#374151", marginTop: 8 }}>
+                                                  Kích thước: {(file.size / 1024).toFixed(1)} KB
+                                              </Text>
+                                              <Text
+                                                  style={{
+                                                      fontSize: 12,
+                                                      color: "#6b7280",
+                                                      marginTop: 4,
+                                                  }}
+                                                  numberOfLines={1}
+                                              >
+                                                  URI: {file.uri}
+                                              </Text>
+                                          </View>
+                                      )}
+                                  </View>
+                              );
+                          }
 
               // Default handling for all other fields
               return (
@@ -1399,4 +1508,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
   },
+  valueFile: {
+        backgroundColor: '#2563eb',
+        borderRadius: 6,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        width: '90%',
+        alignSelf: 'center',
+        justifyContent: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.12,
+        shadowOffset: { width: 0, height: 1 },
+        shadowRadius: 2,
+    },
 });

@@ -25,6 +25,7 @@ import ProfileSettingScreen from "../pages/profile/ProfileSettingScreen";
 import UpdateProfileScreen from "../pages/profile/UpdateProfileScreen";
 
 //import page relationship
+import RelationshipCreateScreen_New from "../pages/relationship/RelationshipCreateScreen_New";
 import RelationshipListScreen_New from "../pages/relationship/RelationshipListScreen_New";
 
 //import page search
@@ -82,6 +83,8 @@ export default function AppRouter() {
                 
                 {/*Relationship List Screen*/}
                 <Stack.Screen name="RelationshipListScreen_New" component={RelationshipListScreen_New} options={{ headerShown: false }} />
+                {/*Relationship Create Screen*/}
+                <Stack.Screen name="RelationshipCreateScreen_New" component={RelationshipCreateScreen_New} options={{ headerShown: false }} />
 
                 {/* Add more screens as needed */}
 

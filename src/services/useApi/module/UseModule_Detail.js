@@ -629,6 +629,27 @@ export const useModule_Detail = (moduleName, recordId) => {
         };
         getLinkFile();
     }, [moduleName,fileName]);
+    // relationships change
+    const [relaFor, setRelaFor] = useState(null);
+
+    useEffect(() => {
+        const fetchRelaFor = async () => {
+            try {
+                if(!moduleName || !recordId){
+                    setRelaFor(null);
+                    return;
+                }
+                const rela = {
+                    moduleName: moduleName,
+                    recordId: recordId
+                };
+                setRelaFor(rela);
+            } catch (error) {
+            console.warn('Set relaFor error:', error);
+            }
+        };        
+        fetchRelaFor();
+    },[moduleName, recordId]);
 
 
     return {
@@ -643,6 +664,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         error,
         deleting,
         haveParent,
+        relaFor,
         
         // Actions
         fetchRecord,

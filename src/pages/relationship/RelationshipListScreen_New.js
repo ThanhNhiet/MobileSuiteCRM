@@ -36,7 +36,8 @@ export default function RelationshipListScreen_New() {
         sourceRecordId,         // source/parent record ID
         parentModule,           // alternative parent module name (for backward compatibility)
         parentId,              // alternative parent record ID (for backward compatibility)
-        parentRecord           // parent record data (optional)
+        parentRecord,          // parent record data (optional)
+        relaFor
     } = route.params;
     
     // Extract moduleName and relatedLink from relationship
@@ -251,7 +252,7 @@ export default function RelationshipListScreen_New() {
 
     // Navigation to create screen
     const navigateToCreateScreen = () => {
-        const targetScreen = 'ModuleCreateScreen';
+        const targetScreen = 'RelationshipCreateScreen_New';
         
         try {
             navigation.navigate(targetScreen, {
@@ -260,17 +261,19 @@ export default function RelationshipListScreen_New() {
                 parentId: actualParentId,
                 parentRecord,
                 relationship,
+                relaFor,
                 refreshCallback: handleRefresh
             });
         } catch (error) {
             console.warn(`Navigation to ${targetScreen} failed:`, error);
             // Fallback to generic create if specific screen doesn't exist
-            navigation.navigate('ModuleCreateScreen', {
+            navigation.navigate('RelationshipCreateScreen_New', {
                 moduleName,
                 parentModule: actualParentModule,
                 parentId: actualParentId,
                 parentRecord,
                 relationship,
+                relaFor,
                 refreshCallback: handleRefresh
             });
         }

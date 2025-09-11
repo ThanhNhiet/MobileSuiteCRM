@@ -6,40 +6,35 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
+    createModuleRecordApi,
     createModuleRelationshipApi,
-    deleteModuleRelationshipApi,
     getEnumsApi,
     getModuleEditFieldsApi,
     getModuleFieldsRequiredApi,
     getRelateModuleApi,
-    postFileModuleApi,
-    updateModuleRecordApi
+    postFileModuleApi
 } from '../../api/module/ModuleApi';
+import { getRecordByIdApi } from '../../api/relationship/RelationshipApi_New';
 
-export const useModuleUpdate = (moduleName, initialRecordData = null) => {
+export const useRelationshipCreate = (moduleName, relaFor) => {
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
+    const [relateModuleData, setRelateModuleData] = useState({});
 
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({});
 
-    // Track original data for comparison
-    const [originalData, setOriginalData] = useState({});
-
     // Fields configuration
-    const [updateFields, setUpdateFields] = useState([]);
+    const [createFields, setCreateFields] = useState([]);
 
-    // Enum fields data - similar to useModule_Create
+    // Enum fields data
     const [enumFieldsData, setEnumFieldsData] = useState({});
 
-    // Relate fields data - store relate module information
-    const [relateModuleData, setRelateModuleData] = useState({});
-
-    // Get default fields for different modules - just like useModule_Create
+    // Get default fields for different modules
     const getDefaultFieldsForModule = (module) => {
         const defaultFields = {
             'Notes': {
@@ -97,15 +92,6 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 "probability": "LBL_PROBABILITY",
                 "assigned_user_name": "LBL_ASSIGNED_TO",
                 "description": "LBL_DESCRIPTION"
-            },
-            'Calls': {
-                "name": "LBL_SUBJECT",
-                "status": "LBL_STATUS",
-                "direction": "LBL_DIRECTION",
-                "date_start": "LBL_DATE",
-                "parent_name": "",
-                "assigned_user_name": "LBL_ASSIGNED_TO",
-                "description": "LBL_DESCRIPTION"
             }
         };
 
@@ -116,13 +102,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         };
     };
 
-    // Initialize update fields and language - similar to initializeCreateFields in useModule_Create
-    const initializeUpdateFields = useCallback(async () => {
+    // Initialize create fields and language
+    const initializeCreateFields = useCallback(async () => {
         try {
-            if (!moduleName) {
-                throw new Error('Module name is required');
-            }
-
             // 1. Check cache editviewdefs.json
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
@@ -192,11 +174,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
 
-            // Find enum fields (type === 'enum' or type === 'parent_type')
+            // Find enum fields (type === 'enum' or type === 'parent_type' or type === 'relate')
             const enumFields = [];
-            // Find relate fields (type === 'relate')
             const relateFields = [];
-
             Object.entries(requiredFields).forEach(([fieldKey, fieldInfo]) => {
                 if (fieldInfo.type === 'enum' || fieldInfo.type === 'parent_type') {
                     enumFields.push(fieldKey);
@@ -205,7 +185,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 }
             });
 
-            // Fetch enum data if there are enum fields - like in useModule_Create
+            // Fetch enum data if there are enum fields
             if (enumFields.length > 0) {
                 try {
                     const enumsResponse = await getEnumsApi(moduleName, enumFields.join(','), selectedLanguage);
@@ -216,21 +196,21 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     console.warn(`Error fetching enum data for ${moduleName}:`, enumErr);
                 }
             }
-
-            // Fetch relate data if there are relate fields
+            // Fetch relate module data if there are relate fields
             if (relateFields.length > 0) {
                 try {
-                    const relateResponse = await getRelateModuleApi(moduleName, relateFields.join(','));
+                    const fields_relateType = relateFields.join(',');
+                    const relateResponse = await getRelateModuleApi(moduleName, fields_relateType);
                     if (relateResponse && relateResponse.success && relateResponse.fields) {
                         setRelateModuleData(relateResponse.fields);
                     }
                 } catch (relateErr) {
-                    console.warn(`Error fetching relate data for ${moduleName}:`, relateErr);
+                    console.warn(`Error fetching relate module data for ${moduleName}:`, relateErr);
                 }
             }
 
-            // 4. Create updateFields with translation and required info - similar to createFields in useModule_Create
-            let updateFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
+            // 4. Create createFields with translation and required info
+            let createFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
                 let vietnameseLabel = fieldKey; // Default fallback
 
                 if ((modStrings || appStrings) && labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
@@ -240,7 +220,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     }
                 }
 
-                // If no translation found, try multiple patterns - just like in useModule_Create
+                // If no translation found, try multiple patterns
                 if (vietnameseLabel === fieldKey) {
                     let translation = null;
 
@@ -287,8 +267,8 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 // Determine field type
                 const fieldType = fieldInfo.type || 'text';
 
-                // Special handling for enum and parent_type fields - just like in useModule_Create
-                if (fieldType === 'enum' || fieldType === 'parent_type') {
+                // Special handling for enum and parent_type fields
+                if (fieldType === 'enum' || fieldType === 'radioenum' || fieldType === 'parent_type') {
                     return {
                         key: fieldKey,
                         label: finalLabel,
@@ -330,13 +310,12 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         required: isRequired
                     };
                 }
-
                 // Special handling for relate fields
                 if (fieldType === 'relate') {
                     return {
                         key: fieldKey,
                         label: finalLabel,
-                        type: 'relate', // Use relate type for UI rendering
+                        type: 'relate',
                         fieldType: fieldType,
                         required: isRequired
                     };
@@ -350,9 +329,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 };
             });
 
-            // Make sure parent_type is before parent_name if both exist - just like in useModule_Create
-            const hasParentName = updateFieldsData.some(field => field.key === 'parent_name');
-            const hasParentType = updateFieldsData.some(field => field.key === 'parent_type');
+            // Make sure parent_type is before parent_name if both exist
+            const hasParentName = createFieldsData.some(field => field.key === 'parent_name');
+            const hasParentType = createFieldsData.some(field => field.key === 'parent_type');
 
             if (hasParentName && !hasParentType && requiredFields.parent_type) {
                 // Get translation for parent_type
@@ -376,78 +355,41 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 };
 
                 // Find appropriate position to insert parent_type before parent_name
-                const parentNameIndex = updateFieldsData.findIndex(field => field.key === 'parent_name');
+                const parentNameIndex = createFieldsData.findIndex(field => field.key === 'parent_name');
                 if (parentNameIndex !== -1) {
                     // Insert parent_type before parent_name
-                    updateFieldsData.splice(parentNameIndex, 0, parentTypeField);
+                    createFieldsData.splice(parentNameIndex, 0, parentTypeField);
                 }
             }
 
-            setUpdateFields(updateFieldsData);
+            setCreateFields(createFieldsData);
 
             // Initialize form data with empty values
-            const initialFormData = { id: '' };
-            updateFieldsData.forEach(field => {
-                if (field.key !== 'id') {
+            const initialFormData = {};
+            createFieldsData.forEach(field => {
+                // Set default values based on field type
+                if (field.type === 'bool') {
+                    // For boolean fields, default to "0" (unchecked)
+                    initialFormData[field.key] = "0";
+                } else if (field.type === 'function') {
+                    // For function fields, use "not available to use" as placeholder
+                    initialFormData[field.key] = "not available to use";
+                } else {
+                    // For other fields, use empty string
                     initialFormData[field.key] = '';
                 }
             });
-
             // Ensure these fields are always included
             initialFormData['parent_id'] = '';
             initialFormData['assigned_user_id'] = '';
             setFormData(initialFormData);
-            setOriginalData(initialFormData);
 
         } catch (err) {
-            console.warn('Initialize update fields error:', err);
-            const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình cập nhật';
+            console.warn('Initialize create fields error:', err);
+            const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình tạo mới';
             setError(errorMsg);
         }
     }, [moduleName]);
-
-    // Load record data into form
-    const loadRecordData = useCallback((recordData) => {
-        if (!recordData) return;
-
-        // Tạo formValues dựa trên updateFields đã được khởi tạo
-        const formValues = { id: recordData.id || '' };
-
-        // Thêm các field từ updateFields vào formData
-        updateFields.forEach(field => {
-            // Handle boolean fields differently - ensure they're "0" or "1" as strings
-            if (field.type === 'bool' || field.fieldType === 'bool') {
-                // Convert boolean or string values to "0" or "1"
-                const boolValue = recordData[field.key];
-                if (boolValue === true || boolValue === 'true' || boolValue === '1' || boolValue === 1) {
-                    formValues[field.key] = "1";
-                } else {
-                    formValues[field.key] = "0";
-                }
-            }
-            // Handle function fields with default placeholder
-            else if (field.type === 'function' || field.fieldType === 'function') {
-                formValues[field.key] = recordData[field.key] || "not available to use";
-            }
-            // Handle all other fields normally
-            else {
-                formValues[field.key] = recordData[field.key] || '';
-            }
-        });
-
-        // Ensure these fields are always included, even if not in updateFields
-        formValues['parent_id'] = recordData['parent_id'] || '';
-        formValues['assigned_user_id'] = recordData['assigned_user_id'] || '';
-
-        // Create clean originalData without temporary fields
-        const cleanOriginalData = { ...formValues };
-
-        setFormData(formValues);
-        setOriginalData(cleanOriginalData);
-        setValidationErrors({});
-        setError(null);
-
-    }, [updateFields]);
 
     // Update form field
     const updateField = useCallback(async (fieldKey, value) => {
@@ -467,138 +409,118 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         }
     }, [validationErrors]);
 
-    // Check if form has changes
-    const hasChanges = useCallback(() => {
-        const excludeFields = []; // No fields to exclude
-        return Object.keys(formData).some(key =>
-            !excludeFields.includes(key) && formData[key] !== originalData[key]
-        );
-    }, [formData, originalData]);
-
-    // Check if parent_name field exists in editviewdefs
-    const hasParentNameField = useCallback(() => {
-        return updateFields.some(field => field.key === 'parent_name');
-    }, [updateFields]);
-
     // Validate form
     const validateForm = useCallback(async () => {
         const errors = {};
 
-        // Check required fields - chỉ validate field có required = true
-        for (const field of updateFields) {
-            // Skip validation for bool, function and readonly fields
-            if (field.type === 'bool' || field.type === 'function' || field.type === 'readonly') {
+        // Check required fields and validate numeric fields
+        for (const field of createFields) {
+            const fieldValue = formData[field.key]?.trim ? formData[field.key]?.trim() : formData[field.key] || '';
+
+            // Special handling for boolean fields - they're always valid with values "0" or "1"
+            if (field.type === 'bool') {
+                // Skip further validation for boolean fields
                 continue;
             }
 
-            if (field.required) {
-                const fieldValue = formData[field.key];
+            // Skip validation for function and readonly fields
+            if (field.type === 'function' || field.type === 'readonly') {
+                continue;
+            }
 
-                // Kiểm tra field rỗng hoặc chỉ chứa khoảng trắng
-                if (!fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim())) {
-                    // Tạo error message với label đã loại bỏ dấu *
-                    const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
-                    errors[field.key] = `${requiredMessage}`;
+            // Check required fields (except for bool/function/readonly fields)
+            if (field.required && !fieldValue) {
+                const requiredMessage = await systemLanguageUtils.translate('ERROR_MISSING_COLLECTION_SELECTION') || 'Bắt buộc nhập';
+                errors[field.key] = `${requiredMessage}`;
+                continue;
+            }
+
+            // Validate numeric fields
+            if (fieldValue && (field.type === 'int' || field.type === 'currency')) {
+                // For int fields, verify it's a valid integer
+                if (field.type === 'int' && !/^[0-9]+$/.test(fieldValue)) {
+                    const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_INTEGER') || 'Phải là số nguyên';
+                    errors[field.key] = errorMessage;
+                }
+
+                // For currency fields, verify it's a valid number
+                if (field.type === 'currency' && !/^[0-9]*\.?[0-9]*$/.test(fieldValue)) {
+                    const errorMessage = await systemLanguageUtils.translate('ERROR_INVALID_CURRENCY') || 'Phải là số';
+                    errors[field.key] = errorMessage;
                 }
             }
         }
 
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
-    }, [formData, updateFields]);
-
-    // Update record
-    const updateRecord = useCallback(async (uploadedFilename = null, mime_type = null) => {
+    }, [formData, createFields]);    // Create record
+    const createRecord = useCallback(async (uploadedFilename = null, mime_type = null) => {
         try {
             setLoading(true);
             setError(null);
-
-            // Check if there are changes
-            if (!hasChanges()) {
-                setLoading(false);
-                const noDataLabel = await systemLanguageUtils.translate('LBL_NO_DATA') || 'Không có dữ liệu';
-                const openNewLabel = await systemLanguageUtils.translate('Open_New') || 'mới';
-                return {
-                    success: false,
-                    error: `${noDataLabel} ${openNewLabel}`
-                };
-            }
 
             // Validate form
             const isValid = await validateForm();
             if (!isValid) {
                 setLoading(false);
-                return false;
+                return {
+                    success: false,
+                    message: 'Form validation failed'
+                };
             }
 
-            // Prepare basic update data (exclude parent-related and special fields)
-            const updateData = {};
-            const excludeFields = ['id', 'parent_id']; // Exclude parent_id but allow assigned_user_id
+            // Prepare record data (exclude only parent_id and assigned_user_id from API call, include parent_type)
+            const excludeFields = ['parent_id', 'assigned_user_id']; // Exclude temporary ID fields
+            const recordData = {};
 
             Object.keys(formData).forEach(key => {
                 // Find the field definition to get its type
-                const fieldDef = updateFields.find(f => f.key === key);
+                const fieldDef = createFields.find(f => f.key === key);
 
-                // Skip function fields - they're not editable
+                // Skip function fields - they're not editable and shouldn't be submitted
                 if (fieldDef && fieldDef.type === 'function') {
                     return;
                 }
 
-                // For boolean fields, always include them as 0 or 1 if changed
-                if (fieldDef && fieldDef.type === 'bool' && formData[key] !== originalData[key]) {
-                    updateData[key] = formData[key] === "1" ? "1" : "0";
+                // For boolean fields, always include them as 0 or 1
+                if (fieldDef && fieldDef.type === 'bool') {
+                    recordData[key] = formData[key] === "1" ? "1" : "0";
                     return;
                 }
 
-                // For readonly fields that have changed, include them
-                if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== originalData[key]) {
-                    updateData[key] = formData[key];
+                // For readonly fields, include them even if empty
+                if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== undefined) {
+                    recordData[key] = formData[key].trim ? formData[key].trim() : formData[key];
                     return;
                 }
 
-                // For regular fields that have changed and aren't excluded
-                if (!excludeFields.includes(key) && formData[key] !== originalData[key]) {
-                    updateData[key] = formData[key]?.trim ? formData[key].trim() : formData[key];
+                // For regular fields, only include if they're not in excludeFields and have a value
+                if (!excludeFields.includes(key) && formData[key]?.trim && formData[key].trim()) {
+                    // For enum fields, we store the key (not the translated value)
+                    recordData[key] = formData[key].trim();
                 }
             });
 
-            // Handle assigned_user_id separately to ensure it's included if changed
-            if (formData.assigned_user_id !== originalData.assigned_user_id) {
-                updateData.assigned_user_id = formData.assigned_user_id;
+            // Add assigned_user_id if selected
+            if (formData.assigned_user_id?.trim()) {
+                recordData.assigned_user_id = formData.assigned_user_id.trim();
             }
 
-            // Update basic record data if there are changes
-            if (Object.keys(updateData).length > 0) {
-                if (updateData.duration) {
-                    const totalSeconds = parseInt(updateData.duration, 10) || 0;
-                    const hours = Math.floor(totalSeconds / 3600);
-                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+            // Create the record first
+            if (
+                recordData?.duration_hours &&
+                recordData?.duration_minutes === undefined
+            ) {
+                recordData.duration_minutes = "0";
+            }
 
-                    updateData.duration_hours = hours;
-                    updateData.duration_minutes = minutes;
-                }
-                if (updateData.date_start) {
-                    const timezone_store = await AsyncStorage.getItem('timezone') || '';
-                    const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
-                    if (timezone_utc) {
-                        updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
-                    }
-                }
-                if (updateData.date_end) {
-                    const timezone_store = await AsyncStorage.getItem("timezone") || "";
-                    const timezone_utc = parseTimezoneString(timezone_store).utc;
-
-                    if (timezone_utc) {
-                        updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
-                    }
-                }
-                // Add filename from uploaded file (ưu tiên filename từ upload)
-                if (uploadedFilename) {
-                    updateData.filename = uploadedFilename;
+            // Add filename from uploaded file (ưu tiên filename từ upload)
+            if (uploadedFilename) {
+                recordData.filename = uploadedFilename;
 
                 // Chỉ thêm mime_type nếu có giá trị hợp lệ
                 if (mime_type && mime_type !== 'application/x-empty') {
-                    updateData.file_mime_type = mime_type;
+                    recordData.file_mime_type = mime_type;
                 } else {
                     // Fallback: xác định mime_type từ file extension
                     const fileExtension = uploadedFilename.split('.').pop().toLowerCase();
@@ -612,116 +534,147 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                         'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                         'txt': 'text/plain'
                     };
-                    updateData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
+                    recordData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
                 }
             } else if (formData.filename && formData.filename.trim() !== '') {
-                updateData.filename = formData.filename.trim();
-                updateData.file_mime_type = mime_type || 'application/octet-stream';
-            }
-                await updateModuleRecordApi(moduleName, formData.id, updateData);
+                recordData.filename = formData.filename.trim();
+                recordData.file_mime_type = mime_type || 'application/octet-stream';
             }
 
-            // Handle parent relationship changes
-            const oldParentType = originalData.parent_type;
-            const oldParentName = originalData.parent_name;
-            const oldParentId = originalData.parent_id;
-            const newParentType = formData.parent_type;
-            const newParentName = formData.parent_name?.trim();
-            const newParentId = formData.parent_id;
+            if (recordData.duration) {
+                const totalSeconds = parseInt(recordData.duration, 10) || 0;
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
 
-            // If parent relationship has changed
-            if (oldParentType !== newParentType || oldParentName !== newParentName || oldParentId !== newParentId) {
-                // Create new relationship if specified and we have parent_id
-                if (newParentType && newParentName && newParentId) {
-                    await createModuleRelationshipApi(newParentType, newParentId, moduleName, formData.id);
+                recordData.duration_hours = hours;
+                recordData.duration_minutes = minutes;
+            }
+            if (recordData.date_start) {
+                const timezone_store = await AsyncStorage.getItem('timezone') || '';
+                const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
+                if (timezone_utc) {
+                    recordData.date_start = convertToUTC(recordData.date_start, timezone_utc);
+                }
+            }
+            if (recordData.date_end) {
+                const timezone_store = await AsyncStorage.getItem("timezone") || "";
+                const timezone_utc = parseTimezoneString(timezone_store).utc;
+
+                if (timezone_utc) {
+                    recordData.date_end = convertToUTC(recordData.date_end, timezone_utc);
+                }
+            }
+            const response = await createModuleRecordApi(moduleName, recordData);
+
+            // Extract record ID from response - handle multiple possible structures
+            let recordId = null;
+
+            // Try different ways to extract the ID
+            if (response?.data?.id) {
+                recordId = response.data.id;
+            } else if (response?.id) {
+                recordId = response.id;
+            } else if (response?.data?.data?.id) {
+                recordId = response.data.data.id;
+            } else if (typeof response === 'string') {
+                // If response is a string containing JSON, try to parse it
+                try {
+                    const jsonMatch = response.match(/"id":\s*"([^"]+)"/);
+                    if (jsonMatch) {
+                        recordId = jsonMatch[1];
+                    }
+                } catch (parseErr) {
+                    console.warn('Failed to parse ID from string response:', parseErr);
                 }
             }
 
-            // Update original data to reflect saved state
-            setOriginalData({ ...formData });
+            if (!recordId) {
+                console.error('Full response structure:', JSON.stringify(response, null, 2));
+                const extractError = await systemLanguageUtils.translate('ERROR_EXTRACT_RECORD_ID') || 'Cannot extract record ID from response';
+                throw new Error(extractError);
+            }
+
+            // Create parent relationship if specified
+            if (formData.parent_type && formData.parent_id?.trim()) {
+                await createModuleRelationshipApi(formData.parent_type, formData.parent_id.trim(), moduleName, recordId);
+            }
 
             return {
                 success: true,
-                recordId: formData.id,
-                updatedFields: Object.keys(updateData)
+                recordId: recordId
             };
         } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE');
+            const createErrorMessage = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tạo bản ghi';
+            const errorMessage = err.response?.data?.message || err.message || createErrorMessage;
             setError(errorMessage);
-            console.warn('Update record error:', err);
+            console.warn('Create record error:', err);
             return {
                 success: false,
-                error: errorMessage
+                message: errorMessage
             };
         } finally {
             setLoading(false);
         }
-    }, [moduleName, formData, originalData, hasChanges, validateForm]);
+    }, [formData, validateForm, moduleName]);
 
-    // Reset form to original state
+    // Reset form
     const resetForm = useCallback(() => {
-        setFormData({ ...originalData });
+        // Reset to initial empty values based on current createFields
+        const initialFormData = {};
+        createFields.forEach(field => {
+            // Set default values based on field type
+            if (field.type === 'bool') {
+                // For boolean fields, default to "0" (unchecked)
+                initialFormData[field.key] = "0";
+            } else if (field.type === 'function') {
+                // For function fields, use "not available to use" as placeholder
+                initialFormData[field.key] = "not available to use";
+            } else {
+                // For other fields, use empty string
+                initialFormData[field.key] = '';
+            }
+        });
+        // Ensure these fields are always included
+        initialFormData['parent_id'] = '';
+        initialFormData['assigned_user_id'] = '';
+        setFormData(initialFormData);
         setValidationErrors({});
         setError(null);
-    }, [originalData]);
+    }, [createFields]);
 
     // Get field value
     const getFieldValue = useCallback((fieldKey) => {
         return formData[fieldKey] || '';
     }, [formData]);
 
-    // Get field label with styled required indicator
-    const getStyledFieldLabel = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
-        if (!field) return fieldKey;
-
-        if (field.required) {
-            // Tách label và dấu * để có thể style riêng
-            const labelText = field.label.replace(' *', '');
-            return {
-                text: labelText,
-                required: true
-            };
-        }
-
-        return {
-            text: field.label,
-            required: false
-        };
-    }, [updateFields]);
-
-    // Get field label (original function for backward compatibility)
+    // Get field label
     const getFieldLabel = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
+        const field = createFields.find(f => f.key === fieldKey);
         return field ? field.label : fieldKey;
-    }, [updateFields]);
+    }, [createFields]);
 
     // Get field validation error
     const getFieldError = useCallback((fieldKey) => {
         return validationErrors[fieldKey] || null;
     }, [validationErrors]);
 
-    // Check if field is required
-    const isFieldRequired = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
-        return field ? field.required : false;
-    }, [updateFields]);
-
     // Check if form is valid for submission
     const isFormValid = useCallback(() => {
-        // Kiểm tra tất cả required fields có được điền không
-        const hasRequiredFieldsError = updateFields.some(field => {
-            if (field.required) {
-                const fieldValue = formData[field.key];
-                return !fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim());
-            }
-            return false;
-        });
+        // Find the primary field (name, first_name, etc.)
+        const primaryField = createFields.find(field =>
+            field.key === 'name' || field.key === 'first_name' || field.key === 'subject'
+        );
+        const primaryValue = primaryField ? formData[primaryField.key]?.trim() : '';
 
-        return !hasRequiredFieldsError && Object.keys(validationErrors).length === 0 && hasChanges();
-    }, [formData, updateFields, validationErrors, hasChanges]);
+        return primaryValue && Object.keys(validationErrors).length === 0;
+    }, [formData, validationErrors, createFields]);
 
-    // Get translated parent type options
+    // Check if parent_name field exists in editviewdefs
+    const hasParentNameField = useCallback(() => {
+        return createFields.some(field => field.key === 'parent_name');
+    }, [createFields]);
+
+    // THIS FUNCTION IS FALLBACK. Get translated parent type options
     const getParentTypeOptions = useCallback(async () => {
         const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
         let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
@@ -796,73 +749,14 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         });
     }, [moduleName]);
 
-    // Handle delete parent relationship
-    const handleDeleteRelationship = useCallback(async () => {
-        try {
-            const currentParentType = formData.parent_type;
-
-            // Check if there's a relationship to delete
-            if (!currentParentType) {
-                // Clear the form fields if no relationship exists
-                await updateField('parent_type', '');
-                await updateField('parent_name', '');
-                return {
-                    success: true,
-                    message: 'Parent relationship cleared'
-                };
-            }
-
-            // Validate record ID
-            if (!formData.id) {
-                throw new Error('Record ID is required for deleting parent relationship');
-            }
-
-            // Delete the relationship via API
-            console.log('Deleting parent relationship for record ID:', formData.id);
-            console.log('Current parent type:', currentParentType);
-            await deleteModuleRelationshipApi(currentParentType, formData.parent_id, moduleName, formData.id);
-
-            // Clear the form fields after successful deletion
-            await updateField('parent_type', '');
-            await updateField('parent_name', '');
-            await updateField('parent_id', '');
-
-            // Update original data to reflect the change
-            setOriginalData(prev => ({
-                ...prev,
-                parent_type: '',
-                parent_name: '',
-                parent_id: ''
-            }));
-
-            return {
-                success: true,
-                message: 'Parent relationship deleted successfully'
-            };
-        } catch (err) {
-            console.warn('Delete parent relationship error:', err);
-            const errorMessage = err.response?.data?.message || err.message || 'Failed to delete parent relationship';
-            setError(errorMessage);
-            return {
-                success: false,
-                error: errorMessage
-            };
-        }
-    }, [formData.parent_type, formData.id, updateField]);
-
     // Initialize on component mount
     useEffect(() => {
-        initializeUpdateFields();
-    }, [initializeUpdateFields]);
-
-    // Load initial data when provided
-    useEffect(() => {
-        if (initialRecordData) {
-            loadRecordData(initialRecordData);
+        if (moduleName) {
+            initializeCreateFields();
         }
-    }, [initialRecordData, loadRecordData]);
+    }, [initializeCreateFields, moduleName]);
 
-    // Get enum field options for a specific field - copied from useModule_Create
+    // Get enum field options for a specific field
     const getEnumOptions = useCallback((fieldKey) => {
         // If we have enum data for this field
         if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values) {
@@ -877,7 +771,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         return [];
     }, [enumFieldsData]);
 
-    // Get translated label for an enum value - copied from useModule_Create
+    // Get translated label for an enum value
     const getEnumLabel = useCallback((fieldKey, value) => {
         // If we have enum data for this field and the value exists
         if (enumFieldsData && enumFieldsData[fieldKey] && enumFieldsData[fieldKey].values && enumFieldsData[fieldKey].values[value]) {
@@ -888,29 +782,77 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         return value;
     }, [enumFieldsData]);
 
-    // Check if field is an enum type (enum or parent_type) - copied from useModule_Create
-    const isEnumField = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
-        return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
-    }, [updateFields]);
 
+    // Check if field is an enum type (enum or parent_type)
+    const isEnumField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type');
+    }, [createFields]);
+    const [isFile, setIsFile] = useState(false);
+
+    useEffect(() => {
+        createFields.forEach(field => {
+            if (field.key === 'filename') {
+                setIsFile(true);
+            }
+        });
+    }, [createFields]);
+    // Save file to module
+    const saveFile = useCallback(async (moduleName, file) => {
+        try {
+            if (!file || !moduleName) return;
+            const data = await postFileModuleApi(moduleName, file);
+            if (!data || !data.success) {
+                console.warn('Save File API response error:', data.message);
+                const errorMsg = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tải tệp lên';
+                throw new Error(errorMsg);
+            }
+            const kq = {
+                success: data.success,
+                fileName: data.fileName,
+                original_filename: data.original_filename,
+                fileUrl: data.file_url,
+                mime_type: data.mime_type,
+                preview: data.preview_url,
+                download: data.download_url
+            };
+            return kq;
+        } catch (error) {
+            console.warn("Save File API error:", error);
+            throw error;
+        }
+    }, [moduleName]);
     // Check if field is a boolean type (checkbox)
     const isBoolField = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
+        const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'bool' || field.fieldType === 'bool');
-    }, [updateFields]);
+    }, [createFields]);
 
     // Check if field is a function type (disabled)
     const isFunctionField = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
+        const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'function' || field.fieldType === 'function');
-    }, [updateFields]);
+    }, [createFields]);
 
     // Check if field is a readonly type (disabled)
     const isReadonlyField = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
+        const field = createFields.find(f => f.key === fieldKey);
         return field && (field.type === 'readonly' || field.fieldType === 'readonly');
-    }, [updateFields]);
+    }, [createFields]);
+
+    // Check if field is a relate type
+    const isRelateField = useCallback((fieldKey) => {
+        const field = createFields.find(f => f.key === fieldKey);
+        return field && (field.type === 'relate' || field.fieldType === 'relate');
+    }, [createFields]);
+
+    // Get the related module name for a relate field
+    const getRelatedModuleName = useCallback((fieldKey) => {
+        if (relateModuleData && relateModuleData[fieldKey] && relateModuleData[fieldKey].module_relate) {
+            return relateModuleData[fieldKey].module_relate;
+        }
+        return null;
+    }, [relateModuleData]);
 
     // Toggle boolean field value (0 or 1)
     const toggleBoolField = useCallback((fieldKey) => {
@@ -919,113 +861,65 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         const newValue = currentValue === "1" ? "0" : "1";
         updateField(fieldKey, newValue);
     }, [getFieldValue, updateField]);
-
-    // Check if field is a relate type
-    const isRelateField = useCallback((fieldKey) => {
-        const field = updateFields.find(f => f.key === fieldKey);
-        return field && (field.type === 'relate' || field.fieldType === 'relate');
-    }, [updateFields]);
-
-    // Get related module name for a relate field
-    const getRelatedModuleName = useCallback((fieldKey) => {
-        if (relateModuleData && relateModuleData[fieldKey] && relateModuleData[fieldKey].module) {
-            return relateModuleData[fieldKey].module;
-        }
-        return null;
-    }, [relateModuleData]);
-
-    // Handle relate field selection (when user selects a record from SearchModulesScreen)
-    const handleRelateFieldSelect = useCallback(async (fieldKey, selectedRecord) => {
-        if (!selectedRecord) return;
-
-        // Update the relate field with selected record name
-        await updateField(fieldKey, selectedRecord.name || '');
-
-        // Also update the corresponding ID field if it exists
-        const idFieldKey = fieldKey.replace('_name', '_id');
-        if (selectedRecord.id) {
-            await updateField(idFieldKey, selectedRecord.id);
-        }
-    }, [updateField]);
-
-    const [isFile, setIsFile] = useState(false);
+    const [recordForRela, setRecordForRela] = useState(null);
 
     useEffect(() => {
-        updateFields.forEach(field => {
-            if (field.key === 'filename') {
-                setIsFile(true);
-            }
-        });
-    }, [updateFields]);
-
-    // Save file to module
-        const saveFile = useCallback(async (moduleName, file) => {
-            try {
-                if (!file || !moduleName) return;
-                const data = await postFileModuleApi(moduleName, file);
-                if (!data || !data.success) {
-                    console.warn('Save File API response error:', data.message);
-                    const errorMsg = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tải tệp lên';
-                    throw new Error(errorMsg);
+        const fetchRecordForRela = async () => {
+            try{
+                if (!relaFor) return;
+                const attributes = await getRecordByIdApi(relaFor);
+                if (!attributes) {
+                    console.warn('Fetch record for relationship error: No data returned');
+                    return;
                 }
-                const kq = {
-                    success: data.success,
-                    fileName: data.fileName,
-                    original_filename: data.original_filename,
-                    fileUrl: data.file_url,
-                    mime_type: data.mime_type,
-                    preview: data.preview_url,
-                    download: data.download_url
-                };
-                return kq;
-            } catch (error) {
-                console.warn("Save File API error:", error);
-                throw error;
+                const recordData =
+                    {
+                       moduleName : relaFor.moduleName,
+                       id : relaFor.recordId,
+                       name : attributes.name || ''    
+                    };
+                setRecordForRela(recordData || null);
+            }catch(err){
+                console.warn('Fetch record for relationship error:', err);
             }
-        }, [moduleName]);
+        }
+        fetchRecordForRela();
+    },[relaFor]);
 
 
     return {
-        // Data
         formData,
-        originalData,
-        updateFields,
+        setFormData, // Thêm dòng này
+        recordForRela,
+        createFields,
         loading,
         error,
         validationErrors,
         enumFieldsData,
         relateModuleData,
-        // file
-        saveFile,
-        isFile,
-
-        // Actions
-        loadRecordData,
         updateField,
-        updateRecord,
+        createRecord,
         resetForm,
         validateForm,
-        handleDeleteRelationship,
+        toggleBoolField,
 
         // Helpers
         getFieldValue,
         getFieldLabel,
-        getStyledFieldLabel,
         getFieldError,
-        isFieldRequired,
         isFormValid,
-        hasChanges,
         hasParentNameField,
         getParentTypeOptions,
         getEnumOptions,
         getEnumLabel,
         isEnumField,
+        saveFile,
+        isFile,
+
         isBoolField,
         isFunctionField,
         isReadonlyField,
-        toggleBoolField,
         isRelateField,
-        getRelatedModuleName,
-        handleRelateFieldSelect
+        getRelatedModuleName
     };
 };
