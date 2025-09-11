@@ -480,12 +480,10 @@ export const useModule_Create = (moduleName) => {
             
             // Add filename from uploaded file (ưu tiên filename từ upload)
             if (uploadedFilename) {
-                console.log('Adding uploaded filename to recordData:', uploadedFilename);
                 recordData.filename = uploadedFilename;
                 
                 // Chỉ thêm mime_type nếu có giá trị hợp lệ
                 if (mime_type && mime_type !== 'application/x-empty') {
-                    console.log('Adding mime_type to recordData:', mime_type);
                     recordData.file_mime_type = mime_type;
                 } else {
                     // Fallback: xác định mime_type từ file extension
@@ -503,11 +501,9 @@ export const useModule_Create = (moduleName) => {
                     recordData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
                 }
             } else if (formData.filename && formData.filename.trim() !== '') {
-                console.log('Filename from formData:', formData.filename);
                 recordData.filename = formData.filename.trim();
                 recordData.file_mime_type = mime_type || 'application/octet-stream';
             }
-            console.log('Record data to create:', recordData);
             const response = await createModuleRecordApi(moduleName, recordData);
 
             // Extract record ID from response - handle multiple possible structures
