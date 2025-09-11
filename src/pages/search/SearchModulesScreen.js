@@ -14,7 +14,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { searchModulesApi } from '../../services/api/external/ExternalApi';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 const SearchModulesScreen = () => {
     const navigation = useNavigation();

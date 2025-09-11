@@ -29,7 +29,7 @@ import { useModule_PDF } from "../../services/useApi/module/UseModule_PDF";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
-import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime";
+import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
 
 // Component to handle async field value formatting
 const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils }) => {

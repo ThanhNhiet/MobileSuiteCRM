@@ -18,7 +18,7 @@ import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
 import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime';
+import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 /**
  * RelationshipListScreen_New component

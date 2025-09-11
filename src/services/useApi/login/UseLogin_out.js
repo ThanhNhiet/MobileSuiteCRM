@@ -6,6 +6,8 @@ import { Alert, Keyboard } from 'react-native';
 import ModulesConfig from '../../../configs/ModulesConfig';
 import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
+import { fetchWithTimeout } from '../../../utils/FetchTimeOut';
+import { initializeLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
@@ -23,23 +25,23 @@ export const useLogin_out = () => {
     try {
       const rolesConfig = RolesConfig.getInstance();
       const modulesConfig = ModulesConfig.getInstance();
-      
+
       // Load user roles and modules if not already loaded
       await Promise.all([
         rolesConfig.loadUserRoles(),
         modulesConfig.loadModules()
       ]);
-      
+
       const allModules = modulesConfig.getFilteredModules();
       const accessibleModules = [];
-      
+
       // Filter modules by user permissions
       for (const [moduleName] of Object.entries(allModules)) {
         if (rolesConfig.hasModuleAccess(moduleName)) {
           accessibleModules.push(moduleName);
         }
       }
-      
+
       // Always include special modules that don't follow standard patterns
       const specialModules = ['Users', 'Alerts', 'Calendar'];
       for (const specialModule of specialModules) {
@@ -47,7 +49,7 @@ export const useLogin_out = () => {
           accessibleModules.push(specialModule);
         }
       }
-      
+
       return accessibleModules;
     } catch (error) {
       console.warn('Error getting accessible modules, using fallback:', error);
@@ -60,7 +62,7 @@ export const useLogin_out = () => {
   const fetchAndCacheLanguageData = async (lang) => {
     try {
       console.log(`Starting to fetch and cache language data for: ${lang}`);
-      
+
       // Fetch and cache system language
       try {
         const systemLanguageExists = await cacheManager.checkSystemLanguageExists(lang);
@@ -74,10 +76,10 @@ export const useLogin_out = () => {
       } catch (error) {
         console.warn('Error fetching system language:', error);
       }
-      
+
       // Get accessible modules dynamically
       const modules = await getAccessibleModules();
-      
+
       // Fetch and cache language for each accessible module
       for (const module of modules) {
         try {
@@ -107,31 +109,30 @@ export const useLogin_out = () => {
   const checkExistingAuth = async () => {
     try {
       setIsCheckingAuth(true);
-      
+
       // Check if refresh token exists
       const refreshToken = await AsyncStorage.getItem('refreshToken');
       const existingToken = await AsyncStorage.getItem('token');
       const savedLanguage = await AsyncStorage.getItem('selectedLanguage');
-      
+
       if (savedLanguage) {
         setSelectedLanguage(savedLanguage);
       }
-      
+
       // If we have both tokens, try to validate them
       if (refreshToken && refreshToken.trim() !== '' && existingToken && existingToken.trim() !== '') {
         console.log('Found tokens, validating authentication...');
-        
+
         try {
           // Try a simple API call to validate current token
           const storedUrl = await AsyncStorage.getItem('url');
-          const testResponse = await fetch(`${storedUrl}/Api/V8/custom/system/language/lang=${savedLanguage || selectedLanguage}`, {
+          const testResponse = await fetchWithTimeout(`${storedUrl}/Api/V8/custom/system/language/lang=${savedLanguage || selectedLanguage}`, {
             headers: {
               'Authorization': `Bearer ${existingToken}`,
               'Content-Type': 'application/json'
             },
-            timeout: 10000 // 10 seconds
           });
-          
+
           if (testResponse.ok) {
             console.log('Current token is valid, navigating to HomeScreen');
             // Fetch and cache language data if needed
@@ -144,28 +145,28 @@ export const useLogin_out = () => {
         } catch (tokenTestError) {
           console.log('Current token invalid, trying refresh...');
         }
-        
+
         // If current token is invalid, try refresh
         try {
           const response = await refreshTokenApi(refreshToken);
           const newAccessToken = response?.access_token;
           const newRefreshToken = response?.refresh_token;
-          
+
           if (newAccessToken) {
             // Save new tokens
             await AsyncStorage.setItem('token', newAccessToken);
             if (newRefreshToken) {
               await AsyncStorage.setItem('refreshToken', newRefreshToken);
             }
-            
+
             console.log('Token refreshed successfully, navigating to HomeScreen');
-            
+
             // Fetch and cache language data if needed
             await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
-            
+
             // Emit login success event
             eventEmitter.emit('loginSuccess');
-            
+
             // Navigate to HomeScreen directly
             navigation.navigate('HomeScreen');
             return;
@@ -177,10 +178,10 @@ export const useLogin_out = () => {
           await AsyncStorage.removeItem('refreshToken');
         }
       }
-      
+
       // If no valid tokens found, stay on login screen
       console.log('No valid authentication found, staying on login screen');
-      
+
     } catch (error) {
       console.warn('Error checking existing auth:', error);
       // Clear potentially corrupted tokens
@@ -212,13 +213,14 @@ export const useLogin_out = () => {
         await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
         await AsyncStorage.setItem('selectedLanguage', selectedLanguage);
+        await initializeLocaleCache();
         
         // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
-        
+
         // Emit login success event
         eventEmitter.emit('loginSuccess');
-        
+
         navigation.navigate('HomeScreen');
       } else {
         Alert.alert('Error', 'No token received from server');
@@ -236,15 +238,15 @@ export const useLogin_out = () => {
     try {
       // Emit logout event to clear all data in other hooks
       eventEmitter.emit('logout');
-      
+
       await logoutApi();
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('refreshToken');
-      
+
       // Clear user data but keep language preference
       setUsername('');
       setPassword('');
-      
+
       navigation.navigate('LoginScreen');
     } catch (error) {
       console.warn('Logout failed', error);
