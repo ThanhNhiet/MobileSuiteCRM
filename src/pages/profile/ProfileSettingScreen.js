@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    BackHandler,
     FlatList,
     Modal,
     ScrollView,
@@ -53,6 +55,60 @@ const ProfileSettingScreen = ({ navigation }) => {
     useEffect(() => {
         loadCurrencies();
     }, []);
+
+    // Check if timezone is properly selected
+    const isTimezoneSelected = useCallback(() => {
+        if (!selectedTimezone || !selectedTimezone.displayName) {
+            return false;
+        }
+        
+        const displayName = selectedTimezone.displayName;
+        return displayName !== 'Loading timezones...' && displayName !== 'Select timezone';
+    }, [selectedTimezone]);
+
+    // Handle back button press
+    const handleBackPress = useCallback(() => {
+        if (!isTimezoneSelected()) {
+            Alert.alert(
+                'Timezone Required',
+                'Please select a timezone before continuing.',
+                [
+                    {
+                        text: 'OK',
+                        style: 'default'
+                    }
+                ]
+            );
+            return true; // Prevent default back action
+        }
+        return false; // Allow default back action
+    }, [isTimezoneSelected]);
+
+    // Handle navigation back button
+    const handleNavigationBack = useCallback(() => {
+        if (!isTimezoneSelected()) {
+            Alert.alert(
+                'Timezone Required',
+                'Please select a timezone before continuing.',
+                [
+                    {
+                        text: 'OK',
+                        style: 'default'
+                    }
+                ]
+            );
+            return;
+        }
+        navigation.goBack();
+    }, [navigation, isTimezoneSelected]);
+
+    // Set up hardware back button handler
+    useFocusEffect(
+        useCallback(() => {
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+            return () => backHandler.remove();
+        }, [handleBackPress])
+    );
 
     const showError = (message) => {
         Alert.alert('Error', message);
@@ -133,7 +189,7 @@ const ProfileSettingScreen = ({ navigation }) => {
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => navigation.goBack()}
+                        onPress={handleNavigationBack}
                     >
                         <Ionicons name="arrow-back" size={24} color="black" />
                     </TouchableOpacity>
@@ -182,14 +238,20 @@ const ProfileSettingScreen = ({ navigation }) => {
                     {/* Timezone Section */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>
-                            Timezone
+                            Timezone <Text style={styles.requiredMark}>*</Text>
                         </Text>
                         <TouchableOpacity
-                            style={styles.selectionButton}
+                            style={[
+                                styles.selectionButton,
+                                !isTimezoneSelected() && styles.requiredField
+                            ]}
                             onPress={() => setShowTimezoneModal(true)}
                             disabled={isLoadingTimezones}
                         >
-                            <Text style={styles.selectionText}>
+                            <Text style={[
+                                styles.selectionText,
+                                !isTimezoneSelected() && styles.placeholderText
+                            ]}>
                                 {selectedTimezone ?
                                     selectedTimezone.displayName :
                                     isLoadingTimezones ? 'Loading timezones...' : 'Select timezone'
@@ -199,6 +261,11 @@ const ProfileSettingScreen = ({ navigation }) => {
                                 {translations.selectButton || 'Select'}
                             </Text>
                         </TouchableOpacity>
+                        {!isTimezoneSelected() && (
+                            <Text style={styles.requiredMessage}>
+                                Please select a timezone to continue
+                            </Text>
+                        )}
                     </View>
 
                     {/* Thousands Separator Section */}
@@ -362,6 +429,7 @@ const ProfileSettingScreen = ({ navigation }) => {
                                 <TextInput
                                     style={styles.searchInput}
                                     placeholder="Search by country or timezone..."
+                                    placeholderTextColor="#888"
                                     value={timezoneSearchQuery}
                                     onChangeText={searchTimezones}
                                 />
@@ -551,6 +619,25 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         marginLeft: 8,
+    },
+    requiredMark: {
+        color: 'red',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    requiredField: {
+        borderColor: '#FF6B6B',
+        borderWidth: 2,
+    },
+    placeholderText: {
+        color: '#999',
+        fontStyle: 'italic',
+    },
+    requiredMessage: {
+        color: '#FF6B6B',
+        fontSize: 12,
+        marginTop: 4,
+        fontStyle: 'italic',
     },
 });
 

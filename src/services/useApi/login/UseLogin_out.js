@@ -138,17 +138,21 @@ export const useLogin_out = () => {
             console.log('Current token is valid, navigating to HomeScreen');
             // Fetch and cache language data if needed
             await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
-            
+
             // Register device token with server
             try {
               await registerDeviceTokenWithServer();
             } catch (pushError) {
               console.warn('Push notification registration failed (non-critical):', pushError);
             }
-            
+
             // Emit login success event
             eventEmitter.emit('loginSuccess');
             navigation.navigate('HomeScreen');
+            const timezone_store = await AsyncStorage.getItem('timezone') || '';
+            if (timezone_store.trim() == '') {
+              navigation.navigate('ProfileSettingScreen');
+            }
             return;
           }
         } catch (tokenTestError) {
@@ -230,7 +234,7 @@ export const useLogin_out = () => {
         await AsyncStorage.setItem('refreshToken', refreshToken || '');
         await AsyncStorage.setItem('selectedLanguage', selectedLanguage);
         await initializeLocaleCache();
-        
+
         // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
 
@@ -243,8 +247,11 @@ export const useLogin_out = () => {
 
         // Emit login success event
         eventEmitter.emit('loginSuccess');
-
         navigation.navigate('HomeScreen');
+        const timezone_store = await AsyncStorage.getItem('timezone') || '';
+        if (timezone_store.trim() == '') {
+          navigation.navigate('ProfileSettingScreen');
+        }
       } else {
         Alert.alert('Error', 'No token received from server');
       }

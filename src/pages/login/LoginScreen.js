@@ -171,6 +171,7 @@ export default function LoginScreen() {
             <TextInput
               style={{ backgroundColor: '#E0E0E0', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20 }}
               placeholder="https://..."
+              placeholderTextColor="#888"
               value={websiteInput}
               onChangeText={setWebsiteInput}
               autoCapitalize="none"

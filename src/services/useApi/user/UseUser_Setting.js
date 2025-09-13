@@ -353,12 +353,13 @@ export const useUserSetting = () => {
             
             if (!selectedTimezone && !savedTimezone && !savedTimezoneStorage && processedTimezones.length > 0) {
                 // Try to find a Vietnam timezone as default
-                const defaultTimezone = processedTimezones.find(tz => {
-                    const country = tz.country || '';
-                    const zoneName = tz.zoneName || '';
-                    return country.toLowerCase().includes('vietnam') || 
-                           zoneName === 'Asia/Ho_Chi_Minh';
-                }) || processedTimezones[0];
+                // const defaultTimezone = processedTimezones.find(tz => {
+                //     const country = tz.country || '';
+                //     const zoneName = tz.zoneName || '';
+                //     return country.toLowerCase().includes('vietnam') || 
+                //            zoneName === 'Asia/Ho_Chi_Minh';
+                // }) || processedTimezones[0];
+                const defaultTimezone = "";
                 
                 if (defaultTimezone) {
                     setSelectedTimezone(defaultTimezone);

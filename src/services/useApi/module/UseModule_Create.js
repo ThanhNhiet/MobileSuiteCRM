@@ -4,7 +4,9 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
+import { getDeviceTokenApi, sendPushNotificationApi } from '../../api/external/ExternalApi';
 import {
     createModuleRecordApi,
     createModuleRelationshipApi,
@@ -563,7 +565,28 @@ export const useModule_Create = (moduleName) => {
                     recordData.date_end = convertToUTC(recordData.date_end, timezone_utc);
                 }
             }
+
             const response = await createModuleRecordApi(moduleName, recordData);
+
+            // Send push notification to assigned user (if not self-assign)
+            const token = await AsyncStorage.getItem('token');
+            if (recordData.assigned_user_id && recordData.assigned_user_id !== getUserIdFromToken(token)) {
+                try {
+                    const responseDeviceToken = await getDeviceTokenApi(recordData.assigned_user_id);
+                    if (responseDeviceToken.success && responseDeviceToken.expo_token) {
+                        const result = await sendPushNotificationApi(
+                            responseDeviceToken.expo_token,
+                            moduleName,
+                            recordData.name || 'A record has been assigned to you'
+                        );
+                    } else {
+                        console.warn('No expo token for user:', recordData.assigned_user_id);
+                    }
+                } catch (pushErr) {
+                    console.warn('Push notification error:', pushErr);
+                }
+            }
+
 
             // Extract record ID from response - handle multiple possible structures
             let recordId = null;
