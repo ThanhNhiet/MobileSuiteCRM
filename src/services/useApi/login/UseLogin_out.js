@@ -8,6 +8,7 @@ import RolesConfig from '../../../configs/RolesConfig';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { fetchWithTimeout } from '../../../utils/FetchTimeOut';
 import { initializeLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
+import { registerDeviceTokenWithServer } from '../../../utils/PushNotifications';
 import { getLanguageApi, getSystemLanguageApi, loginApi, logoutApi, refreshTokenApi } from '../../api/login/Login_outApi';
 import { eventEmitter } from '../../EventEmitter';
 
@@ -137,6 +138,14 @@ export const useLogin_out = () => {
             console.log('Current token is valid, navigating to HomeScreen');
             // Fetch and cache language data if needed
             await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
+            
+            // Register device token with server
+            try {
+              await registerDeviceTokenWithServer();
+            } catch (pushError) {
+              console.warn('Push notification registration failed (non-critical):', pushError);
+            }
+            
             // Emit login success event
             eventEmitter.emit('loginSuccess');
             navigation.navigate('HomeScreen');
@@ -163,6 +172,13 @@ export const useLogin_out = () => {
 
             // Fetch and cache language data if needed
             await fetchAndCacheLanguageData(savedLanguage || selectedLanguage);
+
+            // Register device token with server after refresh token success
+            try {
+              await registerDeviceTokenWithServer();
+            } catch (pushError) {
+              console.warn('Push notification registration failed (non-critical):', pushError);
+            }
 
             // Emit login success event
             eventEmitter.emit('loginSuccess');
@@ -217,6 +233,13 @@ export const useLogin_out = () => {
         
         // After successful login, fetch and cache language data
         await fetchAndCacheLanguageData(selectedLanguage);
+
+        // Register device token with server after successful login
+        try {
+          await registerDeviceTokenWithServer();
+        } catch (pushError) {
+          console.warn('Push notification registration failed (non-critical):', pushError);
+        }
 
         // Emit login success event
         eventEmitter.emit('loginSuccess');

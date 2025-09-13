@@ -1,60 +1,61 @@
 import { getUserIdFromToken } from '@/src/utils/DecodeToken';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import axiosInstance from '../../../configs/AxiosConfig';
 
 //Search by keywords
 //GET /Api/V8/custom/{parent_type}?keyword={keyword}&page={page}
 export const searchModulesApi = async (parent_type, keyword, page = 1) => {
-    try {
-        const response = await axiosInstance.get(`/Api/V8/custom/${parent_type}`, {
-            params: {
-                'keyword': keyword,
-                'page': page
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.warn("Search Modules API error:", error);
-        throw error;
-    }
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/${parent_type}`, {
+      params: {
+        'keyword': keyword,
+        'page': page
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.warn("Search Modules API error:", error);
+    throw error;
+  }
 };
 
 //Get all modules
 //GET /Api/V8/custom/setup/get-modules-list
 export const getAllModulesApi = async () => {
-    try {
-        const response = await axiosInstance.get(`/Api/V8/custom/setup/get-modules-list`);
-        return response.data;
-    } catch (error) {
-        console.warn("Get All Modules API error:", error);
-        throw error;
-    }
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/setup/get-modules-list`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get All Modules API error:", error);
+    throw error;
+  }
 };
 
 //Get role
 //GET /Api/V8/custom/user/{user_id}/roles
 export const getUserRolesApi = async () => {
-    try {
-        const token = await AsyncStorage.getItem('token');
-        const user_id = getUserIdFromToken(token);
-        const response = await axiosInstance.get(`/Api/V8/custom/user/${user_id}/roles`);
-        return response.data;
-    } catch (error) {
-        console.warn("Get User Roles API error:", error);
-        throw error;
-    }
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const user_id = getUserIdFromToken(token);
+    const response = await axiosInstance.get(`/Api/V8/custom/user/${user_id}/roles`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get User Roles API error:", error);
+    throw error;
+  }
 };
 
 // get security groups
 // GET /Api/V8/custom/user/{user_id}/security_groups
 export const getUserSecurityGroupsApi = async () => {
-    try {
-        const response = await axiosInstance.get(`/Api/V8/module/ACLRole`);
-        return response.data;
-    } catch (error) {
-        console.warn("Get User Security Groups API error:", error);
-        throw error;
-    }
+  try {
+    const response = await axiosInstance.get(`/Api/V8/module/ACLRole`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get User Security Groups API error:", error);
+    throw error;
+  }
 };
 export const getUserSecurityGroupsRelationsApi = async (role_name) => {
   try {
@@ -73,7 +74,7 @@ export const getUserSecurityGroupsRelationsApi = async (role_name) => {
       null;
     let url =
       typeof rel === 'string' ? rel :
-      (rel && typeof rel === 'object' ? rel.href : '');
+        (rel && typeof rel === 'object' ? rel.href : '');
     if (!url) {
       console.warn('No related link for SecurityGroups on this role');
       return [];
@@ -88,7 +89,7 @@ export const getUserSecurityGroupsRelationsApi = async (role_name) => {
     const resp = await axiosInstance.get(url);
     const data = Array.isArray(resp?.data?.data) ? resp.data.data : [];
     const map = data.map(it => ({
-    id: it.id
+      id: it.id
     }));
     return map;
   } catch (error) {
@@ -139,7 +140,7 @@ export const getUserSecurityGroupsMember = async (groups) => {
   }
 };
 
-export const getGroupUsersApi = async () =>{
+export const getGroupUsersApi = async () => {
   try {
     const token = await AsyncStorage.getItem('token');
     const user_id = getUserIdFromToken(token);
@@ -151,7 +152,7 @@ export const getGroupUsersApi = async () =>{
   }
 }
 
-export const getGroupRoleUsersApi = async (group_id) =>{
+export const getGroupRoleUsersApi = async (group_id) => {
   try {
     const response = await axiosInstance.get(`/Api/V8/custom/security-groups/${group_id}/roles`);
     return response.data;
@@ -161,8 +162,8 @@ export const getGroupRoleUsersApi = async (group_id) =>{
   }
 }
 
-export const getGroupRoleActionsApi = async (role_id) =>{
-  try{
+export const getGroupRoleActionsApi = async (role_id) => {
+  try {
     const response = await axiosInstance.get(`/Api/V8/custom/roles/${role_id}/actions`);
     return response.data;
   } catch (error) {
@@ -172,7 +173,7 @@ export const getGroupRoleActionsApi = async (role_id) =>{
 }
 
 //GET /Api/V8/custom/file/{module}/{id}
-export const getFileApi = async (module, id) =>{
+export const getFileApi = async (module, id) => {
   try {
     const response = await axiosInstance.get(`/Api/V8/custom/file/${module}/${id}`);
     return response.data;
@@ -207,6 +208,40 @@ export const uploadFileApi = async (module, id, file) => {
     return response.data;
   } catch (error) {
     console.warn("Upload File API error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// POST /Api/V8/custom/save-token
+export const saveDeviceTokenApi = async (expo_token, platform) => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const user_id = getUserIdFromToken(token);
+    const response = await axiosInstance.post(`/Api/V8/custom/save-token`, { user_id, expo_token, platform });
+    return response.data;
+  } catch (error) {
+    console.warn("Save Device Token API error:", error);
+    throw error;
+  }
+};
+
+// POST https://exp.host/--/api/v2/push/send
+export const sendPushNotificationApi = async (expo_token, title, body) => {
+  try {
+    const payload = {
+      to: expo_token,
+      title,
+      body
+    };
+    const response = await axios.post(`https://exp.host/--/api/v2/push/send`, payload, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.warn("Send Push Notification API error:", error.response?.data || error.message);
     throw error;
   }
 };

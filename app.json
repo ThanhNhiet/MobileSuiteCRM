@@ -12,6 +12,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.android.suitecrm",
+      "googleServicesFile": "./protection/google-services.json",
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -23,6 +31,16 @@
       "favicon": "./src/assets/images/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/splash-icon.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ],
+      "@react-native-firebase/app",
       [
         "expo-splash-screen",
         {
@@ -35,6 +53,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bb6dc6c9-614c-48cd-8b78-0bb4b2f20950"
+      }
+    },
+    "owner": "thanhnhiet"
   }
 }
