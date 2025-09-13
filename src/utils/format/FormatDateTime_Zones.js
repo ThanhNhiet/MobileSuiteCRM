@@ -42,22 +42,54 @@ export const updateLocaleCache = (dateFormat, selectedLanguage, timezone) => {
     cachedTimezone = timezone || '';
 };
 
-// Parse ISO string to Date object
-const parseIsoIgnoreOffset = (isoString) => {
-    const regex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/;
-    const match = isoString.match(regex);
-    if (!match) return null;
+// Parse ISO string to Date object - supports both ISO and datetime formats
+const parseIsoIgnoreOffset = (dateString) => {
+    if (!dateString || typeof dateString !== 'string') {
+        console.warn('Date formatting error: Invalid input string', dateString);
+        return null;
+    }
 
-    const [, year, month, day, hour, minute, second] = match;
+    try {
+        // Check for ISO format: "YYYY-MM-DDTHH:mm:ss"
+        const isoRegex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/;
+        const isoMatch = dateString.match(isoRegex);
+        
+        if (isoMatch) {
+            const [, year, month, day, hour, minute, second] = isoMatch;
+            return new Date(
+                parseInt(year, 10),
+                parseInt(month, 10) - 1,
+                parseInt(day, 10),
+                parseInt(hour, 10),
+                parseInt(minute, 10),
+                parseInt(second, 10)
+            );
+        }
 
-    return new Date(
-        parseInt(year, 10),
-        parseInt(month, 10) - 1,
-        parseInt(day, 10),
-        parseInt(hour, 10),
-        parseInt(minute, 10),
-        parseInt(second, 10)
-    );
+        // Check for datetime format: "YYYY-MM-DD HH:mm:ss"
+        const datetimeRegex = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+        const datetimeMatch = dateString.match(datetimeRegex);
+        
+        if (datetimeMatch) {
+            const [, year, month, day, hour, minute, second] = datetimeMatch;
+            return new Date(
+                parseInt(year, 10),
+                parseInt(month, 10) - 1,
+                parseInt(day, 10),
+                parseInt(hour, 10),
+                parseInt(minute, 10),
+                parseInt(second, 10)
+            );
+        }
+
+        // If no regex matches, try fallback parsing
+        console.warn('Date formatting error: Unrecognized format', dateString);
+        return null;
+        
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return null;
+    }
 };
 
 // Parse timezone string format: "VN*Asia/Bangkok*+07:00"
@@ -131,6 +163,11 @@ const getTimezoneInfo = () => {
 
 // Apply timezone offset to date
 const applyLocaleOffset = (date) => {
+    if (!date || !(date instanceof Date)) {
+        console.warn('Date formatting error: Invalid date object', date);
+        return new Date(); // Return current date as fallback
+    }
+
     const timezoneInfo = getTimezoneInfo();
     const offset = timezoneInfo.utc;
 
@@ -189,95 +226,151 @@ const getPopularFormatForLocale = (localeCode) => {
 };
 
 // Date format: dd/MM/yy
-export const formatDate_ddMMyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const year = String(adjustedDate.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+export const formatDate_ddMMyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const year = String(adjustedDate.getFullYear()).slice(-2);
+        return `${day}/${month}/${year}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Date format: dd/MM/yyyy
-export const formatDate_ddMMyyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const year = adjustedDate.getFullYear();
-    return `${day}/${month}/${year}`;
+export const formatDate_ddMMyyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const year = adjustedDate.getFullYear();
+        return `${day}/${month}/${year}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Date format: MM/dd/yy
-export const formatDate_MMddyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const year = String(adjustedDate.getFullYear()).slice(-2);
-    return `${month}/${day}/${year}`;
+export const formatDate_MMddyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const year = String(adjustedDate.getFullYear()).slice(-2);
+        return `${month}/${day}/${year}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // DateTime format: MM/dd/yy hh:mm:ss
-export const formatDateTime_MMddyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const year = String(adjustedDate.getFullYear()).slice(-2);
-    const hours = String(adjustedDate.getHours()).padStart(2, '0');
-    const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
-    const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
-    return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+export const formatDateTime_MMddyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const year = String(adjustedDate.getFullYear()).slice(-2);
+        const hours = String(adjustedDate.getHours()).padStart(2, '0');
+        const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
+        const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
+        return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Date format: yyyy/MM/dd
-export const formatDate_YYYYmmdd = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const year = adjustedDate.getFullYear();
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
+export const formatDate_YYYYmmdd = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const year = adjustedDate.getFullYear();
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // DateTime format: dd/MM/yyyy hh:mm:ss
-export const formatDateTime_ddMMyyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const year = adjustedDate.getFullYear();
-    const hours = String(adjustedDate.getHours()).padStart(2, '0');
-    const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
-    const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+export const formatDateTime_ddMMyyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const year = adjustedDate.getFullYear();
+        const hours = String(adjustedDate.getHours()).padStart(2, '0');
+        const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
+        const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // DateTime format: MM/dd/yyyy hh:mm:ss
-export const formatDateTime_MMddyyyy = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const year = adjustedDate.getFullYear();
-    const hours = String(adjustedDate.getHours()).padStart(2, '0');
-    const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
-    const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
-    return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+export const formatDateTime_MMddyyyy = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const year = adjustedDate.getFullYear();
+        const hours = String(adjustedDate.getHours()).padStart(2, '0');
+        const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
+        const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
+        return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // DateTime format: yyyy/MM/dd hh:mm:ss
-export const formatDateTime_YYYYmmdd = (isoString) => {
-    const date = parseIsoIgnoreOffset(isoString);
-    const adjustedDate = applyLocaleOffset(date);
-    const year = adjustedDate.getFullYear();
-    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(adjustedDate.getDate()).padStart(2, '0');
-    const hours = String(adjustedDate.getHours()).padStart(2, '0');
-    const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
-    const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+export const formatDateTime_YYYYmmdd = (dateString) => {
+    try {
+        const date = parseIsoIgnoreOffset(dateString);
+        if (!date) return '';
+        
+        const adjustedDate = applyLocaleOffset(date);
+        const year = adjustedDate.getFullYear();
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const hours = String(adjustedDate.getHours()).padStart(2, '0');
+        const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
+        const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
+        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Get effective date format from cache/storage
@@ -318,61 +411,85 @@ const formatByFormat = (isoString, format, isDateTime = true) => {
 };
 
 // Format datetime with user preferences (async)
-export const formatDateTimeBySelectedLanguageAsync = async (isoString) => {
-    if (!isoString || typeof isoString !== 'string') {
-        throw new Error('Valid ISO string is required');
-    }
+export const formatDateTimeBySelectedLanguageAsync = async (dateString) => {
+    try {
+        if (!dateString || typeof dateString !== 'string') {
+            console.warn('Date formatting error: Invalid input string', dateString);
+            return '';
+        }
 
-    const format = await getEffectiveDateFormat();
-    return formatByFormat(isoString, format, true);
+        const format = await getEffectiveDateFormat();
+        return formatByFormat(dateString, format, true);
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Format date with user preferences (async)
-export const formatDateBySelectedLanguageAsync = async (isoString) => {
-    if (!isoString || typeof isoString !== 'string') {
-        throw new Error('Valid ISO string is required');
-    }
+export const formatDateBySelectedLanguageAsync = async (dateString) => {
+    try {
+        if (!dateString || typeof dateString !== 'string') {
+            console.warn('Date formatting error: Invalid input string', dateString);
+            return '';
+        }
 
-    const format = await getEffectiveDateFormat();
-    return formatByFormat(isoString, format, false);
+        const format = await getEffectiveDateFormat();
+        return formatByFormat(dateString, format, false);
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Format datetime with cached values (sync)
-export const formatDateTimeBySelectedLanguage = (isoString) => {
-    if (!isoString || typeof isoString !== 'string') {
-        throw new Error('Valid ISO string is required');
-    }
+export const formatDateTimeBySelectedLanguage = (dateString) => {
+    try {
+        if (!dateString || typeof dateString !== 'string') {
+            console.warn('Date formatting error: Invalid input string', dateString);
+            return '';
+        }
 
-    if (!cacheInitialized) {
-        console.warn('Locale cache not initialized, using default format');
-        return formatDateTime_ddMMyyyy(isoString);
-    }
+        if (!cacheInitialized) {
+            console.warn('Locale cache not initialized, using default format');
+            return formatDateTime_ddMMyyyy(dateString);
+        }
 
-    let format = cachedLocaleConfig;
-    if (!format || format === cachedSelectedLanguage || format === cachedTimezone) {
-        format = getPopularFormatForLocale();
-    }
+        let format = cachedLocaleConfig;
+        if (!format || format === cachedSelectedLanguage || format === cachedTimezone) {
+            format = getPopularFormatForLocale();
+        }
 
-    return formatByFormat(isoString, format, true);
+        return formatByFormat(dateString, format, true);
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Format date with cached values (sync)
-export const formatDateBySelectedLanguage = (isoString) => {
-    if (!isoString || typeof isoString !== 'string') {
-        throw new Error('Valid ISO string is required');
-    }
+export const formatDateBySelectedLanguage = (dateString) => {
+    try {
+        if (!dateString || typeof dateString !== 'string') {
+            console.warn('Date formatting error: Invalid input string', dateString);
+            return '';
+        }
 
-    if (!cacheInitialized) {
-        console.warn('Locale cache not initialized, using default format');
-        return formatDate_ddMMyyyy(isoString);
-    }
+        if (!cacheInitialized) {
+            console.warn('Locale cache not initialized, using default format');
+            return formatDate_ddMMyyyy(dateString);
+        }
 
-    let format = cachedLocaleConfig;
-    if (!format || format === cachedSelectedLanguage || format === cachedTimezone) {
-        format = getPopularFormatForLocale();
-    }
+        let format = cachedLocaleConfig;
+        if (!format || format === cachedSelectedLanguage || format === cachedTimezone) {
+            format = getPopularFormatForLocale();
+        }
 
-    return formatByFormat(isoString, format, false);
+        return formatByFormat(dateString, format, false);
+    } catch (error) {
+        console.warn('Date formatting error:', error.message, 'Value:', dateString);
+        return '';
+    }
 };
 
 // Get available date format options

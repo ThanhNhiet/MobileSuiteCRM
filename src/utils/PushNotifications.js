@@ -7,7 +7,7 @@ import { saveDeviceTokenApi } from '../services/api/external/ExternalApi';
 // Configure notification handler for both foreground and background
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    console.log('Notification handler called:', notification);
+    // console.log('Notification handler called:', notification);
     return {
       shouldShowAlert: true,      // Show alert even when app is active
       shouldPlaySound: true,      // Play notification sound
@@ -96,8 +96,6 @@ export async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      
-      console.log('Expo push token:', pushTokenString);
       return pushTokenString;
     } catch (e) {
       handleRegistrationError(`Failed to get push token: ${e}`);
@@ -112,27 +110,16 @@ export async function registerForPushNotificationsAsync() {
 // Register device token with server after login
 export async function registerDeviceTokenWithServer() {
   try {
-    console.log('Starting device token registration...');
-    
     // Get Expo push token
     const expoToken = await registerForPushNotificationsAsync();
     if (!expoToken) {
       console.warn('Failed to get Expo push token');
       return false;
     }
-
     // Get platform information
     const platform = Platform.OS; // 'ios' or 'android'
-    
-    console.log('Sending device token to server:', {
-      expo_token: expoToken,
-      platform: platform
-    });
-
     // Send token to server
-    const response = await saveDeviceTokenApi(expoToken, platform);
-    console.log('Device token saved successfully:', response);
-    
+    await saveDeviceTokenApi(expoToken, platform);
     return true;
   } catch (error) {
     console.error('Error registering device token with server:', error);
@@ -144,14 +131,12 @@ export async function registerDeviceTokenWithServer() {
 export function setupNotificationListeners() {
   // Listener for notifications received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-    console.log('📱 Notification received (foreground):', notification.request.content);
+    // console.log('Notification received in foreground:', notification);
     // You can show custom UI or handle the notification here
   });
 
   // Listener for when user taps on notification (works for background/killed app too)
   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    console.log('👆 Notification tapped:', response.notification.request.content);
-    
     // Handle navigation based on notification data
     const notificationData = response.notification.request.content.data;
     if (notificationData) {
@@ -166,7 +151,11 @@ export function setupNotificationListeners() {
 
   // Listener for when app is launched by tapping a notification
   const notificationResponseReceivedListener = Notifications.addNotificationResponseReceivedListener(response => {
-    console.log('🚀 App launched from notification:', response.notification.request.content);
+    // const notificationData = response.notification.request.content.data;
+    // if (notificationData) {
+    //   console.log('App launched from notification with data:', notificationData);
+    //   // Handle navigation or actions based on notification data
+    // }
   });
 
   // Return cleanup function
@@ -204,7 +193,6 @@ export async function sendTestNotification() {
       },
       trigger: { seconds: 2 }, // Send after 2 seconds
     });
-    console.log('✅ Test notification scheduled');
     return true;
   } catch (error) {
     console.error('❌ Failed to send test notification:', error);
@@ -216,8 +204,6 @@ export async function sendTestNotification() {
 export async function checkNotificationPermissions() {
   try {
     const settings = await Notifications.getPermissionsAsync();
-    console.log('🔔 Notification permissions:', settings);
-    
     const detailed = {
       canAskAgain: settings.canAskAgain,
       granted: settings.granted,

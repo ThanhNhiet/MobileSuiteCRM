@@ -4,7 +4,7 @@
     "slug": "crmmobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/images/icon.png",
+    "icon": "./src/assets/images/suitecrm_avatar.png",
     "scheme": "crmmobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -21,21 +21,21 @@
         "WAKE_LOCK"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "foregroundImage": "./src/assets/images/suitecrm_avatar.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./src/assets/images/favicon.png"
+      "favicon": "./src/assets/images/suitecrm_avatar.png"
     },
     "plugins": [
       "expo-dev-client",
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/images/splash-icon.png",
+          "icon": "./src/assets/images/suitecrm_avatar.png",
           "color": "#ffffff",
           "defaultChannel": "default"
         }
@@ -44,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/images/splash-icon.png",
+          "image": "./src/assets/images/suitecrm_avatar.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"

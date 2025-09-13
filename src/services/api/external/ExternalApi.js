@@ -212,12 +212,23 @@ export const uploadFileApi = async (module, id, file) => {
   }
 };
 
+// GET /Api/V8/custom/expo-token/{user_id}
+export const getDeviceTokenApi = async (user_id) => {
+  try {
+    const response = await axiosInstance.get(`/Api/V8/custom/expo-token/${user_id}`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Device Token API error:", error);
+    throw error;
+  }
+};
+
 // POST /Api/V8/custom/save-token
 export const saveDeviceTokenApi = async (expo_token, platform) => {
   try {
     const token = await AsyncStorage.getItem('token');
     const user_id = getUserIdFromToken(token);
-    const response = await axiosInstance.post(`/Api/V8/custom/save-token`, { user_id, expo_token, platform });
+    const response = await axiosInstance.post(`/Api/V8/custom/expo-token`, { user_id, expo_token, platform });
     return response.data;
   } catch (error) {
     console.warn("Save Device Token API error:", error);
@@ -226,12 +237,14 @@ export const saveDeviceTokenApi = async (expo_token, platform) => {
 };
 
 // POST https://exp.host/--/api/v2/push/send
-export const sendPushNotificationApi = async (expo_token, title, body) => {
+export const sendPushNotificationApi = async (expo_token, moduleName, recordDataName) => {
   try {
     const payload = {
       to: expo_token,
-      title,
-      body
+      "title": "New notification sent to you",
+      "body": `Target: ${moduleName} \nRecord: ${recordDataName}`,
+      "sound": "default",
+      "priority": "high",
     };
     const response = await axios.post(`https://exp.host/--/api/v2/push/send`, payload, {
       headers: {

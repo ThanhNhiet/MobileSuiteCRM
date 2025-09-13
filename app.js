@@ -12,9 +12,8 @@ export default function App() {
     const initializeApp = async () => {
       try {
         await initializeLocaleCache();
-        console.log('✅ Locale cache initialized');
       } catch (error) {
-        console.warn('⚠️ No locale cache found');
+        console.warn('No locale cache found');
       }
     };
     initializeApp();
@@ -22,12 +21,10 @@ export default function App() {
 
   // Setup push notification listeners
   useEffect(() => {
-    console.log('🔔 Setting up notification listeners...');
     const cleanupNotificationListeners = setupNotificationListeners();
     
     // Handle app state changes for better background notification handling
     const handleAppStateChange = (nextAppState) => {
-      console.log('📱 App state changed to:', nextAppState);
       
       if (nextAppState === 'active') {
         // App is now active - clear badge count
@@ -41,7 +38,6 @@ export default function App() {
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
         if (response) {
-          console.log('🚀 App launched from notification:', response.notification.request.content);
           // Handle navigation or data processing here
         }
       })
