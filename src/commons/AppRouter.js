@@ -1,4 +1,3 @@
-import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 
@@ -35,8 +34,7 @@ const Stack = createNativeStackNavigator();
 
 export default function AppRouter() {
     return (
-        <NavigationContainer>
-            <Stack.Navigator initialRouteName="LoginScreen">
+        <Stack.Navigator initialRouteName="LoginScreen">
                 {/*Login Screen*/}
                 <Stack.Screen
                     name="LoginScreen"
@@ -91,6 +89,5 @@ export default function AppRouter() {
                 {/* <Stack.Screen name="MessageStackNavigator" component={MessageStackNavigator} options={{ headerShown: false }} /> */}
 
             </Stack.Navigator>
-        </NavigationContainer>
     );
 }

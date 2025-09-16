@@ -128,7 +128,7 @@ export async function registerDeviceTokenWithServer() {
 }
 
 // Setup notification listeners
-export function setupNotificationListeners() {
+export function setupNotificationListeners(navigationRef = null) {
   // Listener for notifications received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener(notification => {
     // console.log('Notification received in foreground:', notification);
@@ -137,15 +137,35 @@ export function setupNotificationListeners() {
 
   // Listener for when user taps on notification (works for background/killed app too)
   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    // Handle navigation based on notification data
-    const notificationData = response.notification.request.content.data;
-    if (notificationData) {
-      console.log('Notification data:', notificationData);
-      // Add your navigation logic here
-      // Example: navigate to specific screen based on notification type
-      // if (notificationData.type === 'meeting') {
-      //   navigation.navigate('MeetingDetail', { id: notificationData.meetingId });
-      // }
+    // console.log('body:', response.notification.request.content.body);
+    // Parse body string to extract Module and Target ID
+    let moduleValue = null;
+    let targetIdValue = null;
+    
+    if (response.notification?.request?.content?.body) {
+      const body = response.notification.request.content.body;
+      // Split by line
+      const lines = body.split('\n');
+      lines.forEach(line => {
+        if (line.startsWith('Module:')) {
+          moduleValue = line.replace('Module:', '').trim();
+        }
+        if (line.startsWith('Target ID:')) {
+          targetIdValue = line.replace('Target ID:', '').trim();
+        }
+      });
+    }
+
+    // Navigate to the appropriate screen based on the notification
+    if (moduleValue && targetIdValue && navigationRef?.current) {
+      try {
+        navigationRef.current.navigate('ModuleDetailScreen', { 
+          moduleName: moduleValue, 
+          recordId: targetIdValue 
+        });
+      } catch (navError) {
+        console.warn('Navigation error:', navError);
+      }
     }
   });
 
