@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -16,6 +17,7 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 const AlertModal = ({ visible, onClose }) => {
+    const navigation = useNavigation();
     // Translation state
     const [translations, setTranslations] = useState({});
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -141,11 +143,19 @@ const AlertModal = ({ visible, onClose }) => {
             // Hiển thị thông tin chi tiết
             Alert.alert(
                 alert.name,
-                `${translations.type || 'Loại'}: ${alert.target_module}\n${translations.creator || 'Người tạo'}: ${alert.created_by_name}\n${translations.time || 'Thời gian'}: ${formatDateTimeBySelectedLanguage(alert.date_entered)}`,
-                [{ text: translations.ok || 'OK' }]
+                `${translations.type || 'Type'}: ${alert.type}\n${translations.creator || 'Creator'}: ${alert.created_by_name}\n${translations.time || 'Time'}: ${formatDateTimeBySelectedLanguage(alert.date_entered)}`,
+                [
+                    { text: translations.cancel || 'Cancel', style: 'cancel' },
+                    { 
+                        text: 'More',
+                        onPress: () => { 
+                            navigation.navigate('ModuleDetailScreen', { moduleName: alert.type, recordId: alert.target_module });
+                        }
+                    }
+                ]
             );
         } catch (err) {
-            Alert.alert(translations.error || 'Lỗi', translations.markReadError || 'Không thể đánh dấu đã đọc');
+            Alert.alert(translations.error || 'Error', translations.markReadError || 'Cannot mark as read');
         }
     };
 
@@ -153,27 +163,27 @@ const AlertModal = ({ visible, onClose }) => {
     const handleMarkAllAsRead = async () => {
         try {
             await markAllAsRead();
-            Alert.alert(translations.success || 'Thành công', translations.markAllReadSuccess || 'Đã đánh dấu tất cả thông báo là đã đọc');
+            Alert.alert(translations.success || 'Success', translations.markAllReadSuccess || 'All notifications marked as read');
         } catch (err) {
-            Alert.alert(translations.error || 'Lỗi', translations.markAllReadError || 'Không thể đánh dấu tất cả đã đọc');
+            Alert.alert(translations.error || 'Error', translations.markAllReadError || 'Cannot mark all as read');
         }
     };
 
     // Hàm xử lý xóa một alert
     const handleDeleteAlert = async (alertId) => {
         Alert.alert(
-            translations.confirmDelete || 'Xác nhận xóa',
-            translations.confirmDeleteMsg || 'Bạn có chắc chắn muốn xóa thông báo này không?',
+            translations.confirmDelete || 'Confirm to delete',
+            translations.confirmDeleteMsg || 'Do you want to delete this notification?',
             [
-                { text: translations.cancel || 'Hủy', style: 'cancel' },
+                { text: translations.cancel || 'Cancel', style: 'cancel' },
                 {
-                    text: translations.delete || 'Xóa',
+                    text: translations.delete || 'Delete',
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await deleteAlert(alertId);
                         } catch (err) {
-                            Alert.alert(translations.error || 'Lỗi', translations.deleteError || 'Không thể xóa thông báo');
+                            Alert.alert(translations.error || 'Error', translations.deleteError || 'Cannot delete notification');
                         }
                     }
                 }
@@ -184,19 +194,19 @@ const AlertModal = ({ visible, onClose }) => {
     // Hàm xử lý xóa tất cả alerts
     const handleDeleteAllAlerts = async () => {
         Alert.alert(
-            translations.confirmDeleteAll || 'Xác nhận xóa tất cả',
-            translations.confirmDeleteAllMsg || 'Bạn có chắc chắn muốn xóa tất cả thông báo không? Hành động này không thể hoàn tác.',
+            translations.confirmDeleteAll || 'Confirm to delete all',
+            translations.confirmDeleteAllMsg || 'Do you want to delete all notifications? This action cannot be undone.',
             [
-                { text: translations.cancel || 'Hủy', style: 'cancel' },
+                { text: translations.cancel || 'Cancel', style: 'cancel' },
                 {
-                    text: translations.deleteAll || 'Xóa tất cả',
+                    text: translations.deleteAll || 'Delete all',
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await deleteAllAlerts();
-                            Alert.alert(translations.success || 'Thành công', translations.deleteAllSuccess || 'Đã xóa tất cả thông báo');
+                            Alert.alert(translations.success || 'Success', translations.deleteAllSuccess || 'All notifications deleted');
                         } catch (err) {
-                            Alert.alert(translations.error || 'Lỗi', translations.deleteAllError || 'Không thể xóa tất cả thông báo');
+                            Alert.alert(translations.error || 'Error', translations.deleteAllError || 'Cannot delete all notifications');
                         }
                     }
                 }
@@ -217,7 +227,7 @@ const AlertModal = ({ visible, onClose }) => {
                 <View style={styles.senderInfo}>
                     <Text style={styles.senderName}>{item.created_by_name}</Text>
                     <View style={styles.moduleTag}>
-                        <Text style={styles.moduleText}>{item.target_module}</Text>
+                        <Text style={styles.moduleText}>{item.type}</Text>
                     </View>
                 </View>
                 <Text style={styles.time}>{formatDateTimeBySelectedLanguage(item.date_entered)}</Text>

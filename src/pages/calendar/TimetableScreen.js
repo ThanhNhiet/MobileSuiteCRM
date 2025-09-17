@@ -117,7 +117,7 @@ export default function TimetableScreen({ navigation, route }) {
                     style: 'cancel'
                 },
                 {
-                    text: 'Xem chi tiết',
+                    text: 'More',
                     onPress: () => {
                         // Navigate to detail screen based on type
                         if (event.type === 'task') {
