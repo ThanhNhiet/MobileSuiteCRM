@@ -34,8 +34,8 @@ yarn-error.*
 .env*.local
 .env
 
-# protection
-/protection
+# firebase
+crmmobile-9f031-firebase-adminsdk-fbsvc-3c1b687d74.json
 
 # typescript
 *.tsbuildinfo

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "704218986729",
+    "project_id": "crmmobile-9f031",
+    "storage_bucket": "crmmobile-9f031.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:704218986729:android:e59b6ee3928a694dc19878",
+        "android_client_info": {
+          "package_name": "com.android.suitecrm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVXmAfFo9X6efNDcacBgQJFCKxrsSjz88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
