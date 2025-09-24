@@ -25,7 +25,7 @@ export default function RelationshipCreateScreen_New() {
     const route = useRoute();
 
     // Get moduleName from route params
-    const { moduleName, relaFor } = route.params || {};
+    const { moduleName, relaFor, relatedLink } = route.params || {};
 
     // Validation
     if (!moduleName) {
@@ -479,7 +479,7 @@ export default function RelationshipCreateScreen_New() {
                             text: translations.ok || 'OK',
                             onPress: () => {
                                 resetForm();
-                                navigation.navigate('ModuleListScreen', { moduleName: moduleName });
+                                navigation.navigate('RelationshipListScreen_New', { moduleName: moduleName, relatedLink: relatedLink });
                             }
                         }
                     ]

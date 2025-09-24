@@ -66,7 +66,7 @@ export const useModule_List = (moduleName) => {
             const data = await getUserRolesApi();
             if (!data || !data.roles) {
                 console.warn('No roles found, using default options');
-                setUserRoles([{ label: 'No Role', value: 'no_role' }]);
+                setUserRoles([]);
             } 
             const roles = data.roles[0] || [];
             const roleOptions = {
@@ -78,6 +78,7 @@ export const useModule_List = (moduleName) => {
             setUserRoles(roleOptions);
         } catch (error) {
             console.error('Error initializing user roles:', error);
+            setUserRoles([]);
         }
     }, [moduleName]);
     const initializationSecurityGroupsRelationsApi = async (name) => {
@@ -549,7 +550,6 @@ export const useModule_List = (moduleName) => {
         if (!permInfo || !Array.isArray(records) || records.length === 0) return [];
 
         const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
-        console.log('Evaluating records for level:', level, 'with role:', roleName);
         switch (level) {
             case 'all':
             case 'default':
@@ -589,6 +589,7 @@ export const useModule_List = (moduleName) => {
 
         (async () => {
             try {
+
              const allowed = await evaluateRecordsByPerm({
                 permInfo: roleInfo?.listPerm,
                 roleName: roleInfo?.roleName,

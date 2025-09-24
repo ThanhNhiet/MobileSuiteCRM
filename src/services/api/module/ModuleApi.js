@@ -484,3 +484,13 @@ export const getRelateModuleApi = async (moduleName, fields_relateType) => {
         throw error;
     }
 };
+
+export const getNameUserByIdApi = async (user_id) => {
+  try {
+    const response = await axiosInstance.get(`/Api/V8/module/Users/${user_id}`); 
+    return response.data.data.attributes;
+  } catch (error) {
+    console.warn("Get User Name by ID API error:", error);
+    throw error;
+  }
+};

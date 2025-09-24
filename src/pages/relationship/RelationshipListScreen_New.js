@@ -262,6 +262,7 @@ export default function RelationshipListScreen_New() {
                 parentRecord,
                 relationship,
                 relaFor,
+                relatedLink,
                 refreshCallback: handleRefresh
             });
         } catch (error) {
@@ -274,6 +275,7 @@ export default function RelationshipListScreen_New() {
                 parentRecord,
                 relationship,
                 relaFor,
+                relatedLink,
                 refreshCallback: handleRefresh
             });
         }
@@ -281,9 +283,10 @@ export default function RelationshipListScreen_New() {
 
     // Navigation to detail screen
     const navigateToDetailScreen = (record) => {
-        navigation.navigate('ModuleDetailScreen', {
+        navigation.navigate('RelationshipDetailScreen_New', {
             moduleName,
-            recordId: record.id
+            recordId: record.id,
+            relatedLink,
         });
     };
 
