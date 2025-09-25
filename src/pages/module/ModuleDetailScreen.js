@@ -436,7 +436,7 @@ export default function ModuleDetailScreen() {
                 </View>
             );
         }
-        if (field.key === 'filename') {
+        if (field.key === 'filename' || field.key === 'product_image') {
             return (
             <>
                 <View key={field.key} style={styles.fieldContainer}>

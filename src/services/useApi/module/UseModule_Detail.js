@@ -652,6 +652,8 @@ export const useModule_Detail = (moduleName, recordId) => {
     },[moduleName, recordId]);
 
 
+
+
     return {
         // Data
         record,
