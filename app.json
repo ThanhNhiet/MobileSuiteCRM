@@ -15,7 +15,10 @@
     "android": {
       "package": "com.android.suitecrm",
       "googleServicesFile": "./google-services.json",
+      "useNextNotificationsApi": true,
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
@@ -41,7 +44,6 @@
           "defaultChannel": "default"
         }
       ],
-      "@react-native-firebase/app",
       [
         "expo-splash-screen",
         {
@@ -49,6 +51,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

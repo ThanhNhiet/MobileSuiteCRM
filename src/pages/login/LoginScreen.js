@@ -182,6 +182,8 @@ export default function LoginScreen() {
               onPress={async () => {
                 if (!websiteInput.trim()) return;
                 await AsyncStorage.setItem('url', websiteInput.trim());
+                const storedUrl = await AsyncStorage.getItem('url');
+                console.log('Stored URL:', storedUrl);
                 setWebsite(websiteInput.trim());
                 setShowWebsiteModal(false);
                 // Reset ngôn ngữ khi đổi link website
