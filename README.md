@@ -191,8 +191,6 @@ npx expo prebuild             # Generate native code
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ### License Compatibility Notice
 
 This mobile application **interacts with SuiteCRM via REST API only** and does not incorporate SuiteCRM source code directly. Therefore:
