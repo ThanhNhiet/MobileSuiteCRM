@@ -27,28 +27,46 @@ function handleRegistrationError(errorMessage) {
 // Register for push notifications and get Expo token
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'android') {
-    // Create notification channel for Android with high priority
+    // Create notification channel for Android with CRITICAL priority for killed app handling
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
+      name: 'CRM Notifications',
+      importance: Notifications.AndroidImportance.MAX, // Highest priority
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
       sound: 'default',
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
+      bypassDnd: true,        // Bypass Do Not Disturb
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
-    // Create a high priority channel for important notifications
+    // Create HIGH PRIORITY channel matching server config
     await Notifications.setNotificationChannelAsync('high-priority', {
-      name: 'High Priority',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
+      name: 'High Priority CRM',
+      importance: Notifications.AndroidImportance.MAX, // Changed to MAX
+      vibrationPattern: [0, 500, 250, 500], // More noticeable pattern
+      lightColor: '#FF0000',
       sound: 'default',
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
+      bypassDnd: true,        // Critical for killed app notifications
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    });
+
+    // Create CRITICAL channel for emergency notifications
+    await Notifications.setNotificationChannelAsync('critical', {
+      name: 'Critical CRM Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 1000, 500, 1000],
+      lightColor: '#FF0000',
+      sound: 'default',
+      enableLights: true,
+      enableVibrate: true,
+      showBadge: true,
+      bypassDnd: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
 
@@ -73,6 +91,9 @@ export async function registerForPushNotificationsAsync() {
           allowBadge: true,
           allowSound: true,
           allowDisplayInCarPlay: true,
+          // Request critical permissions for killed app notifications
+          allowCriticalAlerts: true,
+          allowProvisional: true,
         },
       });
       finalStatus = status;
@@ -137,14 +158,21 @@ export function setupNotificationListeners(navigationRef = null) {
 
   // Listener for when user taps on notification (works for background/killed app too)
   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    // console.log('body:', response.notification.request.content.body);
-    // Parse body string to extract Module and Target ID
+    console.log('Notification tapped:', response);
+    
     let moduleValue = null;
     let targetIdValue = null;
     
-    if (response.notification?.request?.content?.body) {
+    // Ưu tiên data payload (hoạt động tốt khi killed app)
+    if (response.notification?.request?.content?.data) {
+      const data = response.notification.request.content.data;
+      moduleValue = data.module;
+      targetIdValue = data.targetId;
+      console.log('Using data payload:', { moduleValue, targetIdValue });
+    } 
+    // Fallback: parse từ body nếu không có data
+    else if (response.notification?.request?.content?.body) {
       const body = response.notification.request.content.body;
-      // Split by line
       const lines = body.split('\n');
       lines.forEach(line => {
         if (line.startsWith('Module:')) {
@@ -154,11 +182,13 @@ export function setupNotificationListeners(navigationRef = null) {
           targetIdValue = line.replace('Target ID:', '').trim();
         }
       });
+      console.log('Using body parsing:', { moduleValue, targetIdValue });
     }
 
-    // Navigate to the appropriate screen based on the notification
+    // Navigate to the appropriate screen
     if (moduleValue && targetIdValue && navigationRef?.current) {
       try {
+        console.log('Navigating to:', { moduleName: moduleValue, recordId: targetIdValue });
         navigationRef.current.navigate('ModuleDetailScreen', { 
           moduleName: moduleValue, 
           recordId: targetIdValue 
@@ -166,6 +196,8 @@ export function setupNotificationListeners(navigationRef = null) {
       } catch (navError) {
         console.warn('Navigation error:', navError);
       }
+    } else {
+      console.warn('Missing navigation data:', { moduleValue, targetIdValue, hasNavRef: !!navigationRef?.current });
     }
   });
 
@@ -204,18 +236,54 @@ export async function sendTestNotification() {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Test Notification 📱",
-        body: "This is a test notification from your CRM app!",
-        data: { type: 'test', timestamp: Date.now() },
+        title: "🔥 CRITICAL Test Notification",
+        body: "Module: Accounts\nTarget ID: 12345\nThis tests killed-app delivery!",
+        data: { 
+          type: 'crm_notification',
+          module: 'Accounts', 
+          targetId: '12345',
+          timestamp: Date.now(),
+          action: 'navigate_to_detail'
+        },
         sound: 'default',
-        priority: Notifications.AndroidImportance.HIGH,
-        vibrate: [0, 250, 250, 250],
+        priority: Notifications.AndroidImportance.MAX,
+        vibrate: [0, 500, 250, 500],
+        badge: 1,
       },
       trigger: { seconds: 2 }, // Send after 2 seconds
     });
     return true;
   } catch (error) {
     console.error('❌ Failed to send test notification:', error);
+    return false;
+  }
+}
+
+// Test notification for killed app scenario
+export async function sendKilledAppTestNotification(delaySeconds = 10) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Kill App Test",
+        body: "Module: Contacts\nTarget ID: 67890\nKill app NOW! Will arrive in " + delaySeconds + "s",
+        data: { 
+          module: 'Contacts', 
+          targetId: '67890',
+          type: 'crm_notification'
+        },
+        sound: 'default',
+        priority: Notifications.AndroidImportance.MAX,
+        vibrate: [0, 1000, 500, 1000],
+        badge: 1,
+        categoryIdentifier: 'critical',
+      },
+      trigger: { seconds: delaySeconds },
+    });
+    
+    console.log(`Test scheduled for ${delaySeconds}s. KILL THE APP NOW!`);
+    return true;
+  } catch (error) {
+    console.error('Test failed:', error);
     return false;
   }
 }
@@ -237,4 +305,88 @@ export async function checkNotificationPermissions() {
     console.error('Error checking notification permissions:', error);
     return null;
   }
+}
+
+// Get notification settings guidance for killed app issue
+export function getKilledAppNotificationGuidance() {
+  const guidance = {
+    android: {
+      title: "📱 Android Settings for Background Notifications",
+      steps: [
+        "🔋 **Battery Optimization**: Settings → Apps → CRM App → Battery → Don't optimize",
+        "📶 **Auto-start Management**: Settings → Apps → CRM App → Auto-start → Enable",
+        "🔔 **Notification Settings**: Settings → Apps → CRM App → Notifications → Allow all",
+        "⚡ **Background App Refresh**: Settings → Apps → CRM App → Battery → Background activity → Allow",
+        "🛡️ **Protected Apps**: Settings → Security → Protected apps → Enable CRM App",
+        "💤 **Doze Mode**: Settings → Battery → Battery optimization → CRM App → Don't optimize"
+      ],
+      brands: {
+        xiaomi: "Settings → Apps → Manage apps → CRM App → Other permissions → Display pop-up windows while running in background",
+        huawei: "Settings → Apps → CRM App → Launch → Manage manually → Enable all options",
+        oppo: "Settings → Apps → CRM App → App battery usage → Allow background activity",
+        vivo: "Settings → Apps → CRM App → Background app refresh → Allow",
+        samsung: "Settings → Apps → CRM App → Battery → Allow background activity",
+        oneplus: "Settings → Apps → CRM App → App battery usage → Don't optimize"
+      }
+    },
+    ios: {
+      title: "📱 iOS Settings for Background Notifications", 
+      steps: [
+        "🔔 **Notifications**: Settings → Notifications → CRM App → Allow Notifications",
+        "📱 **Background App Refresh**: Settings → General → Background App Refresh → CRM App → ON",
+        "🔋 **Low Power Mode**: Disable Low Power Mode when expecting notifications",
+        "⏰ **Focus/Do Not Disturb**: Add CRM App to allowed apps",
+        "🔒 **Screen Time**: Don't set app limits for CRM App"
+      ]
+    },
+    serverPayload: {
+      title: "🚀 Server Payload Requirements",
+      requirements: [
+        "✅ **Priority**: 'high' (matches server config)",
+        "✅ **Channel ID**: 'high-priority' (matches server config)", 
+        "✅ **Sound**: 'default' (matches server config)",
+        "⚠️ **Missing**: Add 'data' field for better handling",
+        "⚠️ **Consider**: Add 'badge' count for iOS"
+      ]
+    }
+  };
+  
+  return guidance;
+}
+
+// Enhanced function to detect potential killed-app notification issues
+export async function diagnosePushNotificationIssues() {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    device: getDeviceInfo(),
+    permissions: await checkNotificationPermissions(),
+    issues: [],
+    recommendations: []
+  };
+
+  // Check permissions
+  if (!diagnostics.permissions?.granted) {
+    diagnostics.issues.push("❌ Notifications permission not granted");
+    diagnostics.recommendations.push("Request notification permissions");
+  }
+
+  // Check device type
+  if (!diagnostics.device.isDevice) {
+    diagnostics.issues.push("❌ Running on emulator/simulator");
+    diagnostics.recommendations.push("Test on physical device for accurate results");
+  }
+
+  // Platform-specific checks
+  if (diagnostics.device.platform === 'android') {
+    diagnostics.recommendations.push("Check battery optimization settings");
+    diagnostics.recommendations.push("Verify auto-start permissions");
+    diagnostics.recommendations.push("Ensure background activity is allowed");
+  }
+
+  if (diagnostics.device.platform === 'ios') {
+    diagnostics.recommendations.push("Check Background App Refresh settings");
+    diagnostics.recommendations.push("Verify Focus/Do Not Disturb settings");
+  }
+
+  return diagnostics;
 }
