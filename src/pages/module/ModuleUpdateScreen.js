@@ -200,6 +200,9 @@ export default function ModuleUpdateScreen() {
   const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency display
   const [focusedField, setFocusedField] = useState(null); // Track which field is being edited
 
+  // Track user-modified date fields
+  const [userModifiedDateFields, setUserModifiedDateFields] = useState(new Set());
+
   // Parent type options with translations
   const [parentTypeOptions, setParentTypeOptions] = useState([]);
 
@@ -458,6 +461,9 @@ export default function ModuleUpdateScreen() {
     }
 
     if (currentDateField) {
+      // Mark this field as user-modified
+      setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
+      
       // For datetime fields, just save the date with midnight time (00:00:00)
       if (getFieldType(currentDateField) === 'datetime') {
         // Create a new date with time set to midnight for consistent format
@@ -503,6 +509,9 @@ export default function ModuleUpdateScreen() {
     }
 
     if (currentDateField) {
+      // Mark this field as user-modified
+      setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
+      
       const currentValue = getFieldValue(currentDateField);
 
       let baseDate = new Date();
@@ -549,19 +558,12 @@ export default function ModuleUpdateScreen() {
     return `${dateStr} ${hours}:${minutes}:${seconds}`;
   };
 
-  // Helper function to format date for display - returns only date portion (DD/MM/YYYY)
-  const formatDateForDisplay = (datetimeValue) => {
+  // Helper function to format date for display - uses different formats based on user modification
+  const formatDateForDisplay = (datetimeValue, fieldKey) => {
     if (!datetimeValue) return '';
 
-    try {
-      // Use the app's standard timezone-aware formatter and extract only date part
-      const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
-      // Extract date part from formatted string (assumes format contains date)
-      // Split by space and take first part if it contains time
-      const datePart = fullFormatted.split(' ')[0];
-      return datePart;
-    } catch (error) {
-      // Fallback: try to extract and format manually
+    // If user has modified this field, use default yyyy/MM/dd format
+    if (userModifiedDateFields.has(fieldKey)) {
       try {
         let dateObj;
         if (datetimeValue.includes('T')) {
@@ -579,57 +581,137 @@ export default function ModuleUpdateScreen() {
           return datetimeValue;
         }
 
-        // Format as DD/MM/YYYY
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        // Format as yyyy/MM/dd for user-modified fields
         const year = dateObj.getFullYear();
-        return `${day}/${month}/${year}`;
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
+      } catch (error) {
+        return datetimeValue;
+      }
+    }
+
+    // For original data, use formatDateTimeBySelectedLanguage
+    try {
+      const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
+      // Extract date part from formatted string
+      const datePart = fullFormatted.split(' ')[0];
+      return datePart;
+    } catch (error) {
+      // Fallback to default format if formatDateTimeBySelectedLanguage fails
+      try {
+        let dateObj;
+        if (datetimeValue.includes('T')) {
+          dateObj = new Date(datetimeValue);
+        } else if (datetimeValue.includes(' ')) {
+          const [datePart] = datetimeValue.split(' ');
+          const [year, month, day] = datePart.split('-');
+          dateObj = new Date(year, month - 1, day);
+        } else {
+          const [year, month, day] = datetimeValue.split('-');
+          dateObj = new Date(year, month - 1, day);
+        }
+
+        if (isNaN(dateObj.getTime())) {
+          return datetimeValue;
+        }
+
+        // Format as yyyy/MM/dd as fallback
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
       } catch (fallbackError) {
         return datetimeValue;
       }
     }
   };
 
-  // Helper function to get time components from timezone-accurate datetime
-  const getTimeComponents = (datetimeValue) => {
-    if (!datetimeValue) return { hours: '00', minutes: '00' };
+  // Helper to format time using formatDateTimeBySelectedLanguage for original data
+  const formatTimeFromDateTime = (datetimeValue, isHours) => {
+    if (!datetimeValue) return '';
 
     try {
-      // Use timezone-accurate formatter to get the correct time representation
+      // Use formatDateTimeBySelectedLanguage to get formatted datetime
       const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
+      
+      // Try to extract time part from formatted string
+      // The formatted string might be in different formats depending on language
+      // Common patterns: "DD/MM/YYYY HH:MM" or "MM/DD/YYYY HH:MM AM/PM" etc.
+      const parts = fullFormatted.split(' ');
+      
+      // Look for time pattern (contains ":")
+      const timePart = parts.find(part => part.includes(':'));
+      
+      if (timePart) {
+        const timeParts = timePart.split(':');
+        if (timeParts.length >= 2) {
+          return isHours ? timeParts[0] : timeParts[1];
+        }
+      }
+      
+      // Fallback: parse from original value
+      if (datetimeValue.includes(' ')) {
+        const originalTimePart = datetimeValue.split(' ')[1];
+        if (originalTimePart && originalTimePart.includes(':')) {
+          const timeParts = originalTimePart.split(':');
+          return isHours ? timeParts[0] : timeParts[1];
+        }
+      }
+      
+      return '';
+    } catch (error) {
+      // Fallback to parsing original value
+      if (datetimeValue.includes(' ')) {
+        const timePart = datetimeValue.split(' ')[1];
+        if (timePart && timePart.includes(':')) {
+          const timeParts = timePart.split(':');
+          return isHours ? timeParts[0] : timeParts[1];
+        }
+      }
+      return '';
+    }
+  };
 
-      // Try to extract time part from the formatted string
-      // Look for time pattern (HH:MM or similar)
-      const timeMatch = fullFormatted.match(/(\d{1,2})[:：](\d{1,2})/);
-      if (timeMatch) {
-        const hours = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
-        const minutes = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
+  // Helper function to get time components from timezone-accurate datetime - uses different logic for original vs user-modified data
+  const getTimeComponents = (datetimeValue, fieldKey) => {
+    if (!datetimeValue) return { hours: '00', minutes: '00' };
+
+    // If user has modified this field, parse from raw value
+    if (userModifiedDateFields.has(fieldKey)) {
+      try {
+        let dateObj;
+        if (datetimeValue.includes('T')) {
+          dateObj = new Date(datetimeValue);
+        } else if (datetimeValue.includes(' ')) {
+          const [datePart, timePart] = datetimeValue.split(' ');
+          const [year, month, day] = datePart.split('-');
+          const [hours, minutes, seconds] = timePart.split(':');
+          dateObj = new Date(year, month - 1, day, hours || 0, minutes || 0, seconds || 0);
+        } else {
+          return { hours: '00', minutes: '00' };
+        }
+
+        if (isNaN(dateObj.getTime())) {
+          return { hours: '00', minutes: '00' };
+        }
+
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
         return { hours, minutes };
-      }
-
-      // Fallback: parse directly from datetime value
-      let dateObj;
-      if (datetimeValue.includes('T')) {
-        // ISO format: 2025-09-09T23:00:00+02:00 - this gives timezone-accurate time
-        dateObj = new Date(datetimeValue);
-      } else if (datetimeValue.includes(' ')) {
-        // MySQL format: 2025-09-09 23:00:00
-        const [datePart, timePart] = datetimeValue.split(' ');
-        const [year, month, day] = datePart.split('-');
-        const [hours, minutes, seconds] = timePart.split(':');
-        dateObj = new Date(year, month - 1, day, hours || 0, minutes || 0, seconds || 0);
-      } else {
+      } catch (error) {
         return { hours: '00', minutes: '00' };
       }
+    }
 
-      if (isNaN(dateObj.getTime())) {
-        return { hours: '00', minutes: '00' };
-      }
-
-      const hours = String(dateObj.getHours()).padStart(2, '0');
-      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-
-      return { hours, minutes };
+    // For original data, use formatted time
+    try {
+      const hours = formatTimeFromDateTime(datetimeValue, true);
+      const minutes = formatTimeFromDateTime(datetimeValue, false);
+      return { 
+        hours: hours ? String(parseInt(hours, 10)).padStart(2, '0') : '00',
+        minutes: minutes ? String(parseInt(minutes, 10)).padStart(2, '0') : '00'
+      };
     } catch (error) {
       return { hours: '00', minutes: '00' };
     }
@@ -637,6 +719,9 @@ export default function ModuleUpdateScreen() {
 
   // Helper function to update just the hours or minutes in a datetime string
   const updateTimeComponent = (fieldKey, value, isHours) => {
+    // Mark this field as user-modified
+    setUserModifiedDateFields(prev => new Set([...prev, fieldKey]));
+    
     if (!value.trim()) value = '0'; // Default to 0 if empty
     const numValue = parseInt(value, 10);
 
@@ -946,7 +1031,7 @@ export default function ModuleUpdateScreen() {
                       onPress={() => showDatePickerForField(field.key, 'date')}
                     >
                       <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                        {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
+                        {fieldValue ? formatDateForDisplay(fieldValue, field.key) : (translations.selectPlaceholder || 'Chọn ngày')}
                       </Text>
                     </TouchableOpacity>
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
@@ -956,7 +1041,7 @@ export default function ModuleUpdateScreen() {
 
               // Handle datetimecombo fields (date + time)
               if (isDateTimeField(field.key)) {
-                const timeComponents = getTimeComponents(fieldValue);
+                const timeComponents = getTimeComponents(fieldValue, field.key);
                 const hoursValue = timeComponents.hours;
                 const minutesValue = timeComponents.minutes;
 
@@ -970,7 +1055,7 @@ export default function ModuleUpdateScreen() {
                         onPress={() => showDatePickerForField(field.key, 'date')}
                       >
                         <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                          {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
+                          {fieldValue ? formatDateForDisplay(fieldValue, field.key) : (translations.selectPlaceholder || 'Chọn ngày')}
                         </Text>
                       </TouchableOpacity>
 

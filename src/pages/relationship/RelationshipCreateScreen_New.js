@@ -18,8 +18,11 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
+import { getAllCurrencyApi, getCurrencyNameApi } from '../../services/api/module/ModuleApi';
 import { useRelationshipCreate } from '../../services/useApi/relationship/UseRelationshipCreate';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatCurrency } from '../../utils/format/FormatCurrencies';
+import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 export default function RelationshipCreateScreen_New() {
     const navigation = useNavigation();
     const route = useRoute();
@@ -48,6 +51,13 @@ export default function RelationshipCreateScreen_New() {
     // Enum modal states
     const [showEnumModal, setShowEnumModal] = useState(false);
     const [currentEnumField, setCurrentEnumField] = useState(null);
+
+    // Currency states
+    const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+    const [currencyOptions, setCurrencyOptions] = useState([]);
+    const [currencyNames, setCurrencyNames] = useState({}); // Cache for currency names
+    const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency display
+    const [focusedField, setFocusedField] = useState(null); // Track focused field to disable formatting
 
     // DateTime picker states
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -189,6 +199,32 @@ export default function RelationshipCreateScreen_New() {
         loadParentTypeOptions();
     }, [hasParentNameField, getParentTypeOptions]);
 
+    // Load currencies for currency_id fields
+    useEffect(() => {
+        loadCurrencies();
+    }, []);
+
+    // Format currency values when createFields change
+    useEffect(() => {
+        const formatCurrencyData = async () => {
+            if (!createFields || createFields.length === 0) return;
+
+            const currencyFields = createFields.filter(field => field.type === 'currency');
+            const newFormattedValues = {};
+            
+            for (const field of currencyFields) {
+                const value = getFieldValue(field.key);
+                if (value) {
+                    newFormattedValues[field.key] = await formatCurrencyValue(value);
+                }
+            }
+            
+            setFormattedCurrencyValues(newFormattedValues);
+        };
+
+        formatCurrencyData();
+    }, [createFields, formData]);
+
     // Handle parent type selection
     const handleParentTypeSelect = async (value) => {
         await updateField('parent_type', value);
@@ -234,6 +270,63 @@ export default function RelationshipCreateScreen_New() {
 
         // Get the translated label from enumFieldsData
         return getEnumLabel(fieldKey, value) || value;
+    };
+
+    // Load all currencies for currency_id field
+    const loadCurrencies = async () => {
+        try {
+            const response = await getAllCurrencyApi();
+            if (response.data && Array.isArray(response.data)) {
+                setCurrencyOptions(response.data);
+            }
+        } catch (error) {
+            console.error('Error loading currencies:', error);
+        }
+    };
+
+    // Get currency name by ID with special handling for -99 (Dollar)
+    const getCurrencyName = async (currencyId) => {
+        if (!currencyId) return '';
+        
+        // Special case: -99 is Dollar
+        if (currencyId === '-99' || currencyId === -99) {
+            return 'Dollar';
+        }
+
+        // Check cache first
+        if (currencyNames[currencyId]) {
+            return currencyNames[currencyId];
+        }
+
+        try {
+            const name = await getCurrencyNameApi(currencyId);
+            // Cache the result
+            setCurrencyNames(prev => ({ ...prev, [currencyId]: name }));
+            return name;
+        } catch (error) {
+            console.error('Error getting currency name:', error);
+            return currencyId; // Fallback to ID if name fetch fails
+        }
+    };
+
+    // Handle currency selection
+    const handleCurrencySelect = async (currency) => {
+        await updateField('currency_id', currency.id);
+        setShowCurrencyModal(false);
+    };
+
+    // Format currency value for display
+    const formatCurrencyValue = async (value) => {
+        if (!value || isNaN(parseFloat(value))) return value;
+
+        try {
+            const numericValue = parseFloat(value);
+            const formatted = await formatCurrency(numericValue);
+            return formatted;
+        } catch (error) {
+            console.error('Error formatting currency:', error);
+            return value;
+        }
     };
 
     // Show date picker for a datetime field
@@ -352,6 +445,47 @@ export default function RelationshipCreateScreen_New() {
         const seconds = String(date.getSeconds()).padStart(2, '0');
         // Add seconds to match standard MySQL datetime format
         return `${dateStr} ${hours}:${minutes}:${seconds}`;
+    };
+
+    // Helper function to format date for display - returns only date portion (DD/MM/YYYY)
+    const formatDateForDisplay = (datetimeValue) => {
+        if (!datetimeValue) return '';
+
+        try {
+            // Use the app's standard timezone-aware formatter and extract only date part
+            const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
+            // Extract date part from formatted string (assumes format contains date)
+            // Split by space and take first part if it contains time
+            const datePart = fullFormatted.split(' ')[0];
+            return datePart;
+        } catch (error) {
+            // Fallback: try to extract and format manually
+            try {
+                let dateObj;
+                if (datetimeValue.includes('T')) {
+                    dateObj = new Date(datetimeValue);
+                } else if (datetimeValue.includes(' ')) {
+                    const [datePart] = datetimeValue.split(' ');
+                    const [year, month, day] = datePart.split('-');
+                    dateObj = new Date(year, month - 1, day);
+                } else {
+                    const [year, month, day] = datetimeValue.split('-');
+                    dateObj = new Date(year, month - 1, day);
+                }
+
+                if (isNaN(dateObj.getTime())) {
+                    return datetimeValue;
+                }
+
+                // Format as DD/MM/YYYY
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const year = dateObj.getFullYear();
+                return `${day}/${month}/${year}`;
+            } catch (fallbackError) {
+                return datetimeValue;
+            }
+        }
     };
 
     // Helper function to update just the hours or minutes in a datetime string
@@ -479,7 +613,20 @@ export default function RelationshipCreateScreen_New() {
                             text: translations.ok || 'OK',
                             onPress: () => {
                                 resetForm();
-                                navigation.navigate('RelationshipListScreen_New', { moduleName: moduleName, relatedLink: relatedLink });
+                                // Create relationship object structure that RelationshipListScreen_New expects
+                                const relationshipObject = {
+                                    moduleName: moduleName,
+                                    relatedLink: relatedLink,
+                                    displayName: moduleName,
+                                    moduleLabel: moduleName
+                                };
+                                
+                                navigation.navigate('RelationshipListScreen_New', { 
+                                    relationship: relationshipObject,
+                                    sourceModule: relaFor?.moduleName,
+                                    sourceRecordId: relaFor?.recordId,
+                                    relaFor: relaFor
+                                });
                             }
                         }
                     ]
@@ -522,6 +669,24 @@ export default function RelationshipCreateScreen_New() {
         return createFields.map((field) => {
             const fieldError = getFieldError(field.key);
             const fieldValue = getFieldValue(field.key);
+
+            // Handle currency_id field as modal dropdown
+            if (field.key === 'currency_id') {
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <TouchableOpacity
+                            style={[styles.valueBox, fieldError && styles.errorInput]}
+                            onPress={() => setShowCurrencyModal(true)}
+                        >
+                            <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                                {fieldValue ? (currencyNames[fieldValue] || (fieldValue === '-99' ? 'Dollar' : fieldValue)) : (translations.selectPlaceholder || 'Chọn loại tiền')}
+                            </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
 
             // Handle enum fields (including parent_type) as modal combobox
             if (field.type === 'select' || field.fieldType === 'enum' || field.fieldType === 'parent_type') {
@@ -748,7 +913,7 @@ export default function RelationshipCreateScreen_New() {
                             onPress={() => showDatePickerForField(field.key, 'date')}
                         >
                             <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                                {fieldValue || (translations.selectPlaceholder || '--------')}
+                                {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || '--------')}
                             </Text>
                         </TouchableOpacity>
                         {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
@@ -771,7 +936,7 @@ export default function RelationshipCreateScreen_New() {
                                 onPress={() => showDatePickerForField(field.key, 'date')}
                             >
                                 <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                                    {fieldValue ? fieldValue.split(' ')[0] : (translations.selectPlaceholder || '--------')}
+                                    {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || '--------')}
                                 </Text>
                             </TouchableOpacity>
 
@@ -785,6 +950,7 @@ export default function RelationshipCreateScreen_New() {
                                         keyboardType="numeric"
                                         placeholder="00"
                                         maxLength={2}
+                                        editable={false}
                                     />
                                     <Text style={styles.timeSeparator}>:</Text>
                                     <TextInput
@@ -794,6 +960,7 @@ export default function RelationshipCreateScreen_New() {
                                         keyboardType="numeric"
                                         placeholder="00"
                                         maxLength={2}
+                                        editable={false}
                                     />
                                 </View>
 
@@ -882,12 +1049,38 @@ export default function RelationshipCreateScreen_New() {
                                 styles.value,
                                 field.key === 'description' && styles.multilineInput
                             ]}
-                            value={fieldValue}
+                            value={field.type === 'currency' && focusedField === field.key ? fieldValue : (field.type === 'currency' && formattedCurrencyValues[field.key] ? formattedCurrencyValues[field.key] : fieldValue)}
+                            onFocus={() => {
+                                if (field.type === 'currency') {
+                                    setFocusedField(field.key);
+                                }
+                            }}
+                            onBlur={async () => {
+                                if (field.type === 'currency') {
+                                    setFocusedField(null);
+                                    // Format the value when losing focus
+                                    const value = getFieldValue(field.key);
+                                    if (value && !isNaN(parseFloat(value))) {
+                                        const formatted = await formatCurrencyValue(value);
+                                        setFormattedCurrencyValues(prev => ({ ...prev, [field.key]: formatted }));
+                                    }
+                                }
+                            }}
                             onChangeText={async (value) => {
-                                // For int and currency fields, only allow numeric input
-                                if (isNumericField(field.type)) {
+                                // For currency fields, store raw value only
+                                if (field.type === 'currency') {
                                     // Allow only digits and decimal point for currency
-                                    const regex = field.type === 'currency' ? /^[0-9]*\.?[0-9]*$/ : /^[0-9]*$/;
+                                    const regex = /^[0-9]*\.?[0-9]*$/;
+                                    if (value === '' || regex.test(value)) {
+                                        await updateField(field.key, value);
+                                        // Clear formatted value when editing
+                                        if (focusedField === field.key) {
+                                            setFormattedCurrencyValues(prev => ({ ...prev, [field.key]: null }));
+                                        }
+                                    }
+                                } else if (isNumericField(field.type)) {
+                                    // For int fields, only allow digits
+                                    const regex = /^[0-9]*$/;
                                     if (value === '' || regex.test(value)) {
                                         await updateField(field.key, value);
                                     }
@@ -1049,6 +1242,38 @@ export default function RelationshipCreateScreen_New() {
                                         </TouchableOpacity>
                                     ))
                                 )}
+                            </ScrollView>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+
+                {/* Currency Modal */}
+                <Modal
+                    visible={showCurrencyModal}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowCurrencyModal(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setShowCurrencyModal(false)}
+                    >
+                        <View style={styles.modalContainer}>
+                            <ScrollView
+                                style={styles.modalScrollView}
+                                contentContainerStyle={styles.modalScrollContent}
+                                showsVerticalScrollIndicator={true}
+                            >
+                                {currencyOptions.map((currency) => (
+                                    <TouchableOpacity
+                                        key={currency.id}
+                                        style={styles.modalOption}
+                                        onPress={() => handleCurrencySelect(currency)}
+                                    >
+                                        <Text style={styles.modalOptionText}>{currency.attributes.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
                             </ScrollView>
                         </View>
                     </TouchableOpacity>
