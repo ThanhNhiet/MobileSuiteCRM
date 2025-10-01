@@ -20,46 +20,43 @@ import TopNavigation from '../../components/navigations/TopNavigation';
 import { useModule_List } from '../../services/useApi/module/UseModule_List';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
-/**
- * Generic ModuleListScreen component
- * Receives moduleName via route params
- */
+// Generic module list screen
 export default function ModuleListScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     
-    // Get moduleName from route params
+    // Get module name
     const moduleName = route.params?.moduleName;
     
-    // SystemLanguageUtils instance
+    // Language utils
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     
-    // Translation states
+    // Translations
     const [translations, setTranslations] = useState({
         mdName: moduleName,
-        searchPlaceholder: 'Nhập từ khóa tìm kiếm',
-        selectedTypeDefault: 'Tất cả',
-        searchButton: 'Tìm',
-        addButton: 'Thêm',
-        loading: 'Đang tải...',
-        tryAgain: 'Thử lại',
-        pullToRefresh: 'Kéo để tải lại...',
-        noData: 'Không có dữ liệu'
+        searchPlaceholder: 'Type to search',
+        selectedTypeDefault: 'All',
+        searchButton: 'Search',
+        addButton: 'Add',
+        loading: 'Loading...',
+        tryAgain: 'Try Again',
+        pullToRefresh: 'Pull to refresh...',
+        noData: 'No data available'
     });
     
     const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
-    // State cho search và filter
+    // Search & filter state
     const [searchText, setSearchText] = useState('');
     const [selectedTimeFilter, setSelectedTimeFilter] = useState('');
     const [showTimeDropdown, setShowTimeDropdown] = useState(false);
 
-    // Validation
+    // Validate module
     if (!moduleName) {
         throw new Error('moduleName is required for ModuleListScreen');
     }
 
-    // Sử dụng custom hook
+    // Use custom hook
     const {
         records,
         columns,
@@ -69,43 +66,45 @@ export default function ModuleListScreen() {
         filtersInitialized,
         currentPage,
         totalPages,
+        pagination,
         loading,
         refreshing,
         error,
         handleSearch: hookHandleSearch,
         handleRefresh,
         loadMore,
+        goToPage: hookGoToPage,
         handleFilter,
         clearSearchAndFilters
     } = useModule_List(moduleName);
 
-    // Initialize translations
+    // Init translations
     useEffect(() => {
         const initializeTranslations = async () => {
             try {
-                // Get all translations at once using SystemLanguageUtils
+                // Get translations
                 const translated = await systemLanguageUtils.translateKeys([
-                    `LBL_${moduleName.toUpperCase()}`,  // Module name
-                    'LBL_SEARCH_BUTTON_LABEL',  // Tìm
-                    'LBL_CREATE_BUTTON_LABEL',  // Tạo 
-                    'LBL_EMAIL_LOADING',    // "Đang tải...
-                    'UPLOAD_REQUEST_ERROR',   // Thử lại
-                    'LBL_NO_DATA',  // "Không có dữ liệu"
-                    'LBL_DROPDOWN_LIST_ALL',   // "Tất cả"
-                    'LBL_IMPORT',   // "Nhập"
-                    'LBL_SUBJECT',  // "Chủ đề"
+                    `LBL_${moduleName.toUpperCase()}`,
+                    'LBL_SEARCH_BUTTON_LABEL',
+                    'LBL_CREATE_BUTTON_LABEL',
+                    'LBL_EMAIL_LOADING',
+                    'UPLOAD_REQUEST_ERROR',
+                    'LBL_NO_DATA',
+                    'LBL_DROPDOWN_LIST_ALL',
+                    'LBL_IMPORT',
+                    'LBL_SUBJECT'
                 ]);
                 
                 setTranslations({
                     mdName: translated[`LBL_${moduleName.toUpperCase()}`] || moduleName,
-                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Nhập từ khóa tìm kiếm',
-                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
-                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
-                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
-                    loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
-                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
+                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Type to search',
+                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'All',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Search',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Add',
+                    loading: translated.LBL_EMAIL_LOADING || 'Loading...',
+                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Try Again',
                     pullToRefresh: 'Pull to refresh...',
-                    noData: translated.LBL_NO_DATA || 'Không có dữ liệu'
+                    noData: translated.LBL_NO_DATA || 'No data available'
                 });
                 
                 setTranslationsLoaded(true);
@@ -118,18 +117,18 @@ export default function ModuleListScreen() {
         initializeTranslations();
     }, [moduleName, systemLanguageUtils]);
 
-    // Update filter dropdown defaults when options are loaded
+    // Update filter defaults
     useEffect(() => {
         if (filtersInitialized && timeFilterOptions.length > 0) {
-            // Set default values for dropdown using the first option (which should be "All Time")
+            // Set default dropdown values
             setSelectedTimeFilter(timeFilterOptions[0]?.label || translations.selectedTypeDefault);
         } else if (!filtersInitialized) {
-            // Reset to empty when not initialized
+            // Reset when not initialized
             setSelectedTimeFilter('');
         }
     }, [filtersInitialized, timeFilterOptions, translations.selectedTypeDefault]);
 
-    // Utility functions for data display
+    // Utility functions
     const getFieldValue = (item, fieldKey) => {
         return item[fieldKey] || '';
     };
@@ -142,10 +141,10 @@ export default function ModuleListScreen() {
     const formatCellValue = (fieldKey, value) => {
         if (!value) return '';
         
-        // Format dates using formatDateBySelectedLanguage
+        // Format dates
         if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified') || fieldKey.includes('_due') || fieldKey.includes('_start') || fieldKey.includes('_end')) {
             try {
-                // Convert to ISO string if it's not already
+                // Convert to ISO
                 const isoString = value.includes('T') ? value : new Date(value).toISOString();
                 return formatDateBySelectedLanguage(isoString);
             } catch {
@@ -156,44 +155,56 @@ export default function ModuleListScreen() {
         return String(value);
     };
 
-    // Wrapper function for search with filters (updated for API-based filtering)
+    // Search with filters
     const searchRecords = (searchText, filters = {}) => {
-        // Update search text first if provided
+        // Update search text
         if (searchText !== undefined) {
             hookHandleSearch(searchText);
         }
         
-        // Then apply time filter
+        // Apply time filter
         if (filters.time_filter !== undefined) {
             handleFilter({}, filters.time_filter);
         }
     };
 
-    // Options cho dropdown (mapping từ hook options)
+    // Dropdown options
     const timeOptions = [...(Array.isArray(timeFilterOptions) ? timeFilterOptions.map(opt => opt.label) : [])];
 
-    // Tính danh sách trang hiển thị (tối đa 3 trang)
-    const [startPage, setStartPage] = useState(1);
-    const visiblePages = Array.from({ length: 3 }, (_, i) => startPage + i).filter(p => p <= totalPages);
+    // Calculate visible pages (max 3)
+    const getVisiblePages = () => {
+        const maxVisible = 3;
+        let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+        let end = Math.min(totalPages, start + maxVisible - 1);
+        
+        // Adjust start if end reaches max
+        if (end - start + 1 < maxVisible) {
+            start = Math.max(1, end - maxVisible + 1);
+        }
+        
+        const pages = [];
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        
+        return pages;
+    };
+    
+    const visiblePages = getVisiblePages();
 
-    // Vô hiệu hóa khi ở đầu/cuối
-    const isPrevDisabled = startPage === 1;
-    const isNextDisabled = startPage + 2 >= totalPages;
+    // Disable at start/end
+    const isPrevDisabled = currentPage === 1;
+    const isNextDisabled = currentPage >= totalPages;
 
     const handlePrev = () => {
-        if (!isPrevDisabled && startPage > 1) {
-            const newStart = startPage - 1;
-            setStartPage(newStart);
-            // Load new page via loadMore if needed
-            loadMore();
+        if (!isPrevDisabled && currentPage > 1) {
+            const prevPage = currentPage - 1;
+            hookGoToPage(prevPage);
         }
     };
 
     const handleNext = () => {
-        if (!isNextDisabled && startPage + 2 < totalPages) {
-            const newStart = startPage + 1;
-            setStartPage(newStart);
-            // Load new page via loadMore if needed
+        if (!isNextDisabled && currentPage < totalPages) {
             loadMore();
         }
     };
@@ -201,7 +212,7 @@ export default function ModuleListScreen() {
     const handleSearchAction = () => {
         const filters = {};
         
-        // Time filter - compare with the "Tất cả" option
+        // Time filter comparison
         const allTimeOption = timeFilterOptions[0]?.label || 'Tất cả';
         if (selectedTimeFilter !== allTimeOption) {
             const timeFilter = timeFilterOptions.find(opt => opt.label === selectedTimeFilter);
@@ -211,7 +222,6 @@ export default function ModuleListScreen() {
         }
         
         searchRecords(searchText, filters);
-        setStartPage(1); // Reset về trang 1 khi search
     };
 
     // Handler for when user selects a filter option - automatically trigger search
@@ -231,13 +241,11 @@ export default function ModuleListScreen() {
             // Clear time filter but keep search text
             handleFilter({}, '');
         }
-        
-        setStartPage(1);
     };
 
-    const renderItem = ({ item }) => (
+    const renderItem = ({ item, index }) => (
         <TouchableOpacity 
-            style={styles.tableRow} 
+            style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]} 
             onPress={() => {
                 if (viewPerm.includes(item.id)) {
                     navigation.navigate('ModuleDetailScreen', { 
@@ -379,6 +387,8 @@ export default function ModuleListScreen() {
                         </View>
                     )}
 
+
+
                     {/* Table Rows - Scrollable */}
                     {!loading && !error && (
                         <FlatList
@@ -401,8 +411,8 @@ export default function ModuleListScreen() {
                                     title={translations.pullToRefresh}
                                 />
                             }
-                            onEndReached={loadMore}
-                            onEndReachedThreshold={0.1}
+                            onEndReached={null}
+                            onEndReachedThreshold={0}
                         />
                     )}
 
@@ -420,12 +430,7 @@ export default function ModuleListScreen() {
                         {visiblePages.map((num) => (
                             <TouchableOpacity
                                 key={num}
-                                onPress={() => {
-                                    if (num < startPage || num > startPage + 2) {
-                                        setStartPage(Math.max(1, num - 1));
-                                    }
-                                    // Note: For full pagination support, you might need to extend the hook
-                                }}
+                                onPress={() => hookGoToPage(num)}
                                 style={[styles.pageBtn, num === currentPage && styles.activePage]}
                             >
                                 <Text style={num === currentPage ? { color: '#fff' } : {}}>{num}</Text>
@@ -477,7 +482,7 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 8,
         marginBottom: 10,
-        alignItems: 'center',
+        alignItems: 'center'
     },
     searchFormOptions: {
         flexDirection: 'row',
@@ -493,6 +498,7 @@ const styles = StyleSheet.create({
         flex: 1,
         minWidth: '80%',
         backgroundColor: '#fff',
+        borderRadius: 4,
     },
     select: {
         borderWidth: 1,
@@ -519,6 +525,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#C9B4AB',
         padding: 8,
+        borderRadius: 4,
     },
     headerCell: {
         flex: 1,
@@ -530,6 +537,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#F3F0EF',
         borderBottomWidth: 1,
         borderColor: '#ddd',
+        borderRadius: 4,
+    },
+    tableRowEven: {
+        backgroundColor: '#f1edecff',
     },
     cell: { flex: 1 },
     pagination: {

@@ -15,21 +15,18 @@ import {
     searchModuleByKeywordApi
 } from '../../api/module/ModuleApi';
 
-/**
- * Generic hook for module list functionality
- * Based on useNoteList but made generic with moduleName parameter
- */
+// Generic module list hook
 export const useModule_List = (moduleName) => {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     
-    // Language utils
+    // Utils
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
     
-    // Pagination states
+    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pagination, setPagination] = useState({
@@ -39,16 +36,16 @@ export const useModule_List = (moduleName) => {
         prevLink: null
     });
     
-    // Fields and language states
+    // Fields
     const [columns, setColumns] = useState([]);
     const [nameFields, setNameFields] = useState('');
     
-    // Search and filter states for API calls
+    // Search & filter
     const [searchText, setSearchText] = useState('');
     const [additionalFilters, setAdditionalFilters] = useState({});
     const [timeFilter, setTimeFilter] = useState('');
     
-    // Available filter options
+    // Filter options
     const [filterOptions, setFilterOptions] = useState({});
     const [timeFilterOptions, setTimeFilterOptions] = useState([]);
     const [filtersInitialized, setFiltersInitialized] = useState(false);
@@ -56,7 +53,7 @@ export const useModule_List = (moduleName) => {
     const [initialRecordsLoaded, setInitialRecordsLoaded] = useState(false);
 
 
-    // role
+    // Roles
     const [userRoles, setUserRoles] = useState([]);
     const [recordsRole, setRecordsRole] = useState([]);
     const nameRole = ['delete','list','edit','create','view'];
@@ -65,7 +62,6 @@ export const useModule_List = (moduleName) => {
         try {
             const data = await getUserRolesApi();
             if (!data || !data.roles) {
-                console.warn('No roles found, using default options');
                 setUserRoles([]);
             } 
             const roles = data.roles[0] || [];
@@ -85,7 +81,6 @@ export const useModule_List = (moduleName) => {
         try {
            const data = await getUserSecurityGroupsRelationsApi(name);
                 if (!data) {
-                    console.warn(`No security groups found for role: ${name}`);
                     return [];
                 }
                 return data;
@@ -98,58 +93,55 @@ export const useModule_List = (moduleName) => {
     }, [moduleName]);
 
 
-    // Validation
+    // Validate module name
     if (!moduleName) {
         throw new Error('moduleName is required for useModule_List hook');
     }
 
-    // Initialize field definitions and language settings
+    // Init fields & language
     const initializeFieldsAndLanguage = useCallback(async () => {
         try {
-            // Check if listviewdefs cache exists
+            // Check cache
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'listviewdefs');
             
             if (!cachedFields) {
-                // Fetch from API if no cache exists
+                // Fetch from API
                 const fieldsResponse = await getModuleListFieldsApi(moduleName);
                 
-                // Extract default_fields from response
+                // Extract fields
                 if (fieldsResponse && fieldsResponse.default_fields) {
                     fieldsData = fieldsResponse.default_fields;
                 } else {
-                    console.warn(`Unexpected API response structure for ${moduleName}`);
                     fieldsData = {};
                 }
                 
-                // Cache the default_fields
+                // Cache fields
                 await WriteCacheView.saveModuleField(moduleName, 'listviewdefs', fieldsData);
             } else {
-                // Use cached data
+                // Use cache
                 fieldsData = cachedFields;
             }
             
-            // Get current language settings
+            // Get language
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
             
-            // Fallback if language data is missing
+            // Fallback
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
-                    console.warn(`Language cache does not exist for ${moduleName}. Please login to fetch language data.`);
                 }
             }
             
-            // Extract mod_strings from language data
+            // Extract strings
             let modStrings = null;
             if (languageData && languageData.data && languageData.data.mod_strings) {
                 modStrings = languageData.data.mod_strings;
             }
             
-            // Validate fieldsData or use defaults
+            // Validate fields
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                console.warn(`fieldsData is empty or invalid for ${moduleName}, using default structure`);
                 fieldsData = {
                     "NAME": {
                         "label": "LBL_LIST_NAME",
@@ -166,22 +158,16 @@ export const useModule_List = (moduleName) => {
                 };
             }
             
-            // Use only first 2 fields
+            // First 2 fields
             let fieldEntries;
             const allFieldEntries = Object.entries(fieldsData);
-            // if (moduleName === 'Calls' || moduleName === 'Meetings' || moduleName === 'Tasks') {
-            //     // Skip first field because that response that modules don't have set_complete
-            //     fieldEntries = allFieldEntries.slice(1, 3);
-            // } else {
-            //     fieldEntries = allFieldEntries.slice(0, 2);
-            // }
-            //remove set_complete field
+            // Remove set_complete field
             fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE').slice(0, 2);
 
-            // Build nameFields string from field definitions
+            // Build nameFields
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
             
-            // Filter out invalid fields
+            // Filter invalid fields
             const validFields = fieldKeys.filter(field =>
                 field &&
                 typeof field === 'string' &&
@@ -191,10 +177,9 @@ export const useModule_List = (moduleName) => {
             
             const nameFieldsString = validFields.join(',');
             
-            // Set final nameFields with fallback
+            // Set nameFields
             let finalNameFields;
             if (!nameFieldsString || nameFieldsString.trim() === '') {
-                console.warn(`nameFields is empty for ${moduleName}, using default fields`);
                 finalNameFields = 'name,date_entered,assigned_user_id,created_by,description';
             } else {
                 finalNameFields = nameFieldsString;
@@ -202,17 +187,17 @@ export const useModule_List = (moduleName) => {
             
             setNameFields(finalNameFields);
             
-            // Build column definitions with translations
+            // Build columns
             const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
                 let translatedLabel = fieldKey;
                 const labelValue = fieldInfo?.label;
                 
                 if (modStrings) {
-                    // Use label from API to find translation
+                    // Use API label
                     if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
                         let translation = modStrings[labelValue];
                         
-                        // Try alternative pattern if not found
+                        // Try alternative
                         if (!translation) {
                             const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
                             translation = modStrings[listKey];
@@ -220,12 +205,12 @@ export const useModule_List = (moduleName) => {
                         
                         translatedLabel = translation || labelValue;
                     } else {
-                        // Use standard LBL_ pattern if no label
+                        // Use standard pattern
                         const lblKey = `LBL_${fieldKey.toUpperCase()}`;
                         translatedLabel = modStrings[lblKey] || fieldKey;
                     }
                 } else {
-                    // Use ModuleLanguageUtils as fallback (sync call)
+                    // Fallback translation
                     try {
                         const fallbackTranslation = moduleLanguageUtils.translate(
                             labelValue || `LBL_${fieldKey.toUpperCase()}`, 
@@ -234,7 +219,6 @@ export const useModule_List = (moduleName) => {
                         );
                         translatedLabel = fallbackTranslation;
                     } catch (error) {
-                        console.warn(`Translation fallback failed for ${fieldKey}:`, error);
                         translatedLabel = fieldKey;
                     }
                 }
@@ -253,7 +237,7 @@ export const useModule_List = (moduleName) => {
         } catch (error) {
             console.error(`Error initializing fields and language for ${moduleName}:`, error);
             
-            // Fallback to basic structure
+            // Fallback structure
             setNameFields('name,date_entered,assigned_user_id,created_by');
             setColumns([
                 { key: 'name', label: 'Name', width: '70%', type: 'varchar', link: true },
@@ -262,10 +246,10 @@ export const useModule_List = (moduleName) => {
         }
     }, [moduleName, moduleLanguageUtils]);
 
-    // Initialize filter options
+    // Init filters
     const initializeFilters = useCallback(async () => {
         try {
-            // Common time filter options
+            // Time options
             const timeOptions = [
                 { label: 'LBL_DROPDOWN_LIST_ALL', value: '' },
                 { label: 'today', value: 'today' },
@@ -274,7 +258,7 @@ export const useModule_List = (moduleName) => {
                 { label: 'this_year', value: 'this_year' }
             ];
             
-            // Translate time filter options
+            // Translate options
             const translatedTimeOptions = await Promise.all(
                 timeOptions.map(async (option) => {
                     try {
@@ -296,10 +280,11 @@ export const useModule_List = (moduleName) => {
         }
     }, [moduleName, systemLanguageUtils]);
 
-    // Fetch records from API
+    // Fetch records
     const fetchRecords = useCallback(async (page = 1, isRefresh = false, searchMode = false, overrideTimeFilter = null, overrideSearchText = null) => {
         const activeTimeFilter = overrideTimeFilter !== null ? overrideTimeFilter : timeFilter;
         const activeSearchText = overrideSearchText !== null ? overrideSearchText : searchText;
+        
         try {
             if (isRefresh) {
                 setRefreshing(true);
@@ -312,52 +297,51 @@ export const useModule_List = (moduleName) => {
             let response;
             
             if (activeSearchText.trim() && searchMode) {
-                // Use keyword search
+                // Keyword search
                 response = await searchModuleByKeywordApi(moduleName, activeSearchText.trim(), page);
             } else if (Object.keys(additionalFilters).length > 0 || activeTimeFilter) {
-                // Use filter search
+                // Filter search
                 const filters = { ...additionalFilters };
                 
-                // Add date filter if specified
+                // Add date filter
                 if (activeTimeFilter) {
                     const dateFilters = buildDateFilter(activeTimeFilter);
                     Object.assign(filters, dateFilters);
                 }
                 response = await searchModuleByFilterApi(moduleName, 10, page, nameFields, filters);
             } else {
-                // Regular fetch
+                // Default fetch
                 response = await getModuleRecordsApi(moduleName, 10, page, nameFields);
             }
             
             if (response && response.data) {
                 const newRecords = response.data.map(item => {
-                    // Handle different API response formats
+                    // Handle formats
                     if (item.attributes) {
-                        // Standard API format: {id, type, attributes}
+                        // Standard format
                         return {
                             id: item.id,
                             type: item.type,
                             ...item.attributes
                         };
                     } else {
-                        // Search API format: {id, name, date_entered, ...} (flat structure)
+                        // Flat structure
                         return {
                             id: item.id,
-                            type: moduleName, // Use moduleName as type for search results
+                            type: moduleName,
                             ...item
                         };
                     }
                 });
                 
-                if (page === 1) {
-                    setRecords(newRecords);
-                } else {
-                    setRecords(prev => [...prev, ...newRecords]);
-                }
+                // Replace records for correct page display
+                setRecords(newRecords);
                 
-                // Update pagination info - handle different meta formats
+                // Update pagination
                 if (response.meta) {
                     const totalPages = response.meta['total-pages'] || response.meta.total_pages || response.pagination?.total_pages || 1;
+                    const totalRecords = response.meta['total-count'] || response.meta.total_count || response.pagination?.total_count || newRecords.length;
+                    
                     setTotalPages(totalPages);
                     setCurrentPage(page);
                     
@@ -392,37 +376,45 @@ export const useModule_List = (moduleName) => {
         }
     }, [moduleName, nameFields, searchText, additionalFilters, timeFilter, initialRecordsLoaded]);
 
-    // Search functionality
+    // Search
     const handleSearch = useCallback((query) => {
         setSearchText(query);
         setCurrentPage(1);
-        // Pass query directly to fetchRecords instead of relying on state
+        // Pass query directly
         fetchRecords(1, false, true, null, query);
     }, [fetchRecords]);
 
-    // Filter functionality
+    // Filter
     const handleFilter = useCallback((filters, timeFilterValue) => {
         setAdditionalFilters(filters || {});
         setTimeFilter(timeFilterValue || '');
         setCurrentPage(1);
-        // Pass timeFilterValue directly to fetchRecords instead of relying on state
+        // Pass filter directly
         fetchRecords(1, false, false, timeFilterValue);
     }, [fetchRecords]);
 
-    // Refresh functionality
+    // Refresh
     const handleRefresh = useCallback(() => {
         setCurrentPage(1);
         fetchRecords(1, true, searchText.trim() !== '');
     }, [fetchRecords, searchText]);
 
-    // Load more (pagination)
+    // Load next page
     const loadMore = useCallback(() => {
         if (pagination.hasNext && !loading) {
-            fetchRecords(currentPage + 1, false, searchText.trim() !== '');
+            const nextPage = currentPage + 1;
+            fetchRecords(nextPage, false, searchText.trim() !== '');
         }
     }, [pagination.hasNext, loading, currentPage, fetchRecords, searchText]);
 
-    // Clear search and filters
+    // Go to page
+    const goToPage = useCallback((pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages && pageNumber !== currentPage && !loading) {
+            fetchRecords(pageNumber, false, searchText.trim() !== '');
+        }
+    }, [totalPages, currentPage, loading, fetchRecords, searchText]);
+
+    // Clear all
     const clearSearchAndFilters = useCallback(() => {
         setSearchText('');
         setAdditionalFilters({});
@@ -431,9 +423,9 @@ export const useModule_List = (moduleName) => {
         fetchRecords(1, false, false);
     }, [fetchRecords]);
 
-    // Reset and re-initialize when moduleName changes
+    // Reset on module change
     useEffect(() => {
-        // Reset all states when moduleName changes
+        // Reset states
         setRecords([]);
         setLoading(true);
         setError(null);
@@ -450,7 +442,7 @@ export const useModule_List = (moduleName) => {
         setIsInitializing(true);
         setInitialRecordsLoaded(false);
         
-        // Re-initialize everything for the new module
+        // Re-initialize
         const initialize = async () => {
             await Promise.all([
                 initializeFieldsAndLanguage(),
@@ -461,7 +453,7 @@ export const useModule_List = (moduleName) => {
         initialize();
     }, [moduleName, initializeFieldsAndLanguage, initializeFilters]);
 
-    // Fetch records after initialization
+    // Initial fetch
     useEffect(() => {
         if (filtersInitialized && nameFields && !initialRecordsLoaded) {
             fetchRecords(1);
@@ -471,26 +463,26 @@ export const useModule_List = (moduleName) => {
         const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
         const [viewPerm, setViewPerm] = useState([]);
        // const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
-        // lấy quyền truy cập của người dùng list
+        // Get list permissions
         useEffect(() => {
         if (!userRoles) return;
             const roleName = userRoles?.roleName?.toLowerCase?.() ?? '';
             const listPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'list');
             setRoleInfo({ roleName, listPerm });
         }, [userRoles]);
-        // lấy quyền truy cập của người dùng view
+        // Get view permissions
         useEffect(() => {
             if (!userRoles) return;
             const viewPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'view');
             setRoleInfo(prev => ({ ...prev, viewPerm }));
         }, [userRoles]);
-        // lấy quyền xoá
+        // Get delete permissions
         useEffect(() => {
             if (!userRoles) return;
             const deletePerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'delete');
             setRoleInfo(prev => ({ ...prev, deletePerm }));
         }, [userRoles]);
-        // lấy quyền sửa
+        // Get edit permissions
         useEffect(() => {
             if (!userRoles) return;
             const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
@@ -498,7 +490,7 @@ export const useModule_List = (moduleName) => {
         }, [userRoles]);
 
         
-       // ===== xu ly role =====
+       // Role processing
         const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
 
         const getOwnersAndId = (rec) => {
@@ -545,7 +537,7 @@ export const useModule_List = (moduleName) => {
         return getUserIdFromToken(token);
         };
 
-        // Đánh giá record theo 1 quyền (list/view): trả về MẢNG RECORD
+        // Evaluate records by permission
         const evaluateRecordsByPerm = async ({ permInfo, roleName, records }) => {
         if (!permInfo || !Array.isArray(records) || records.length === 0) return [];
 
@@ -581,7 +573,7 @@ export const useModule_List = (moduleName) => {
         }
         };
 
-        // ===== LIST: records theo quyền listPerm (TRẢ VỀ RECORD) =====
+        // LIST records by permission
         const listSeqRef = useRef(0);
         useEffect(() => {
         let alive = true;
@@ -606,7 +598,7 @@ export const useModule_List = (moduleName) => {
         return () => { alive = false; };
         }, [roleInfo?.roleName, roleInfo?.listPerm, records]);
 
-        // ===== VIEW: ID được xem theo viewPerm (TRẢ VỀ ID) =====
+        // VIEW IDs by permission
         const viewSeqRef = useRef(0);
         useEffect(() => {
         let alive = true;
@@ -660,6 +652,7 @@ export const useModule_List = (moduleName) => {
         handleFilter,
         handleRefresh,
         loadMore,
+        goToPage,
         clearSearchAndFilters,
         
         // Metadata
