@@ -7,7 +7,7 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
-import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
+import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getModuleFieldsRequiredApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 export const useModule_Detail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -37,6 +37,22 @@ export const useModule_Detail = (moduleName, recordId) => {
                 await WriteCacheView.saveModuleField(moduleName, 'detailviewdefs', fieldsData);
             } else {
                 fieldsData = cachedFields;
+            }
+
+            // Get field metadata for types (similar to UseModule_Update)
+            let requiredFields = {};
+            const cachedRequiredFields = await ReadCacheView.getModuleField(moduleName, 'requiredfields');
+
+            if (!cachedRequiredFields) {
+                // If no cache, fetch from API
+                const requiredFieldsResponse = await getModuleFieldsRequiredApi(moduleName);
+                requiredFields = requiredFieldsResponse.data.attributes;
+
+                // Save to cache with name requiredfields.json
+                await WriteCacheView.saveModuleField(moduleName, 'requiredfields', requiredFields);
+            } else {
+                // Use cached data
+                requiredFields = cachedRequiredFields;
             }
 
             // Get selected language
@@ -73,7 +89,15 @@ export const useModule_Detail = (moduleName, recordId) => {
             }
             
             const fieldKeys = Object.keys(fieldsData);
-            const nameFieldsString = fieldKeys.join(',');
+            
+            // Special handling for duration field
+            let finalFieldKeys = [...fieldKeys];
+            if (fieldKeys.includes('duration')) {
+                // Add duration_hours and duration_minutes to fetch them from API
+                finalFieldKeys.push('duration_hours', 'duration_minutes');
+            }
+            
+            const nameFieldsString = finalFieldKeys.join(',');
             setNameFields(nameFieldsString);
             
             const detailFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
@@ -85,11 +109,15 @@ export const useModule_Detail = (moduleName, recordId) => {
                         vietnameseLabel = translation;
                     }
                 }
+
+                // Get field metadata for type information
+                const fieldInfo = requiredFields[fieldKey] || {};
+                const fieldType = fieldInfo.type || 'text';
                 
                 return {
                     key: fieldKey,
                     label: vietnameseLabel,
-                    type: 'text',
+                    type: fieldType, // Use actual field type instead of hardcoded 'text'
                     required: false
                 };
             });
@@ -239,6 +267,16 @@ export const useModule_Detail = (moduleName, recordId) => {
         return processedRelationships;
     };
 
+    // Process duration field by combining duration_hours and duration_minutes
+    const processDurationField = (recordData) => {
+        if (recordData && recordData.duration_hours !== undefined && recordData.duration_minutes !== undefined) {
+            const hours = recordData.duration_hours || 0;
+            const minutes = recordData.duration_minutes || 0;
+            recordData.duration = `${hours}:${String(minutes).padStart(2, '0')}`;
+        }
+        return recordData;
+    };
+
     // Get display name for module - VIETNAMESE LABELS
     const getModuleDisplayName = (moduleName) => {
         const moduleLabels = {
@@ -295,7 +333,10 @@ export const useModule_Detail = (moduleName, recordId) => {
                 ...response.data.attributes
             };
             
-            setRecord(recordData);
+            // Apply duration processing
+            const processedRecordData = processDurationField(recordData);
+            
+            setRecord(processedRecordData);
             if(parentInfo.parent_id && parentInfo.parent_type) {
                 setHaveParent(true);
             }
@@ -369,6 +410,9 @@ export const useModule_Detail = (moduleName, recordId) => {
         ];
         
         if (hiddenFields.includes(fieldKey)) return false;
+        
+        // Hide duration_hours and duration_minutes since we display the processed duration field
+        if (fieldKey === 'duration_hours' || fieldKey === 'duration_minutes') return false;
         
         // Hide empty fields except for required ones
         const field = detailFields.find(f => f.key === fieldKey);

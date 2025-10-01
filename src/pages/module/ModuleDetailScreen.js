@@ -24,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import TopNavigationDetail from "../../components/navigations/TopNavigationDetail";
+import { getCurrencyNameApi } from "../../services/api/module/ModuleApi";
 import { useModule_Detail } from "../../services/useApi/module/UseModule_Detail";
 import { useModule_PDF } from "../../services/useApi/module/UseModule_PDF";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
@@ -32,13 +33,30 @@ import { formatCurrency } from "../../utils/format/FormatCurrencies";
 import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
 
 // Component to handle async field value formatting
-const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils }) => {
+const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType }) => {
     const [formattedValue, setFormattedValue] = useState(value);
 
     useEffect(() => {
         const formatValue = async () => {
             if (!value) {
                 setFormattedValue(translations.noValue || 'Không có');
+                return;
+            }
+
+            // Handle currency type fields first
+            if (fieldType === 'currency') {
+                try {
+                    const numericValue = parseFloat(value);
+                    if (isNaN(numericValue)) {
+                        setFormattedValue(value.toString());
+                    } else {
+                        const formatted = await formatCurrency(numericValue);
+                        setFormattedValue(formatted);
+                    }
+                } catch (error) {
+                    console.warn('Error formatting currency field:', error);
+                    setFormattedValue(value.toString());
+                }
                 return;
             }
 
@@ -94,6 +112,8 @@ export default function ModuleDetailScreen() {
 
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
+    const [currencyNames, setCurrencyNames] = useState({}); // Cache for currency names
+    const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency values
     // Check if navigation is available
     const isNavigationReady = navigation && typeof navigation.goBack === 'function';
 
@@ -199,6 +219,47 @@ export default function ModuleDetailScreen() {
         };
         fetchLanguage();
       }, []);
+    
+    // Load currency names and format currency values when record changes
+    useEffect(() => {
+        const loadCurrencyData = async () => {
+            if (!record || !detailFields) return;
+            
+            const currencyUpdates = {};
+            const formatUpdates = {};
+            
+            for (const field of detailFields) {
+                const value = getFieldValue(field.key);
+                
+                // Handle currency_id fields
+                if (field.key.includes('currency_id') && value) {
+                    const name = await getCurrencyName(value);
+                    if (name) {
+                        currencyUpdates[field.key] = name;
+                    }
+                }
+                
+                // Handle currency type fields
+                if (field.type === 'currency' && value) {
+                    const formatted = await formatCurrencyValue(value);
+                    if (formatted) {
+                        formatUpdates[field.key] = formatted;
+                    }
+                }
+            }
+            
+            if (Object.keys(currencyUpdates).length > 0) {
+                setCurrencyNames(prev => ({ ...prev, ...currencyUpdates }));
+            }
+            
+            if (Object.keys(formatUpdates).length > 0) {
+                setFormattedCurrencyValues(prev => ({ ...prev, ...formatUpdates }));
+            }
+        };
+        
+        loadCurrencyData();
+    }, [record, detailFields]);
+    
     // PDF Export hook
     const isQuotes = moduleName === "AOS_Quotes";
     const isRecord = record && Object.keys(record).length > 0;
@@ -335,8 +396,18 @@ export default function ModuleDetailScreen() {
     };
 
     // Format field value for display
-    const formatFieldValue = (fieldKey, value) => {
+    const formatFieldValue = (fieldKey, value, fieldType = null) => {
         if (!value) return translations.noValue || 'Không có';
+
+        // Handle currency_id fields
+        if (fieldKey.includes('currency_id')) {
+            return currencyNames[value] || (value === '-99' ? 'Dollar' : value.toString());
+        }
+        
+        // Handle currency type fields
+        if (fieldType === 'currency') {
+            return formattedCurrencyValues[fieldKey] || value.toString();
+        }
 
         switch (fieldKey) {
             case 'date_entered':
@@ -367,6 +438,45 @@ export default function ModuleDetailScreen() {
                 Alert.alert(translations.error || 'Lỗi', translations.copyError || 'Không thể sao chép ID');
                 console.warn('Copy ID error:', err);
             }
+        }
+    };
+
+    // Get currency name by ID with special handling for -99 (Dollar)
+    const getCurrencyName = async (currencyId) => {
+        if (!currencyId) return '';
+        
+        // Special case: -99 is Dollar
+        if (currencyId === '-99' || currencyId === -99) {
+            return 'Dollar';
+        }
+
+        // Check cache first
+        if (currencyNames[currencyId]) {
+            return currencyNames[currencyId];
+        }
+
+        try {
+            const name = await getCurrencyNameApi(currencyId);
+            // Cache the result
+            setCurrencyNames(prev => ({ ...prev, [currencyId]: name }));
+            return name;
+        } catch (error) {
+            console.error('Error getting currency name:', error);
+            return currencyId; // Fallback to ID if name fetch fails
+        }
+    };
+
+    // Format currency value for display
+    const formatCurrencyValue = async (value) => {
+        if (!value || isNaN(parseFloat(value))) return value;
+
+        try {
+            const numericValue = parseFloat(value);
+            const formatted = await formatCurrency(numericValue);
+            return formatted;
+        } catch (error) {
+            console.error('Error formatting currency:', error);
+            return value;
         }
     };
     const onView = async () => {
@@ -473,22 +583,24 @@ export default function ModuleDetailScreen() {
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{field.label}</Text>
-                {field.key === 'annual_revenue' ? (
+                {(field.key === 'annual_revenue' || field.type === 'currency') ? (
                     <Text style={styles.fieldValue}>
                         <FormattedFieldValue
                             fieldKey={field.key}
                             value={value}
                             translations={translations}
                             systemLanguageUtils={systemLanguageUtils}
+                            fieldType={field.type}
                         />
                     </Text>
                 ) : (
                     <Text style={styles.fieldValue}>
-                        {formatFieldValue(field.key, value)}
+                        {formatFieldValue(field.key, value, field.type)}
                     </Text>
                 )}
             </View>
         );
+
     };
 
     // Loading state 
