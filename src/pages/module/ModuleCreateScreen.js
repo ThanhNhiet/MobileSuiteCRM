@@ -761,6 +761,7 @@ export default function ModuleCreateScreen() {
                                         keyboardType="numeric"
                                         placeholder="00"
                                         maxLength={2}
+                                        editable={false}
                                     />
                                     <Text style={styles.timeSeparator}>:</Text>
                                     <TextInput
@@ -770,6 +771,7 @@ export default function ModuleCreateScreen() {
                                         keyboardType="numeric"
                                         placeholder="00"
                                         maxLength={2}
+                                        editable={false}
                                     />
                                 </View>
 

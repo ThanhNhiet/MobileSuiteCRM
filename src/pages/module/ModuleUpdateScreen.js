@@ -20,33 +20,34 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
 import { useModuleUpdate } from '../../services/useApi/module/UseModule_Update';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function ModuleUpdateScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { moduleName, recordData, haveParent } = route.params || {};
   const [file, setFile] = useState(null);
-  
-      const pickFile = async () => {
-          try {
-              const result = await DocumentPicker.getDocumentAsync({
-                  multiple: false,
-                  copyToCacheDirectory: true,
-              });
-  
-              if (result.canceled) return;
-  
-              // API mới trả về mảng assets
-              const asset = result.assets?.[0] || result;
-              if (asset) {
-                  setFile(asset);
-                  console.log("File đã chọn:", asset);
-              }
-          } catch (err) {
-              console.log("Lỗi chọn file:", err);
-          }
-      };
-  
+
+  const pickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      // API mới trả về mảng assets
+      const asset = result.assets?.[0] || result;
+      if (asset) {
+        setFile(asset);
+        console.log("File đã chọn:", asset);
+      }
+    } catch (err) {
+      console.log("Lỗi chọn file:", err);
+    }
+  };
+
 
   // SystemLanguageUtils instance
   const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -169,8 +170,8 @@ export default function ModuleUpdateScreen() {
     isRelateField,
     getRelatedModuleName,
     handleRelateFieldSelect,
-     saveFile,
-      isFile,
+    saveFile,
+    isFile,
 
   } = useModuleUpdate(moduleName, recordData);
 
@@ -234,23 +235,23 @@ export default function ModuleUpdateScreen() {
   const handleSave = async () => {
     try {
       setSaving(true);
-       // Upload file trước nếu có
-            let uploadedFilename = null;
-            let mime_type = null;
-            if (isFile && file) {
-                const fileResponse = await saveFile(moduleName, file);
+      // Upload file trước nếu có
+      let uploadedFilename = null;
+      let mime_type = null;
+      if (isFile && file) {
+        const fileResponse = await saveFile(moduleName, file);
 
-                if (fileResponse.success && fileResponse.original_filename) {
-                    uploadedFilename = fileResponse.original_filename;
-                    mime_type = fileResponse.mime_type;
-                } else {
-                    Alert.alert(
-                        translations.errorTitle || 'Lỗi',
-                        `Không thể tải lên file: ${fileResponse.message || 'Unknown error'}`
-                    );
-                    return;
-                }
-            }
+        if (fileResponse.success && fileResponse.original_filename) {
+          uploadedFilename = fileResponse.original_filename;
+          mime_type = fileResponse.mime_type;
+        } else {
+          Alert.alert(
+            translations.errorTitle || 'Lỗi',
+            `Không thể tải lên file: ${fileResponse.message || 'Unknown error'}`
+          );
+          return;
+        }
+      }
       const result = await updateRecord(uploadedFilename, mime_type);
       if (result.success) {
         Alert.alert(
@@ -392,38 +393,32 @@ export default function ModuleUpdateScreen() {
     }
   };
 
-  // Handle time selection
   const handleTimeChange = (event, selectedTime) => {
-    const currentTime = selectedTime || new Date();
     setShowTimePicker(false);
 
-    if (event.type === 'dismissed') {
-      return; // User canceled the picker
+    if (event.type === 'dismissed' || !selectedTime) {
+      return; // User canceled
     }
 
     if (currentDateField) {
-      // For datetimecombo, we need to merge existing date with the new time
       const currentValue = getFieldValue(currentDateField);
 
-      // Create a base date - either from existing value or today
       let baseDate = new Date();
       if (currentValue && currentValue.includes(' ')) {
-        const datePart = currentValue.split(' ')[0];
-        if (datePart && datePart.includes('-')) {
-          const [y, m, d] = datePart.split('-');
-          if (y && m && d) {
-            baseDate = new Date(y, parseInt(m, 10) - 1, d);
-          }
-        }
+        const [datePart] = currentValue.split(' ');
+        const [y, m, d] = datePart.split('-').map(Number);
+        baseDate = new Date(y, m - 1, d);
       }
 
-      // Merge the date with the selected time
-      const hours = currentTime.getHours();
-      const minutes = currentTime.getMinutes();
-      const seconds = currentTime.getSeconds();
-      baseDate.setHours(hours, minutes, seconds, 0);
+      const rawDate = new Date(event.nativeEvent.timestamp);
+      const hours = rawDate.getUTCHours();
+      const minutes = rawDate.getUTCMinutes();
 
-      const formattedDateTime = formatDateTime(baseDate);
+      const dateStr = formatDate(baseDate); // YYYY-MM-DD
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(minutes).padStart(2, '0');
+
+      const formattedDateTime = `${dateStr} ${hoursStr}:${minutesStr}:00`;
       updateField(currentDateField, formattedDateTime);
     }
   };
@@ -450,6 +445,92 @@ export default function ModuleUpdateScreen() {
     const seconds = String(date.getSeconds()).padStart(2, '0');
     // Add seconds to match standard MySQL datetime format
     return `${dateStr} ${hours}:${minutes}:${seconds}`;
+  };
+
+  // Helper function to format date for display - returns only date portion (DD/MM/YYYY)
+  const formatDateForDisplay = (datetimeValue) => {
+    if (!datetimeValue) return '';
+
+    try {
+      // Use the app's standard timezone-aware formatter and extract only date part
+      const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
+      // Extract date part from formatted string (assumes format contains date)
+      // Split by space and take first part if it contains time
+      const datePart = fullFormatted.split(' ')[0];
+      return datePart;
+    } catch (error) {
+      // Fallback: try to extract and format manually
+      try {
+        let dateObj;
+        if (datetimeValue.includes('T')) {
+          dateObj = new Date(datetimeValue);
+        } else if (datetimeValue.includes(' ')) {
+          const [datePart] = datetimeValue.split(' ');
+          const [year, month, day] = datePart.split('-');
+          dateObj = new Date(year, month - 1, day);
+        } else {
+          const [year, month, day] = datetimeValue.split('-');
+          dateObj = new Date(year, month - 1, day);
+        }
+
+        if (isNaN(dateObj.getTime())) {
+          return datetimeValue;
+        }
+
+        // Format as DD/MM/YYYY
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        return `${day}/${month}/${year}`;
+      } catch (fallbackError) {
+        return datetimeValue;
+      }
+    }
+  };
+
+  // Helper function to get time components from timezone-accurate datetime
+  const getTimeComponents = (datetimeValue) => {
+    if (!datetimeValue) return { hours: '00', minutes: '00' };
+
+    try {
+      // Use timezone-accurate formatter to get the correct time representation
+      const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
+
+      // Try to extract time part from the formatted string
+      // Look for time pattern (HH:MM or similar)
+      const timeMatch = fullFormatted.match(/(\d{1,2})[:：](\d{1,2})/);
+      if (timeMatch) {
+        const hours = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+        const minutes = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
+        return { hours, minutes };
+      }
+
+      // Fallback: parse directly from datetime value
+      let dateObj;
+      if (datetimeValue.includes('T')) {
+        // ISO format: 2025-09-09T23:00:00+02:00 - this gives timezone-accurate time
+        dateObj = new Date(datetimeValue);
+      } else if (datetimeValue.includes(' ')) {
+        // MySQL format: 2025-09-09 23:00:00
+        const [datePart, timePart] = datetimeValue.split(' ');
+        const [year, month, day] = datePart.split('-');
+        const [hours, minutes, seconds] = timePart.split(':');
+        dateObj = new Date(year, month - 1, day, hours || 0, minutes || 0, seconds || 0);
+      } else {
+        return { hours: '00', minutes: '00' };
+      }
+
+      if (isNaN(dateObj.getTime())) {
+        return { hours: '00', minutes: '00' };
+      }
+
+      const hours = String(dateObj.getHours()).padStart(2, '0');
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+
+      return { hours, minutes };
+    } catch (error) {
+      return { hours: '00', minutes: '00' };
+    }
   };
 
   // Helper function to update just the hours or minutes in a datetime string
@@ -745,7 +826,7 @@ export default function ModuleUpdateScreen() {
                       onPress={() => showDatePickerForField(field.key, 'date')}
                     >
                       <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                        {fieldValue ? (fieldValue.includes(' ') ? fieldValue.split(' ')[0] : fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
+                        {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
                       </Text>
                     </TouchableOpacity>
                     {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
@@ -755,8 +836,9 @@ export default function ModuleUpdateScreen() {
 
               // Handle datetimecombo fields (date + time)
               if (isDateTimeField(field.key)) {
-                const hoursValue = parseTimeFromField(fieldValue, true);
-                const minutesValue = parseTimeFromField(fieldValue, false);
+                const timeComponents = getTimeComponents(fieldValue);
+                const hoursValue = timeComponents.hours;
+                const minutesValue = timeComponents.minutes;
 
                 return (
                   <View key={field.key} style={styles.row}>
@@ -768,7 +850,7 @@ export default function ModuleUpdateScreen() {
                         onPress={() => showDatePickerForField(field.key, 'date')}
                       >
                         <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
-                          {fieldValue ? fieldValue.split(' ')[0] : (translations.selectPlaceholder || 'Chọn ngày')}
+                          {fieldValue ? formatDateForDisplay(fieldValue) : (translations.selectPlaceholder || 'Chọn ngày')}
                         </Text>
                       </TouchableOpacity>
 
@@ -782,8 +864,9 @@ export default function ModuleUpdateScreen() {
                             keyboardType="numeric"
                             placeholder="00"
                             maxLength={2}
+                            editable={false}
                           />
-                          <Text style={styles.timeSeparator}>:</Text>
+                          <Text style={styles.timeSeparator}> : </Text>
                           <TextInput
                             style={styles.timeInput}
                             value={minutesValue}
@@ -791,6 +874,7 @@ export default function ModuleUpdateScreen() {
                             keyboardType="numeric"
                             placeholder="00"
                             maxLength={2}
+                            editable={false}
                           />
                         </View>
 
@@ -871,7 +955,7 @@ export default function ModuleUpdateScreen() {
               // Handle relate fields as search modal
               if (isRelateField(field.key)) {
                 const relatedModuleName = getRelatedModuleName(field.key);
-                
+
                 return (
                   <View key={field.key} style={styles.row}>
                     {renderFieldLabel(field.key)}
@@ -897,71 +981,71 @@ export default function ModuleUpdateScreen() {
                 );
               }
               if (field.key === 'filename') {
-                              return (
-                                  <View key={field.key} style={styles.row}>
-                                   {renderFieldLabel(field.key)}
-                                      <TouchableOpacity
-                                          onPress={pickFile}
-                                          style={styles.valueFile}
-                                      >
-                                          <Text style={{ color: "white", fontWeight: "bold" }}>{fieldValue}</Text>
-                                      </TouchableOpacity>
-                                      {file && (
-                                          <View
-                                              style={{
-                                                  marginTop: 20,
-                                                  padding: 15,
-                                                  borderRadius: 12,
-                                                  backgroundColor: "#f3f4f6",
-                                                  shadowColor: "#000",
-                                                  shadowOffset: { width: 0, height: 2 },
-                                                  shadowOpacity: 0.1,
-                                                  shadowRadius: 4,
-                                                  elevation: 3,
-                                              }}
-                                          >
-                                              <View
-                                                  style={{
-                                                      flexDirection: "row",
-                                                      justifyContent: "space-between",
-                                                      alignItems: "center",
-                                                  }}
-                                              >
-                                                  <Text style={{ fontSize: 16, fontWeight: "600", flex: 1 }}>
-                                                      📄 {file.name}
-                                                  </Text>
-              
-                                                  <TouchableOpacity
-                                                      onPress={() => setFile(null)}
-                                                      style={{
-                                                          backgroundColor: "#ef4444",
-                                                          paddingVertical: 6,
-                                                          paddingHorizontal: 12,
-                                                          borderRadius: 8,
-                                                      }}
-                                                  >
-                                                      <Text style={{ color: "white", fontWeight: "bold" }}>Xóa</Text>
-                                                  </TouchableOpacity>
-                                              </View>
-              
-                                              <Text style={{ fontSize: 14, color: "#374151", marginTop: 8 }}>
-                                                  Kích thước: {(file.size / 1024).toFixed(1)} KB
-                                              </Text>
-                                              <Text
-                                                  style={{
-                                                      fontSize: 12,
-                                                      color: "#6b7280",
-                                                      marginTop: 4,
-                                                  }}
-                                                  numberOfLines={1}
-                                              >
-                                                  URI: {file.uri}
-                                              </Text>
-                                          </View>
-                                      )}
-                                  </View>
-                              );
-                          }
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      onPress={pickFile}
+                      style={styles.valueFile}
+                    >
+                      <Text style={{ color: "white", fontWeight: "bold" }}>{fieldValue}</Text>
+                    </TouchableOpacity>
+                    {file && (
+                      <View
+                        style={{
+                          marginTop: 20,
+                          padding: 15,
+                          borderRadius: 12,
+                          backgroundColor: "#f3f4f6",
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text style={{ fontSize: 16, fontWeight: "600", flex: 1 }}>
+                            📄 {file.name}
+                          </Text>
+
+                          <TouchableOpacity
+                            onPress={() => setFile(null)}
+                            style={{
+                              backgroundColor: "#ef4444",
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text style={{ color: "white", fontWeight: "bold" }}>Xóa</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <Text style={{ fontSize: 14, color: "#374151", marginTop: 8 }}>
+                          Kích thước: {(file.size / 1024).toFixed(1)} KB
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: "#6b7280",
+                            marginTop: 4,
+                          }}
+                          numberOfLines={1}
+                        >
+                          URI: {file.uri}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              }
 
               // Default handling for all other fields
               return (
@@ -1509,17 +1593,17 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   valueFile: {
-        backgroundColor: '#2563eb',
-        borderRadius: 6,
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        width: '90%',
-        alignSelf: 'center',
-        justifyContent: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 1 },
-        shadowRadius: 2,
-    },
+    backgroundColor: '#2563eb',
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    width: '90%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
 });

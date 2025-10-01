@@ -4,7 +4,6 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
     createModuleRelationshipApi,
     deleteModuleRelationshipApi,
@@ -577,47 +576,48 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
                 }
-                if (updateData.date_start) {
-                    const timezone_store = await AsyncStorage.getItem('timezone') || '';
-                    const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
-                    if (timezone_utc) {
-                        updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
-                    }
-                }
-                if (updateData.date_end) {
-                    const timezone_store = await AsyncStorage.getItem("timezone") || "";
-                    const timezone_utc = parseTimezoneString(timezone_store).utc;
+                // if (updateData.date_start) {
+                //     const timezone_store = await AsyncStorage.getItem('timezone') || '';
+                //     const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
+                //     if (timezone_utc) {
+                //         updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
+                //     }
+                // }
+                // if (updateData.date_end) {
+                //     const timezone_store = await AsyncStorage.getItem("timezone") || "";
+                //     const timezone_utc = parseTimezoneString(timezone_store).utc;
 
-                    if (timezone_utc) {
-                        updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
-                    }
-                }
+                //     if (timezone_utc) {
+                //         updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
+                //     }
+                // }
                 // Add filename from uploaded file (ưu tiên filename từ upload)
                 if (uploadedFilename) {
                     updateData.filename = uploadedFilename;
 
-                // Chỉ thêm mime_type nếu có giá trị hợp lệ
-                if (mime_type && mime_type !== 'application/x-empty') {
-                    updateData.file_mime_type = mime_type;
-                } else {
-                    // Fallback: xác định mime_type từ file extension
-                    const fileExtension = uploadedFilename.split('.').pop().toLowerCase();
-                    const mimeTypeMap = {
-                        'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg',
-                        'png': 'image/png',
-                        'gif': 'image/gif',
-                        'pdf': 'application/pdf',
-                        'doc': 'application/msword',
-                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                        'txt': 'text/plain'
-                    };
-                    updateData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
+                    // Chỉ thêm mime_type nếu có giá trị hợp lệ
+                    if (mime_type && mime_type !== 'application/x-empty') {
+                        updateData.file_mime_type = mime_type;
+                    } else {
+                        // Fallback: xác định mime_type từ file extension
+                        const fileExtension = uploadedFilename.split('.').pop().toLowerCase();
+                        const mimeTypeMap = {
+                            'jpg': 'image/jpeg',
+                            'jpeg': 'image/jpeg',
+                            'png': 'image/png',
+                            'gif': 'image/gif',
+                            'pdf': 'application/pdf',
+                            'doc': 'application/msword',
+                            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'txt': 'text/plain'
+                        };
+                        updateData.file_mime_type = mimeTypeMap[fileExtension] || 'application/octet-stream';
+                    }
+                } else if (formData.filename && formData.filename.trim() !== '') {
+                    updateData.filename = formData.filename.trim();
+                    updateData.file_mime_type = mime_type || 'application/octet-stream';
                 }
-            } else if (formData.filename && formData.filename.trim() !== '') {
-                updateData.filename = formData.filename.trim();
-                updateData.file_mime_type = mime_type || 'application/octet-stream';
-            }
+                // console.log('Updating record with data:', updateData);
                 await updateModuleRecordApi(moduleName, formData.id, updateData);
             }
 
@@ -959,30 +959,30 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
     }, [updateFields]);
 
     // Save file to module
-        const saveFile = useCallback(async (moduleName, file) => {
-            try {
-                if (!file || !moduleName) return;
-                const data = await postFileModuleApi(moduleName, file);
-                if (!data || !data.success) {
-                    console.warn('Save File API response error:', data.message);
-                    const errorMsg = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tải tệp lên';
-                    throw new Error(errorMsg);
-                }
-                const kq = {
-                    success: data.success,
-                    fileName: data.fileName,
-                    original_filename: data.original_filename,
-                    fileUrl: data.file_url,
-                    mime_type: data.mime_type,
-                    preview: data.preview_url,
-                    download: data.download_url
-                };
-                return kq;
-            } catch (error) {
-                console.warn("Save File API error:", error);
-                throw error;
+    const saveFile = useCallback(async (moduleName, file) => {
+        try {
+            if (!file || !moduleName) return;
+            const data = await postFileModuleApi(moduleName, file);
+            if (!data || !data.success) {
+                console.warn('Save File API response error:', data.message);
+                const errorMsg = await systemLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Lỗi khi tải tệp lên';
+                throw new Error(errorMsg);
             }
-        }, [moduleName]);
+            const kq = {
+                success: data.success,
+                fileName: data.fileName,
+                original_filename: data.original_filename,
+                fileUrl: data.file_url,
+                mime_type: data.mime_type,
+                preview: data.preview_url,
+                download: data.download_url
+            };
+            return kq;
+        } catch (error) {
+            console.warn("Save File API error:", error);
+            throw error;
+        }
+    }, [moduleName]);
 
 
     return {
