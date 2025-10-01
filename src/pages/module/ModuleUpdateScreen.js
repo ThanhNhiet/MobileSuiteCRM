@@ -18,8 +18,10 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationUpdate from '../../components/navigations/TopNavigationUpdate';
+import { getAllCurrencyApi, getCurrencyNameApi } from '../../services/api/module/ModuleApi';
 import { useModuleUpdate } from '../../services/useApi/module/UseModule_Update';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function ModuleUpdateScreen() {
@@ -191,6 +193,13 @@ export default function ModuleUpdateScreen() {
   const [currentDateField, setCurrentDateField] = useState(null);
   const [dateTimeMode, setDateTimeMode] = useState('date'); // 'date' or 'time'
 
+  // Currency states
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [currencyOptions, setCurrencyOptions] = useState([]);
+  const [currencyNames, setCurrencyNames] = useState({}); // Cache for currency names
+  const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency display
+  const [focusedField, setFocusedField] = useState(null); // Track which field is being edited
+
   // Parent type options with translations
   const [parentTypeOptions, setParentTypeOptions] = useState([]);
 
@@ -230,6 +239,41 @@ export default function ModuleUpdateScreen() {
     };
     loadParentTypeOptions();
   }, [getParentTypeOptions]);
+
+  // Load currencies for currency_id fields
+  useEffect(() => {
+    loadCurrencies();
+  }, []);
+
+  // Load currency names and format currency values when updateFields change
+  useEffect(() => {
+    const loadCurrencyData = async () => {
+      if (!updateFields || updateFields.length === 0) return;
+
+      const currencyFields = updateFields.filter(field => field.type === 'currency');
+      const currencyIdFields = updateFields.filter(field => field.key === 'currency_id');
+
+      // Load currency names for currency_id fields
+      for (const field of currencyIdFields) {
+        const value = getFieldValue(field.key);
+        if (value) {
+          await getCurrencyName(value);
+        }
+      }
+
+      // Format currency values
+      const newFormattedValues = {};
+      for (const field of currencyFields) {
+        const value = getFieldValue(field.key);
+        if (value) {
+          newFormattedValues[field.key] = await formatCurrencyValue(value);
+        }
+      }
+      setFormattedCurrencyValues(newFormattedValues);
+    };
+
+    loadCurrencyData();
+  }, [updateFields, formData]);
 
   // Handle save
   const handleSave = async () => {
@@ -329,10 +373,68 @@ export default function ModuleUpdateScreen() {
   // Get enum option label for display
   const getEnumOptionLabel = (fieldKey) => {
     const value = getFieldValue(fieldKey);
-    if (!value) return translations.selectPlaceholder || '--------';
+    // Check for null/undefined but allow empty string as valid enum value
+    if (value === null || value === undefined) return translations.selectPlaceholder || '--------';
 
     // Get the translated label from enumFieldsData
     return getEnumLabel(fieldKey, value) || value;
+  };
+
+  // Load all currencies for currency_id field
+  const loadCurrencies = async () => {
+    try {
+      const response = await getAllCurrencyApi();
+      if (response.data && Array.isArray(response.data)) {
+        setCurrencyOptions(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading currencies:', error);
+    }
+  };
+
+  // Get currency name by ID with special handling for -99 (Dollar)
+  const getCurrencyName = async (currencyId) => {
+    if (!currencyId) return '';
+    
+    // Special case: -99 is Dollar
+    if (currencyId === '-99' || currencyId === -99) {
+      return 'Dollar';
+    }
+
+    // Check cache first
+    if (currencyNames[currencyId]) {
+      return currencyNames[currencyId];
+    }
+
+    try {
+      const name = await getCurrencyNameApi(currencyId);
+      // Cache the result
+      setCurrencyNames(prev => ({ ...prev, [currencyId]: name }));
+      return name;
+    } catch (error) {
+      console.error('Error getting currency name:', error);
+      return currencyId; // Fallback to ID if name fetch fails
+    }
+  };
+
+  // Handle currency selection
+  const handleCurrencySelect = async (currency) => {
+    await updateField('currency_id', currency.id);
+    setShowCurrencyModal(false);
+  };
+
+  // Format currency value for display
+  const formatCurrencyValue = async (value) => {
+    if (!value || isNaN(parseFloat(value))) return value;
+
+    try {
+      const numericValue = parseFloat(value);
+      const formatted = await formatCurrency(numericValue);
+      return formatted;
+    } catch (error) {
+      console.error('Error formatting currency:', error);
+      return value;
+    }
   };
 
   // Show date picker for a datetime field
@@ -798,6 +900,24 @@ export default function ModuleUpdateScreen() {
                 );
               }
 
+              // Handle currency_id field as modal dropdown
+              if (field.key === 'currency_id') {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      style={[styles.valueBox, fieldError && styles.errorInput]}
+                      onPress={() => setShowCurrencyModal(true)}
+                    >
+                      <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                        {fieldValue ? (currencyNames[fieldValue] || (fieldValue === '-99' ? 'Dollar' : fieldValue)) : (translations.selectPlaceholder || 'Chọn loại tiền')}
+                      </Text>
+                    </TouchableOpacity>
+                    {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                  </View>
+                );
+              }
+
               // Handle enum fields as modal dropdowns
               if (isEnumField(field.key)) {
                 return (
@@ -1057,12 +1177,39 @@ export default function ModuleUpdateScreen() {
                         styles.value,
                         field.key === 'description' && styles.multilineInput
                       ]}
-                      value={fieldValue}
+                      value={field.type === 'currency' && focusedField === field.key 
+                        ? fieldValue 
+                        : (field.type === 'currency' && formattedCurrencyValues[field.key] ? formattedCurrencyValues[field.key] : fieldValue)}
+                      onFocus={() => {
+                        if (field.type === 'currency') {
+                          setFocusedField(field.key);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (field.type === 'currency') {
+                          setFocusedField(null);
+                        }
+                      }}
                       onChangeText={async (value) => {
-                        // For int and currency fields, only allow numeric input
-                        if (isNumericField(field.type)) {
+                        // For currency fields, store raw value but update formatted display
+                        if (field.type === 'currency') {
                           // Allow only digits and decimal point for currency
-                          const regex = field.type === 'currency' ? /^[0-9]*\.?[0-9]*$/ : /^[0-9]*$/;
+                          const regex = /^[0-9]*\.?[0-9]*$/;
+                          if (value === '' || regex.test(value)) {
+                            await updateField(field.key, value);
+                            // Update formatted display only when not focused
+                            if (focusedField !== field.key) {
+                              if (value && !isNaN(parseFloat(value))) {
+                                const formatted = await formatCurrencyValue(value);
+                                setFormattedCurrencyValues(prev => ({ ...prev, [field.key]: formatted }));
+                              } else {
+                                setFormattedCurrencyValues(prev => ({ ...prev, [field.key]: value }));
+                              }
+                            }
+                          }
+                        } else if (isNumericField(field.type)) {
+                          // Allow only digits for int fields
+                          const regex = /^[0-9]*$/;
                           if (value === '' || regex.test(value)) {
                             await updateField(field.key, value);
                           }
@@ -1212,6 +1359,47 @@ export default function ModuleUpdateScreen() {
             onChange={handleDateChange}
           />
         )}
+
+        {/* Currency Modal */}
+        <Modal
+          visible={showCurrencyModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCurrencyModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCurrencyModal(false)}
+          >
+            <View style={styles.modalContainer}>
+              <ScrollView
+                style={styles.modalScrollView}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* Special option for Dollar (-99) */}
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => handleCurrencySelect({ id: '-99', name: 'Dollar' })}
+                >
+                  <Text style={styles.modalOptionText}>Dollar</Text>
+                </TouchableOpacity>
+                
+                {/* Regular currency options */}
+                {currencyOptions.map((currency) => (
+                  <TouchableOpacity
+                    key={currency.id}
+                    style={styles.modalOption}
+                    onPress={() => handleCurrencySelect({ id: currency.id, name: currency.attributes.name })}
+                  >
+                    <Text style={styles.modalOptionText}>{currency.attributes.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Time Picker Modal */}
         {showTimePicker && (

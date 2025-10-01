@@ -494,3 +494,33 @@ export const getNameUserByIdApi = async (user_id) => {
     throw error;
   }
 };
+
+// /Api/V8/module/Currencies/{currency_id}?fields[Currencies]=name
+export const getCurrencyNameApi = async (currency_id) => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Currencies/${currency_id}`, {
+            params: {
+                'fields[Currencies]': 'name'
+            }
+        });
+        return response.data.data.attributes.name;
+    } catch (error) {
+        console.warn("Get Currency Name by ID API error:", error);
+        throw error;
+    }
+};
+
+// /Api/V8/module/Currencies?fields[Currencies]=name
+export const getAllCurrencyApi = async () => {
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Currencies`, {
+            params: {
+                'fields[Currencies]': 'name'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn("Get All Currency API error:", error);
+        throw error;
+    }
+};

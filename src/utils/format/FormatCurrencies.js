@@ -91,7 +91,7 @@ const convertCurrency = (amount, conversionRate) => {
     return amount * conversionRate;
 };
 
-export const formatCurrency = async (amount, shouldConvert = true) => {
+export const formatCurrency = async (amount, shouldConvert = false) => {
     try {
         const [cachedCurrency, thousandsSeparator, decimalSymbol] = await Promise.all([
             ReadCacheView.getCurrencyData(),
@@ -136,13 +136,9 @@ export const formatCurrency = async (amount, shouldConvert = true) => {
         const symbol = currencyAttributes.symbol || '$';
         const position = getSymbolPosition(currencyAttributes);
         
-        // Convert currency if needed and conversion rate is available
-        let convertedAmount = amount;
-        if (shouldConvert && currencyAttributes.conversion_rate) {
-            convertedAmount = convertCurrency(amount, parseFloat(currencyAttributes.conversion_rate));
-        }
-        
-        return formatCurrencyWithPosition(convertedAmount, symbol, position, customThousandsSeparator, customDecimalSymbol);
+        // Keep original amount - do not convert currency
+        // Only format the display with the selected currency symbol and position
+        return formatCurrencyWithPosition(amount, symbol, position, customThousandsSeparator, customDecimalSymbol);
         
     } catch (error) {
         console.warn('Error formatting currency:', error);
