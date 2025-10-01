@@ -73,7 +73,15 @@ export const useRelationshipDetail = (moduleName, recordId) => {
             }
             
             const fieldKeys = Object.keys(fieldsData);
-            const nameFieldsString = fieldKeys.join(',');
+            
+            // Special handling for duration field - same as UseModule_Detail
+            let finalFieldKeys = [...fieldKeys];
+            if (fieldKeys.includes('duration')) {
+                // Add duration_hours and duration_minutes to fetch them from API
+                finalFieldKeys.push('duration_hours', 'duration_minutes');
+            }
+            
+            const nameFieldsString = finalFieldKeys.join(',');
             setNameFields(nameFieldsString);
             
             const detailFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
@@ -139,6 +147,7 @@ export const useRelationshipDetail = (moduleName, recordId) => {
                 "name": "LBL_SUBJECT",
                 "status": "LBL_STATUS",
                 "date_start": "LBL_DATE_TIME",
+                "duration": "LBL_DURATION",
                 "duration_hours": "LBL_DURATION",
                 "location": "LBL_LOCATION",
                 "date_entered": "LBL_DATE_ENTERED",
@@ -268,6 +277,8 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         return moduleLabels[moduleName] || moduleName;
     };
 
+
+
     // Fetch record detail
     const fetchRecord = useCallback(async (isRefresh = false) => {
         if (!recordId || !nameFields || !moduleName) return;
@@ -295,7 +306,10 @@ export const useRelationshipDetail = (moduleName, recordId) => {
                 ...response.data.attributes
             };
             
-            setRecord(recordData);
+            // Apply duration processing
+            const processedRecordData = processDurationField(recordData);
+            
+            setRecord(processedRecordData);
             if(parentInfo.parent_id && parentInfo.parent_type) {
                 setHaveParent(true);
             }
@@ -352,6 +366,24 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         return record[fieldKey] || '';
     }, [record]);
 
+    // Process duration field by combining duration_hours and duration_minutes - same as UseModule_Detail
+    const processDurationField = (recordData) => {
+        if (recordData && recordData.duration_hours !== undefined && recordData.duration_minutes !== undefined) {
+            const hours = recordData.duration_hours || 0;
+            const minutes = recordData.duration_minutes || 0;
+            recordData.duration = `${hours}:${String(minutes).padStart(2, '0')}`;
+        }
+        return recordData;
+    };
+    
+    // Get duration field value for display
+    const getDurationValue = useCallback((fieldKey) => {
+        if (fieldKey === 'duration' && record && record.duration) {
+            return record.duration;
+        }
+        return getFieldValue(fieldKey);
+    }, [record, getFieldValue]);
+
     // Get field label
     const getFieldLabel = useCallback((fieldKey) => {
         const field = detailFields.find(f => f.key === fieldKey);
@@ -369,6 +401,11 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         ];
         
         if (hiddenFields.includes(fieldKey)) return false;
+        
+        // Hide duration component fields (duration_hours, duration_minutes) as they are combined into duration
+        if (fieldKey === 'duration_hours' || fieldKey === 'duration_minutes') {
+            return false;
+        }
         
         // Hide empty fields except for required ones
         const field = detailFields.find(f => f.key === fieldKey);
@@ -676,6 +713,7 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         getFieldLabel,
         shouldDisplayField,
         formatFieldValue,
+        getDurationValue,
 
         //get link file
         fileMeta,

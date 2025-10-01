@@ -182,6 +182,7 @@ export default function RelationshipDetailScreen_New() {
         getFieldValue,
         getFieldLabel,
         shouldDisplayField,
+        getDurationValue,
         fileMeta,
         relaFor,
     } = useRelationshipDetail(moduleName, recordId);
@@ -278,7 +279,20 @@ export default function RelationshipDetailScreen_New() {
                                         text: translations.ok || 'OK',
                                         onPress: () => {
                                             if (isNavigationReady && navigation.canGoBack()) {
-                                                navigation.navigate('RelationshipListScreen_New', { moduleName: moduleName, relatedLink: relatedLink });
+                                                // Create relationship object structure that RelationshipListScreen_New expects
+                                                const relationshipObject = {
+                                                    moduleName: moduleName,
+                                                    relatedLink: relatedLink,
+                                                    displayName: moduleName,
+                                                    moduleLabel: moduleName
+                                                };
+                                                
+                                                navigation.navigate('RelationshipListScreen_New', { 
+                                                    relationship: relationshipObject,
+                                                    sourceModule: route.params?.sourceModule,
+                                                    sourceRecordId: route.params?.sourceRecordId,
+                                                    relaFor: route.params?.relaFor
+                                                });
                                             }
                                         }
                                     }]
@@ -468,6 +482,19 @@ export default function RelationshipDetailScreen_New() {
                     </View>
                 </Modal>
             </>
+            );
+        }
+
+        // Special handling for duration field
+        if (field.key === 'duration') {
+            const durationValue = getDurationValue(field.key);
+            return (
+                <View key={field.key} style={styles.fieldContainer}>
+                    <Text style={styles.fieldLabel}>{field.label}</Text>
+                    <Text style={styles.fieldValue}>
+                        {durationValue}
+                    </Text>
+                </View>
             );
         }
 

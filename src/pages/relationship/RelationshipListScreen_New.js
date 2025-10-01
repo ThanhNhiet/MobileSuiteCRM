@@ -18,7 +18,7 @@ import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
 import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
+
 
 /**
  * RelationshipListScreen_New component
@@ -93,7 +93,8 @@ export default function RelationshipListScreen_New() {
         handleRefresh,
         loadMore,
         handleFilter,
-        clearSearchAndFilters
+        clearSearchAndFilters,
+        formatCellValue
     } = useRelationshipList(moduleName, relatedLink);
 
     // Initialize translations
@@ -113,15 +114,17 @@ export default function RelationshipListScreen_New() {
                     'LBL_SUBJECT',
                 ]);
                 
+
+                
                 setTranslations({
                     mdName: translated[`LBL_${moduleName.toUpperCase()}`] || displayName,
-                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Nhập từ khóa tìm kiếm',
+                    searchPlaceholder: `${translated.LBL_IMPORT || 'Nhập'} từ khóa tìm kiếm`,
                     selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
-                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
-                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Thêm',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm kiếm',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Tạo',
                     loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
-                    tryAgain: translated.UPLOAD_REQUEST_ERROR || 'Thử lại',
-                    pullToRefresh: 'Pull to refresh...',
+                    tryAgain: 'Thử lại',
+                    pullToRefresh: 'Kéo để tải lại...',
                     noData: translated.LBL_NO_DATA || 'Không có dữ liệu',
                     createNew: 'Tạo mới'
                 });
@@ -157,22 +160,7 @@ export default function RelationshipListScreen_New() {
         return column ? column.label : fieldKey;
     };
 
-    const formatCellValue = (fieldKey, value) => {
-        if (!value) return '';
-        
-        // Format dates using formatDateBySelectedLanguage
-        if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified')) {
-            try {
-                // Convert to ISO string if it's not already
-                const isoString = value.includes('T') ? value : new Date(value).toISOString();
-                return formatDateBySelectedLanguage(isoString);
-            } catch {
-                return value;
-            }
-        }
-        
-        return String(value);
-    };
+    // formatCellValue is now provided by the hook
 
     // Wrapper function for search with filters
     const searchRecords = (searchText, filters = {}) => {
@@ -290,70 +278,40 @@ export default function RelationshipListScreen_New() {
         });
     };
 
-    // Render individual record item
-    const renderItem = ({ item }) => {
-        // Ensure columns is an array and has proper structure
-        if (!Array.isArray(columns) || columns.length === 0) {
-            return (
-                <TouchableOpacity style={styles.tableRow}>
-                    <Text style={styles.cell}>Loading...</Text>
-                </TouchableOpacity>
-            );
-        }
-
-        // Get first 3 fields for display (excluding id)
-        const displayFields = columns
-            .filter(column => column && column.key && column.key !== 'id')
-            .slice(0, 3);
-
-        if (displayFields.length === 0) {
-            return (
-                <TouchableOpacity style={styles.tableRow}>
-                    <Text style={styles.cell}>No fields available</Text>
-                </TouchableOpacity>
-            );
-        }
+    // Render individual record item with alternating colors like ModuleListScreen
+    const renderItem = ({ item, index }) => {
+        // Get field value function
+        const getFieldValue = (item, fieldKey) => {
+            // Try multiple key variations
+            const possibleKeys = [
+                fieldKey,
+                fieldKey.toLowerCase(),
+                fieldKey.toUpperCase(),
+                fieldKey.replace(/_/g, ''),
+                fieldKey.toLowerCase().replace(/_/g, ''),
+                fieldKey.toUpperCase().replace(/_/g, '')
+            ];
+            
+            for (const key of possibleKeys) {
+                if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
+                    return item[key];
+                }
+            }
+            return '';
+        };
             
         return (
             <TouchableOpacity
-                style={styles.tableRow}
+                style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}
                 onPress={() => navigateToDetailScreen(item)}
             >
-                {displayFields.map((field, index) => {
-                    // Ensure field is a proper object with key property
-                    if (!field || typeof field !== 'object' || !field.key) {
-                        return (
-                            <Text key={index} style={styles.cell}>
-                                -
-                            </Text>
-                        );
-                    }
-
-                    // Get value with multiple possible key variations
-                    let rawValue = '';
-                    const possibleKeys = [
-                        field.key,
-                        field.key.toLowerCase(),
-                        field.key.toUpperCase(),
-                        field.key.replace(/_/g, ''),
-                        field.key.toLowerCase().replace(/_/g, ''),
-                        field.key.toUpperCase().replace(/_/g, '')
-                    ];
-
-                    // Find first key with value
-                    for (const key of possibleKeys) {
-                        if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
-                            rawValue = item[key];
-                            break;
-                        }
-                    }
-
-                    // Format value (especially dates)
-                    const displayValue = formatCellValue(field.key, rawValue);
-
+                {columns.map((column, columnIndex) => {
+                    const rawValue = getFieldValue(item, column.key);
+                    const formattedValue = formatCellValue ? formatCellValue(column.key, rawValue) : rawValue;
+                    console.log('Rendering cell:', { columnKey: column.key, rawValue, formattedValue });
                     return (
-                        <Text key={index} style={styles.cell}>
-                            {displayValue || '-'}
+                        <Text key={columnIndex} style={styles.cell}>
+                            {formattedValue || '-'}
                         </Text>
                     );
                 })}
@@ -648,7 +606,9 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderColor: '#ddd',
         borderRadius: 4,
-        marginVertical: 1,
+    },
+    tableRowEven: {
+        backgroundColor: '#f1edecff',
     },
     cell: { 
         flex: 1,
