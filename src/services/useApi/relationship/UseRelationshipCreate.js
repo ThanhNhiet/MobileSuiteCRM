@@ -7,6 +7,7 @@ import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
+    createModuleRecordApi,
     createModuleRelationshipApi,
     getEnumsApi,
     getModuleEditFieldsApi,
@@ -594,6 +595,7 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
                 recordData.file_mime_type = mime_type || 'application/octet-stream';
             }
 
+            // Special handling for duration - convert to duration_hours and duration_minutes only
             if (recordData.duration) {
                 const totalSeconds = parseInt(recordData.duration, 10) || 0;
                 const hours = Math.floor(totalSeconds / 3600);
@@ -601,6 +603,9 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
 
                 recordData.duration_hours = hours;
                 recordData.duration_minutes = minutes;
+                
+                // Remove duration field as server should only receive duration_hours/duration_minutes
+                delete recordData.duration;
             }
             if (recordData.date_start) {
                 const timezone_store = await AsyncStorage.getItem('timezone') || '';

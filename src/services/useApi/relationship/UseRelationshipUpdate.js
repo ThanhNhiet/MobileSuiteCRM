@@ -569,6 +569,7 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
 
             // Update basic record data if there are changes
             if (Object.keys(updateData).length > 0) {
+                // Special handling for duration - convert to duration_hours and duration_minutes only
                 if (updateData.duration) {
                     const totalSeconds = parseInt(updateData.duration, 10) || 0;
                     const hours = Math.floor(totalSeconds / 3600);
@@ -576,6 +577,36 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
 
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
+                    
+                    // Remove duration field as server should only receive duration_hours/duration_minutes
+                    delete updateData.duration;
+                }
+                
+                // If duration_hours or duration_minutes changed, calculate new date_end
+                if (updateData.duration_hours !== undefined || updateData.duration_minutes !== undefined) {
+                    const currentDateStart = updateData.date_start || formData.date_start || originalData.date_start;
+                    const currentDurationHours = updateData.duration_hours !== undefined ? 
+                        parseInt(updateData.duration_hours) : 
+                        parseInt(formData.duration_hours || originalData.duration_hours || 0);
+                    const currentDurationMinutes = updateData.duration_minutes !== undefined ? 
+                        parseInt(updateData.duration_minutes) : 
+                        parseInt(formData.duration_minutes || originalData.duration_minutes || 0);
+                        
+                    if (currentDateStart) {
+                        const startDate = new Date(currentDateStart);
+                        const totalMinutes = (currentDurationHours * 60) + currentDurationMinutes;
+                        const endDate = new Date(startDate.getTime() + (totalMinutes * 60 * 1000));
+                        
+                        // Format date_end in the same format as date_start
+                        const year = endDate.getFullYear();
+                        const month = String(endDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(endDate.getDate()).padStart(2, '0');
+                        const hours = String(endDate.getHours()).padStart(2, '0');
+                        const minutes = String(endDate.getMinutes()).padStart(2, '0');
+                        const seconds = String(endDate.getSeconds()).padStart(2, '0');
+                        
+                        updateData.date_end = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                    }
                 }
                 if (updateData.date_start) {
                     const timezone_store = await AsyncStorage.getItem('timezone') || '';
@@ -618,6 +649,7 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
                 updateData.filename = formData.filename.trim();
                 updateData.file_mime_type = mime_type || 'application/octet-stream';
             }
+            console.log('Update data:', updateData);
                 await updateModuleRecordApi(moduleName, formData.id, updateData);
             }
 

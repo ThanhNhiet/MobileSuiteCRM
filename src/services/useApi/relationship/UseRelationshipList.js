@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { formatDateTimeBySelectedLanguage, initializeLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
 import {
     getRelationshipListViewFieldsApi,
     getRelationshipsDataApi
@@ -60,6 +62,14 @@ export const useRelationshipList = (moduleName, relatedLink) => {
     // Initialize field definitions and language settings
     const initializeFieldsAndLanguage = useCallback(async () => {
         try {
+            // Initialize locale cache for accurate timezone formatting
+            try {
+                await initializeLocaleCache();
+                console.log('Locale cache initialized successfully for relationship list');
+            } catch (cacheError) {
+                console.warn('Failed to initialize locale cache:', cacheError);
+            }
+            
             // Check if listviewdefs cache exists for the target module
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'listviewdefs');
@@ -86,31 +96,94 @@ export const useRelationshipList = (moduleName, relatedLink) => {
             // Get current language settings and use systemLanguageUtils for translations
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             
-            // Process fields data to create columns with proper translations
-            if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
-                fieldsData = getDefaultFieldsForModule(moduleName);
+            // Get language data like UseModule_List
+            let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
+            
+            // Fallback check
+            if (!languageData) {
+                const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
+                if (!languageExists) {
+                    console.warn(`Language cache not found for ${moduleName} in ${selectedLanguage}`);
+                }
             }
             
-            const fieldKeys = Object.keys(fieldsData);
-            const nameFieldsString = fieldKeys.join(',');
-            setNameFields(nameFieldsString);
+            // Extract mod_strings like UseModule_List
+            let modStrings = null;
+            if (languageData && languageData.data && languageData.data.mod_strings) {
+                modStrings = languageData.data.mod_strings;
+            }
             
-            // Create columns array with translations using systemLanguageUtils
-            const columnsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
-                let vietnameseLabel = labelValue || fieldKey;
-                
-                // Use systemLanguageUtils to translate label
-                if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                    const translation = systemLanguageUtils.translate(labelValue);
-                    if (translation && translation !== labelValue) {
-                        vietnameseLabel = translation;
+            // Validate fields like UseModule_List
+            if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
+                fieldsData = {
+                    "NAME": {
+                        "label": "LBL_LIST_NAME",
+                        "width": "40%",
+                        "type": "varchar",
+                        "link": true
+                    },
+                    "DATE_ENTERED": {
+                        "label": "LBL_DATE_ENTERED", 
+                        "width": "10%",
+                        "type": "datetime",
+                        "link": false
                     }
+                };
+            }
+            
+            // Process fields like UseModule_List - first 2 fields
+            const allFieldEntries = Object.entries(fieldsData);
+            const fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE').slice(0, 2);
+            
+            // Build nameFields like UseModule_List
+            const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
+            const validFields = fieldKeys.filter(field =>
+                field &&
+                typeof field === 'string' &&
+                field.trim() !== '' &&
+                !field.includes(' ')
+            );
+            
+            const nameFieldsString = validFields.join(',');
+            let finalNameFields;
+            if (!nameFieldsString || nameFieldsString.trim() === '') {
+                finalNameFields = 'name,date_entered';
+            } else {
+                finalNameFields = nameFieldsString;
+            }
+            setNameFields(finalNameFields);
+            
+            // Build columns with module translations like UseModule_List
+            const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
+                let translatedLabel = fieldKey;
+                const labelValue = fieldInfo?.label;
+                
+                if (modStrings) {
+                    // Use API label
+                    if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
+                        let translation = modStrings[labelValue];
+                        
+                        // Try alternative like UseModule_List
+                        if (!translation) {
+                            const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
+                            translation = modStrings[listKey];
+                        }
+                        
+                        translatedLabel = translation || labelValue;
+                    } else {
+                        // Use standard pattern
+                        const lblKey = `LBL_${fieldKey.toUpperCase()}`;
+                        translatedLabel = modStrings[lblKey] || fieldKey;
+                    }
+                } else {
+                    // Fallback when no modStrings
+                    translatedLabel = labelValue || fieldKey;
                 }
                 
                 return {
                     key: fieldKey,
-                    label: vietnameseLabel,
-                    type: 'text',
+                    label: translatedLabel,
+                    type: fieldInfo?.type || 'text',
                     width: 120,
                     sortable: true
                 };
@@ -118,13 +191,21 @@ export const useRelationshipList = (moduleName, relatedLink) => {
             
             setColumns(columnsData);
             
-            // Initialize time filter options with translations using systemLanguageUtils
+            // Initialize time filter options with system translations
+            const timeFilterKeys = ['LBL_DROPDOWN_LIST_ALL', 'today', 'this_week', 'this_month', 'this_year'];
+            let timeTranslations = {};
+            try {
+                timeTranslations = await systemLanguageUtils.translateKeys(timeFilterKeys);
+            } catch (error) {
+                console.warn('Time filter translation failed:', error);
+            }
+            
             const timeOptions = [
-                { value: '', label: systemLanguageUtils.translate('LBL_DROPDOWN_LIST_ALL')},
-                { value: 'today', label: systemLanguageUtils.translate('today')},
-                { value: 'this_week', label: systemLanguageUtils.translate('this_week')},
-                { value: 'this_month', label: systemLanguageUtils.translate('this_month')},
-                { value: 'this_year', label: systemLanguageUtils.translate('this_year')}
+                { value: '', label: timeTranslations['LBL_DROPDOWN_LIST_ALL'] || 'Tất cả'},
+                { value: 'today', label: timeTranslations['today'] || 'Hôm nay'},
+                { value: 'this_week', label: timeTranslations['this_week'] || 'Tuần này'},
+                { value: 'this_month', label: timeTranslations['this_month'] || 'Tháng này'},
+                { value: 'this_year', label: timeTranslations['this_year'] || 'Năm này'}
             ];
             
             setTimeFilterOptions(timeOptions);
@@ -136,8 +217,8 @@ export const useRelationshipList = (moduleName, relatedLink) => {
             
             // Set fallback columns to prevent rendering errors
             const fallbackColumns = [
-                { key: 'name', label: 'Name', type: 'text', width: 120, sortable: true },
-                { key: 'date_entered', label: 'Date Created', type: 'datetime', width: 120, sortable: true }
+                { key: 'NAME', label: 'Name', type: 'varchar', width: 120, sortable: true },
+                { key: 'DATE_ENTERED', label: 'Date Created', type: 'datetime', width: 120, sortable: true }
             ];
             setColumns(fallbackColumns);
             setNameFields('name,date_entered');
@@ -469,7 +550,60 @@ export const useRelationshipList = (moduleName, relatedLink) => {
         clearSearchAndFilters,
         
         // Utility
-        fetchRelationshipRecords
+        fetchRelationshipRecords,
+        formatCellValue: (fieldKey, value) => {
+            console.log('formatCellValue called with:', { fieldKey, value, type: typeof value });
+            
+            if (!value) return '';
+            
+            // Format dates - check all possible date field patterns
+            const isDateField = fieldKey.toLowerCase().includes('date') || 
+                              fieldKey.toLowerCase().includes('_entered') || 
+                              fieldKey.toLowerCase().includes('_modified') || 
+                              fieldKey.toLowerCase().includes('_due') || 
+                              fieldKey.toLowerCase().includes('_start') || 
+                              fieldKey.toLowerCase().includes('_end') ||
+                              fieldKey === 'DATE_ENTERED' ||
+                              fieldKey === 'date_entered';
+                              
+            console.log('Is date field?', isDateField, 'for field:', fieldKey);
+            
+            if (isDateField) {
+                try {
+                    // Convert to proper ISO format if needed
+                    const isoString = value.includes('T') ? value : new Date(value).toISOString();
+                    
+                    // Use formatDateTimeBySelectedLanguage for date and time display
+                    const formatted = formatDateTimeBySelectedLanguage(isoString);
+                    console.log('DateTime formatted with timezone:', { original: value, isoString, formatted });
+                    
+                    // Return formatted result if valid, otherwise fallback
+                    if (formatted && formatted.trim() && formatted !== value) {
+                        return formatted;
+                    }
+                    
+                    // Fallback to simple Vietnamese format if formatDateBySelectedLanguage fails
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        const day = date.getDate().toString().padStart(2, '0');
+                        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                        const year = date.getFullYear();
+                        const hours = date.getHours().toString().padStart(2, '0');
+                        const minutes = date.getMinutes().toString().padStart(2, '0');
+                        const fallback = `${day}/${month}/${year} ${hours}:${minutes}`;
+                        console.log('Using fallback format:', fallback);
+                        return fallback;
+                    }
+                    
+                    return value;
+                } catch (error) {
+                    console.warn('Date format error:', error, 'for value:', value);
+                    return value;
+                }
+            }
+            
+            return String(value);
+        }
     };
 };
 
