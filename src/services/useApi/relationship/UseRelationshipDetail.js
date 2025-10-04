@@ -316,7 +316,14 @@ export const useRelationshipDetail = (moduleName, recordId) => {
 
             // Process relationships from response
             if (response.data.relationships) {
-                const processedRelationships = processRelationships(response.data.relationships);
+                const systemModules = ['AOS_Line_Item_Groups', 'AOS_Products_Quotes'];
+
+                let processedRelationships = processRelationships(response.data.relationships);
+                processedRelationships = processedRelationships.filter(r => r.moduleName !== 'Users');
+
+                if (moduleName === 'AOS_Quotes') {
+                    processedRelationships = processedRelationships.filter(r => !systemModules.includes(r.moduleName));
+                }
                 setRelationships(processedRelationships);
             } else {
                 setRelationships([]);

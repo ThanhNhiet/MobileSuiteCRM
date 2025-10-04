@@ -32,6 +32,7 @@ export const useModule_PDF = (args) => {
     detailFields = [],
     getFieldValue = null,
     lang = "vi_VN",
+    moduleName = "AOS_Quotes",
   } = args || {};
 
   const [items, setItems] = useState([]);
@@ -59,7 +60,7 @@ export const useModule_PDF = (args) => {
         return;
       }
       try {
-        const data = await getAosProductsQuotesApi(quoteId);
+        const data = await getAosProductsQuotesApi(moduleName, quoteId);
         const list = Array.isArray(data?.data) ? data.data : [];
         const mapped = list.map((it) => ({
           name: it.attributes?.name,

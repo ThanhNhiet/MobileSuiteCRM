@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as WebBrowser from "expo-web-browser";
@@ -259,11 +258,15 @@ export default function ModuleDetailScreen() {
         
         loadCurrencyData();
     }, [record, detailFields]);
-    
     // PDF Export hook
-    const isQuotes = moduleName === "AOS_Quotes";
+    const modules = ['AOS_Quotes','AOS_Invoices','AOS_Contracts'];
+    let isQuotes = false;
+    if (modules.includes(moduleName)) {
+        isQuotes = true;
+    }
+    //const isQuotes = moduleName === "AOS_Quotes" ;
     const isRecord = record && Object.keys(record).length > 0;
-    const { onExport, exporting} = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang });
+    const { onExport, exporting} = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang ,moduleName});
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -429,17 +432,17 @@ export default function ModuleDetailScreen() {
     };
 
     // Handle copy ID to clipboard
-    const handleCopyId = async () => {
-        if (record?.id) {
-            try {
-                await Clipboard.setStringAsync(record.id);
-                Alert.alert(translations.success || 'Thành công', translations.copySuccess || 'ID đã được sao chép vào clipboard');
-            } catch (err) {
-                Alert.alert(translations.error || 'Lỗi', translations.copyError || 'Không thể sao chép ID');
-                console.warn('Copy ID error:', err);
-            }
-        }
-    };
+    // const handleCopyId = async () => {
+    //     if (record?.id) {
+    //         try {
+    //             await Clipboard.setStringAsync(record.id);
+    //             Alert.alert(translations.success || 'Thành công', translations.copySuccess || 'ID đã được sao chép vào clipboard');
+    //         } catch (err) {
+    //             Alert.alert(translations.error || 'Lỗi', translations.copyError || 'Không thể sao chép ID');
+    //             console.warn('Copy ID error:', err);
+    //         }
+    //     }
+    // };
 
     // Get currency name by ID with special handling for -99 (Dollar)
     const getCurrencyName = async (currencyId) => {
@@ -529,22 +532,23 @@ export default function ModuleDetailScreen() {
 
         // Special handling for ID field with copy button
         if (field.key === 'id') {
-            return (
-                <View key={field.key} style={styles.fieldContainer}>
-                    <Text style={styles.fieldLabel}>{field.label}</Text>
-                    <View style={styles.idContainer}>
-                        <Text style={[styles.fieldValue, styles.idValue]}>
-                            {formatFieldValue(field.key, value)}
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.copyButton}
-                            onPress={handleCopyId}
-                        >
-                            <Ionicons name="copy-outline" size={16} color="#007AFF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            );
+            // return (
+            //     <View key={field.key} style={styles.fieldContainer}>
+            //         <Text style={styles.fieldLabel}>{field.label}</Text>
+            //         <View style={styles.idContainer}>
+            //             <Text style={[styles.fieldValue, styles.idValue]}>
+            //                 {formatFieldValue(field.key, value)}
+            //             </Text>
+            //             <TouchableOpacity
+            //                 style={styles.copyButton}
+            //                 onPress={handleCopyId}
+            //             >
+            //                 <Ionicons name="copy-outline" size={16} color="#007AFF" />
+            //             </TouchableOpacity>
+            //         </View>
+            //     </View>
+            // );
+            return null; // hide ID field
         }
         if (field.key === 'filename' || field.key === 'product_image') {
             return (
@@ -694,7 +698,7 @@ export default function ModuleDetailScreen() {
                         </View>
                     )}
                    {/* PDF */}
-                    {moduleName === "AOS_Quotes" && (
+                    {modules.includes(moduleName) && (
                     <View>
                         <TouchableOpacity
                         style={styles.updateButton}

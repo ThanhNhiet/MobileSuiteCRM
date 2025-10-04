@@ -412,9 +412,9 @@ export const getEnumsApi = async (moduleName, enumFields, lang) => {
     }
 };
 //V8/module/AOS_Quotes/${id}/relationships/aos_products_quotes
-export const getAosProductsQuotesApi = async (quoteId) => {
+export const getAosProductsQuotesApi = async (moduleName, quoteId) => {
     try {
-        const response = await axiosInstance.get(`/Api/V8/module/AOS_Quotes/${quoteId}/relationships/aos_products_quotes`);
+        const response = await axiosInstance.get(`/Api/V8/module/${moduleName}/${quoteId}/relationships/aos_products_quotes`);
         return response.data;
     } catch (error) {
         console.warn("Get AOS Products Quotes API error:", error);
