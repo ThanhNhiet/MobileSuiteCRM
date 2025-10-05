@@ -222,7 +222,7 @@ export const useModule_PDF = (args) => {
     );
     const grand = totals.subtotal + totals.tax;
 
-    const nameTitle = lang === "en_us" ? "Quote" : "Bảng báo giá";
+    const nameTitle = moduleName;
     const labelTotal = lang === "en_us" ? "Total" : "Tổng";
     const labelDiscount = lang === "en_us" ? "Discount" : "Giảm giá";
     const labelSubtotal = lang === "en_us" ? "Subtotal" : "Tạm tính";
