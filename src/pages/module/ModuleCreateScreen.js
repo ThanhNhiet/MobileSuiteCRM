@@ -668,7 +668,7 @@ export default function ModuleCreateScreen() {
                 );
             }
 
-            if (field.key === 'filename') {
+            if (field.key === 'filename' || field.key === 'product_image') {
                 return (
                     <View key={field.key} style={styles.row}>
                         <TouchableOpacity
