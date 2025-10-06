@@ -437,31 +437,16 @@ export default function RelationshipDetailScreen_New() {
 
         // Special handling for ID field with copy button
         if (field.key === 'id') {
-            // return (
-            //     <View key={field.key} style={styles.fieldContainer}>
-            //         <Text style={styles.fieldLabel}>{field.label}</Text>
-            //         <View style={styles.idContainer}>
-            //             <Text style={[styles.fieldValue, styles.idValue]}>
-            //                 {formatFieldValue(field.key, value)}
-            //             </Text>
-            //             <TouchableOpacity
-            //                 style={styles.copyButton}
-            //                 onPress={handleCopyId}
-            //             >
-            //                 <Ionicons name="copy-outline" size={16} color="#007AFF" />
-            //             </TouchableOpacity>
-            //         </View>
-            //     </View>
-            // );
             return null; // tạm ẩn ID
         }
         if (field.key === 'filename' || field.key === 'product_image') {
             return (
             <>
                 <View key={field.key} style={styles.fieldContainer}>
-                    <Text style={styles.fieldValue}>
+                    {/* <Text style={styles.fieldValue}>
                             {formatFieldValue(field.key, value)}
-                    </Text>
+                    </Text> */}
+                    <Text style={styles.fieldLabel}>{field.label}</Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                         <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
                             <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
@@ -817,21 +802,39 @@ const styles = StyleSheet.create({
     fieldsContainer: {
         gap: 15,
     },
+    // fieldContainer: {
+    //     borderBottomWidth: 1,
+    //     borderBottomColor: '#f0f0f0',
+    //     paddingBottom: 12,
+    // },
+    // fieldLabel: {
+    //     fontSize: 14,
+    //     fontWeight: '600',
+    //     color: '#666',
+    //     marginBottom: 6,
+    // },
+    // fieldValue: {
+    //     fontSize: 16,
+    //     color: '#333',
+    //     lineHeight: 22,
+    // },
     fieldContainer: {
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-        paddingBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginVertical: 4,
     },
     fieldLabel: {
+        fontWeight: 'bold',
+        color: '#444',
         fontSize: 14,
-        fontWeight: '600',
-        color: '#666',
-        marginBottom: 6,
+        minWidth: 110,          // giữ label có độ rộng đều
+        marginRight: 15,         // khoảng cách nhỏ giữa label và value
     },
     fieldValue: {
-        fontSize: 16,
+        flex: 1,
+        fontSize: 14,
         color: '#333',
-        lineHeight: 22,
+        flexWrap: 'wrap',
     },
     actionContainer: {
         flexDirection: 'row',
@@ -906,7 +909,7 @@ const styles = StyleSheet.create({
     },
     // Relationship styles Y CHANG AccountDetailScreen
     /* Thẻ thông tin */
-    infoCard: {
+   infoCard: {
         paddingVertical: 10,
         paddingHorizontal: 15,
         backgroundColor: '#fff',
@@ -924,37 +927,48 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         paddingHorizontal: 5,
     },
-    cardInvisible: {
-        width: ITEM_W,
-        marginHorizontal: 2,
-        marginVertical: 8,
-        backgroundColor: 'transparent',
-    },
     card: {
         backgroundColor: '#2196F3',
-        padding: 12,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
+
+        // Kích thước cố định
         width: ITEM_W,
-        minHeight: 85,
-        maxHeight: 110,
-        margin: 12,
+        height: 100,
+
+        // Khoảng cách giữa các ô
+        marginHorizontal: 8,
+        marginVertical: 10,
+
+        // Đổ bóng nhẹ
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
     },
     cardNoData: {
         backgroundColor: '#B0BEC5',
     },
     cardPressed: {
         opacity: 0.7,
+        transform: [{ scale: 0.97 }],
     },
     cardText: {
         color: '#fff',
         fontWeight: 'bold',
         fontSize: 13,
         textAlign: 'center',
-        flexWrap: 'wrap',
         lineHeight: 16,
-        numberOfLines: 3,
+        paddingHorizontal: 4,
+    },
+    cardInvisible: {
+        backgroundColor: 'transparent',
+        width: ITEM_W,
+        height: 100,
+        marginHorizontal: 8,
+        marginVertical: 10,
     },
     btnPrimary: { backgroundColor: "#111827", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
     btnPrimaryText: { color: "#fff", fontWeight: "700" },
