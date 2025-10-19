@@ -248,7 +248,7 @@ const QRScannerScreen = ({ navigation }) => {
                                         onPress={executeAction}
                                     >
                                         <Text style={styles.actionButtonText}>
-                                            {qrData.actionLabel}
+                                            Open
                                         </Text>
                                     </TouchableOpacity>
                                 )}
