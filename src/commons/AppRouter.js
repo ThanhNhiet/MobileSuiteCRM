@@ -32,6 +32,9 @@ import RelationshipUpdateScreen_New from "../pages/relationship/RelationshipUpda
 //import page search
 import SearchModulesScreen from "../pages/search/SearchModulesScreen";
 
+//import qr scanner screen
+import QRScannerScreen from "../pages/feature/qr-scanner/QRScannerScreen";
+
 const Stack = createNativeStackNavigator();
 
 export default function AppRouter() {
@@ -91,6 +94,9 @@ export default function AppRouter() {
 
                 {/*Relationship Update Screen*/}
                 <Stack.Screen name="RelationshipUpdateScreen_New" component={RelationshipUpdateScreen_New} options={{ headerShown: false }} />
+
+                {/*QR Scanner Screen*/}
+                <Stack.Screen name="QRScannerScreen" component={QRScannerScreen} options={{ headerShown: false }} />
 
                 {/* Add more screens as needed */}
 

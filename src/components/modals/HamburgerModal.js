@@ -204,6 +204,15 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
                                 <Ionicons name="person" size={24} color="white" />
                             </View>
                         </TouchableOpacity>
+                        {/* QR scanner button */}
+                        <TouchableOpacity 
+                            style={styles.profileSection}
+                            onPress={() => navigateTo('QRScannerScreen')}
+                        >
+                            <View style={styles.qrIcon}>
+                                <Ionicons name="qr-code-outline" size={24} color="white" />
+                            </View>
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                             <Ionicons name="close" size={28} color="black" />
                         </TouchableOpacity>
@@ -324,6 +333,16 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 25,
         backgroundColor: '#4B84FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'black',
+    },
+    qrIcon: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#FF6B35',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
