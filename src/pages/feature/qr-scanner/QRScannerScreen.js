@@ -49,7 +49,7 @@ const QRScannerScreen = ({ navigation }) => {
     const handleQRCodeRead = (scanningResult) => {
         if (!isActive || scanned) return;
 
-        const data = scanningResult.data; // Dữ liệu nằm trong .data
+        const data = scanningResult.data;
         if (!data) return;
         setScanned(true);
 
@@ -109,13 +109,13 @@ const QRScannerScreen = ({ navigation }) => {
         return (
             <View style={styles.permissionContainer}>
                 <Text style={styles.permissionText}>
-                    Chúng tôi cần quyền truy cập camera để quét mã QR.
+                    Camera access is required to scan QR codes.
                 </Text>
                 <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-                    <Text style={styles.permissionButtonText}>Cấp quyền</Text>
+                    <Text style={styles.permissionButtonText}>Grant Permission</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.permissionButton} onPress={() => Linking.openSettings()}>
-                    <Text style={styles.permissionButtonText}>Mở Cài đặt</Text>
+                    <Text style={styles.permissionButtonText}>Open Settings</Text>
                 </TouchableOpacity>
             </View>
         );
