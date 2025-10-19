@@ -17,6 +17,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import QRScanner from '../../../utils/feature/qr-scanner/QRScanner';
 
 const { width, height } = Dimensions.get('window');
@@ -50,7 +51,6 @@ const QRScannerScreen = ({ navigation }) => {
 
         const data = scanningResult.data; // Dữ liệu nằm trong .data
         if (!data) return;
-
         setScanned(true);
 
         qrScannerUtil.processQRData(
@@ -122,147 +122,149 @@ const QRScannerScreen = ({ navigation }) => {
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#000" />
+        <SafeAreaProvider>
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="light-content" backgroundColor="#000" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={goBack}>
-                    <Ionicons name="arrow-back" size={24} color="white" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>QR Code Scanner</Text>
-                <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
-                    <Ionicons
-                        name={flashOn ? "flash" : "flash-off"}
-                        size={24}
-                        color="white"
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity style={styles.backButton} onPress={goBack}>
+                        <Ionicons name="arrow-back" size={24} color="white" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>QR Code Scanner</Text>
+                    <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
+                        <Ionicons
+                            name={flashOn ? "flash" : "flash-off"}
+                            size={24}
+                            color="white"
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {/* QR Scanner */}
+                <View style={styles.scannerContainer}>
+                    <CameraView
+                        ref={scannerRef}
+                        style={StyleSheet.absoluteFillObject} // Fullscreen camera
+                        onBarcodeScanned={scanned ? undefined : handleQRCodeRead} // Only scan if not already scanned
+                        barcodeScannerSettings={{
+                            barcodeTypes: ['qr', 'ean13'],
+                        }}
+                        enableTorch={flashOn} // Flashlight control
+                        facing="back" // Use back camera
                     />
-                </TouchableOpacity>
-            </View>
 
-            {/* QR Scanner */}
-            <View style={styles.scannerContainer}>
-                <CameraView
-                    ref={scannerRef}
-                    style={StyleSheet.absoluteFillObject} // Fullscreen camera
-                    onBarcodeScanned={scanned ? undefined : handleQRCodeRead} // Only scan if not already scanned
-                    barcodeScannerSettings={{
-                        barcodeTypes: ['qr', 'ean13'],
-                    }}
-                    enableTorch={flashOn} // Flashlight control
-                    facing="back" // Use back camera
-                />
+                    {/* Scanning overlay */}
+                    <View style={styles.overlay}>
+                        {/* Top overlay */}
+                        <View style={styles.overlayTop} />
 
-                {/* Scanning overlay */}
-                <View style={styles.overlay}>
-                    {/* Top overlay */}
-                    <View style={styles.overlayTop} />
+                        {/* Middle section with scanner frame */}
+                        <View style={styles.overlayMiddle}>
+                            <View style={styles.overlaySide} />
+                            <View style={styles.scannerFrame}>
+                                <View style={styles.scannerCorners}>
+                                    {/* Corner indicators */}
+                                    <View style={[styles.corner, styles.topLeft]} />
+                                    <View style={[styles.corner, styles.topRight]} />
+                                    <View style={[styles.corner, styles.bottomLeft]} />
+                                    <View style={[styles.corner, styles.bottomRight]} />
+                                </View>
+                            </View>
+                            <View style={styles.overlaySide} />
+                        </View>
 
-                    {/* Middle section with scanner frame */}
-                    <View style={styles.overlayMiddle}>
-                        <View style={styles.overlaySide} />
-                        <View style={styles.scannerFrame}>
-                            <View style={styles.scannerCorners}>
-                                {/* Corner indicators */}
-                                <View style={[styles.corner, styles.topLeft]} />
-                                <View style={[styles.corner, styles.topRight]} />
-                                <View style={[styles.corner, styles.bottomLeft]} />
-                                <View style={[styles.corner, styles.bottomRight]} />
+                        {/* Bottom overlay */}
+                        <View style={styles.overlayBottom}>
+                            <Text style={styles.instructionText}>
+                                Align QR code within the frame to scan
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* QR Data Modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={closeModal}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContainer}>
+                            {/* Modal Header */}
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>QR Code Scanned</Text>
+                                <TouchableOpacity onPress={closeModal}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Modal Content */}
+                            <ScrollView style={styles.modalContent}>
+                                {qrData && (
+                                    <View>
+                                        {/* QR Type */}
+                                        <View style={styles.qrTypeContainer}>
+                                            <Ionicons
+                                                name={getIconForType(qrData.type)}
+                                                size={24}
+                                                color="#4B84FF"
+                                            />
+                                            <Text style={styles.qrType}>
+                                                {qrData.type.toUpperCase()}
+                                            </Text>
+                                        </View>
+
+                                        {/* Display Text */}
+                                        <Text style={styles.qrDisplayText}>
+                                            {qrData.displayText}
+                                        </Text>
+
+                                        {/* Raw Data */}
+                                        <View style={styles.rawDataContainer}>
+                                            <Text style={styles.rawDataLabel}>Raw Data:</Text>
+                                            <Text style={styles.rawDataText}>
+                                                {qrData.rawData}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                )}
+                            </ScrollView>
+
+                            {/* Modal Actions */}
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity
+                                    style={styles.copyButton}
+                                    onPress={copyToClipboard}
+                                >
+                                    <Ionicons name="copy-outline" size={20} color="white" />
+                                    <Text style={styles.copyButtonText}>Copy</Text>
+                                </TouchableOpacity>
+
+                                {qrData?.actionable && (
+                                    <TouchableOpacity
+                                        style={styles.actionButton}
+                                        onPress={executeAction}
+                                    >
+                                        <Text style={styles.actionButtonText}>
+                                            {qrData.actionLabel}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                <TouchableOpacity
+                                    style={styles.scanAgainButton}
+                                    onPress={closeModal}
+                                >
+                                    <Text style={styles.scanAgainButtonText}>Scan Again</Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
-                        <View style={styles.overlaySide} />
                     </View>
-
-                    {/* Bottom overlay */}
-                    <View style={styles.overlayBottom}>
-                        <Text style={styles.instructionText}>
-                            Align QR code within the frame to scan
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
-            {/* QR Data Modal */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={closeModal}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        {/* Modal Header */}
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>QR Code Scanned</Text>
-                            <TouchableOpacity onPress={closeModal}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Modal Content */}
-                        <ScrollView style={styles.modalContent}>
-                            {qrData && (
-                                <View>
-                                    {/* QR Type */}
-                                    <View style={styles.qrTypeContainer}>
-                                        <Ionicons
-                                            name={getIconForType(qrData.type)}
-                                            size={24}
-                                            color="#4B84FF"
-                                        />
-                                        <Text style={styles.qrType}>
-                                            {qrData.type.toUpperCase()}
-                                        </Text>
-                                    </View>
-
-                                    {/* Display Text */}
-                                    <Text style={styles.qrDisplayText}>
-                                        {qrData.displayText}
-                                    </Text>
-
-                                    {/* Raw Data */}
-                                    <View style={styles.rawDataContainer}>
-                                        <Text style={styles.rawDataLabel}>Raw Data:</Text>
-                                        <Text style={styles.rawDataText}>
-                                            {qrData.rawData}
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-                        </ScrollView>
-
-                        {/* Modal Actions */}
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={styles.copyButton}
-                                onPress={copyToClipboard}
-                            >
-                                <Ionicons name="copy-outline" size={20} color="white" />
-                                <Text style={styles.copyButtonText}>Copy</Text>
-                            </TouchableOpacity>
-
-                            {qrData?.actionable && (
-                                <TouchableOpacity
-                                    style={styles.actionButton}
-                                    onPress={executeAction}
-                                >
-                                    <Text style={styles.actionButtonText}>
-                                        {qrData.actionLabel}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-
-                            <TouchableOpacity
-                                style={styles.scanAgainButton}
-                                onPress={closeModal}
-                            >
-                                <Text style={styles.scanAgainButtonText}>Scan Again</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </View>
+                </Modal>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 };
 
