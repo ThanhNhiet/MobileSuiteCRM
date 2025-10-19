@@ -17,6 +17,7 @@
       "googleServicesFile": "./google-services.json",
       "useNextNotificationsApi": true,
       "permissions": [
+        "CAMERA",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "NOTIFICATIONS",
@@ -36,6 +37,7 @@
     },
     "plugins": [
       "expo-dev-client",
+      "expo-camera",
       [
         "expo-notifications",
         {

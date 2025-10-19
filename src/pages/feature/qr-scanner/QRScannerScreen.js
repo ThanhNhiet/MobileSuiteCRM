@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import React, { useRef, useState } from 'react';
 import {
     Alert,
     Clipboard,
     Dimensions,
+    Linking,
     Modal,
     Platform,
     ScrollView,
@@ -15,19 +17,18 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import QRCodeScanner from 'react-native-qrcode-scanner';
 import QRScanner from '../../../utils/feature/qr-scanner/QRScanner';
 
 const { width, height } = Dimensions.get('window');
 
 const QRScannerScreen = ({ navigation }) => {
-    const [hasPermission, setHasPermission] = useState(null);
+    const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
     const [flashOn, setFlashOn] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [qrData, setQrData] = useState(null);
     const [isActive, setIsActive] = useState(true);
-    
+
     const scannerRef = useRef(null);
     const qrScannerUtil = QRScanner.getInstance();
 
@@ -36,7 +37,7 @@ const QRScannerScreen = ({ navigation }) => {
         React.useCallback(() => {
             setIsActive(true);
             setScanned(false);
-            
+
             return () => {
                 setIsActive(false);
             };
@@ -44,14 +45,16 @@ const QRScannerScreen = ({ navigation }) => {
     );
 
     // Handle QR code scan
-    const handleQRCodeRead = (e) => {
+    const handleQRCodeRead = (scanningResult) => {
         if (!isActive || scanned) return;
 
+        const data = scanningResult.data; // Dữ liệu nằm trong .data
+        if (!data) return;
+
         setScanned(true);
-        
-        // Process QR data using utility
+
         qrScannerUtil.processQRData(
-            e.data,
+            data,
             (processedData) => {
                 setQrData(processedData);
                 setModalVisible(true);
@@ -98,10 +101,30 @@ const QRScannerScreen = ({ navigation }) => {
         navigation.goBack();
     };
 
+    if (!permission) {
+        return <View />;
+    }
+
+    if (!permission.granted) {
+        return (
+            <View style={styles.permissionContainer}>
+                <Text style={styles.permissionText}>
+                    Chúng tôi cần quyền truy cập camera để quét mã QR.
+                </Text>
+                <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+                    <Text style={styles.permissionButtonText}>Cấp quyền</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.permissionButton} onPress={() => Linking.openSettings()}>
+                    <Text style={styles.permissionButtonText}>Mở Cài đặt</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#000" />
-            
+
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backButton} onPress={goBack}>
@@ -109,35 +132,32 @@ const QRScannerScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>QR Code Scanner</Text>
                 <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
-                    <Ionicons 
-                        name={flashOn ? "flash" : "flash-off"} 
-                        size={24} 
-                        color="white" 
+                    <Ionicons
+                        name={flashOn ? "flash" : "flash-off"}
+                        size={24}
+                        color="white"
                     />
                 </TouchableOpacity>
             </View>
 
             {/* QR Scanner */}
             <View style={styles.scannerContainer}>
-                <QRCodeScanner
+                <CameraView
                     ref={scannerRef}
-                    onRead={handleQRCodeRead}
-                    flashMode={flashOn ? 'torch' : 'off'}
-                    showMarker={true}
-                    checkAndroid6Permissions={true}
-                    cameraStyle={styles.camera}
-                    markerStyle={styles.marker}
-                    topViewStyle={styles.topView}
-                    bottomViewStyle={styles.bottomView}
-                    reactivate={!scanned && isActive}
-                    reactivateTimeout={1000}
+                    style={StyleSheet.absoluteFillObject} // Fullscreen camera
+                    onBarcodeScanned={scanned ? undefined : handleQRCodeRead} // Only scan if not already scanned
+                    barcodeScannerSettings={{
+                        barcodeTypes: ['qr', 'ean13'],
+                    }}
+                    enableTorch={flashOn} // Flashlight control
+                    facing="back" // Use back camera
                 />
-                
+
                 {/* Scanning overlay */}
                 <View style={styles.overlay}>
                     {/* Top overlay */}
                     <View style={styles.overlayTop} />
-                    
+
                     {/* Middle section with scanner frame */}
                     <View style={styles.overlayMiddle}>
                         <View style={styles.overlaySide} />
@@ -152,7 +172,7 @@ const QRScannerScreen = ({ navigation }) => {
                         </View>
                         <View style={styles.overlaySide} />
                     </View>
-                    
+
                     {/* Bottom overlay */}
                     <View style={styles.overlayBottom}>
                         <Text style={styles.instructionText}>
@@ -185,10 +205,10 @@ const QRScannerScreen = ({ navigation }) => {
                                 <View>
                                     {/* QR Type */}
                                     <View style={styles.qrTypeContainer}>
-                                        <Ionicons 
-                                            name={getIconForType(qrData.type)} 
-                                            size={24} 
-                                            color="#4B84FF" 
+                                        <Ionicons
+                                            name={getIconForType(qrData.type)}
+                                            size={24}
+                                            color="#4B84FF"
                                         />
                                         <Text style={styles.qrType}>
                                             {qrData.type.toUpperCase()}
@@ -213,8 +233,8 @@ const QRScannerScreen = ({ navigation }) => {
 
                         {/* Modal Actions */}
                         <View style={styles.modalActions}>
-                            <TouchableOpacity 
-                                style={styles.copyButton} 
+                            <TouchableOpacity
+                                style={styles.copyButton}
                                 onPress={copyToClipboard}
                             >
                                 <Ionicons name="copy-outline" size={20} color="white" />
@@ -222,8 +242,8 @@ const QRScannerScreen = ({ navigation }) => {
                             </TouchableOpacity>
 
                             {qrData?.actionable && (
-                                <TouchableOpacity 
-                                    style={styles.actionButton} 
+                                <TouchableOpacity
+                                    style={styles.actionButton}
                                     onPress={executeAction}
                                 >
                                     <Text style={styles.actionButtonText}>
@@ -232,8 +252,8 @@ const QRScannerScreen = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
 
-                            <TouchableOpacity 
-                                style={styles.scanAgainButton} 
+                            <TouchableOpacity
+                                style={styles.scanAgainButton}
                                 onPress={closeModal}
                             >
                                 <Text style={styles.scanAgainButtonText}>Scan Again</Text>
@@ -487,6 +507,31 @@ const styles = StyleSheet.create({
     },
     scanAgainButtonText: {
         color: 'white',
+        fontWeight: 'bold',
+    },
+    permissionContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        padding: 20,
+    },
+    permissionText: {
+        color: 'white',
+        fontSize: 18,
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    permissionButton: {
+        backgroundColor: '#4B84FF',
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    permissionButtonText: {
+        color: 'white',
+        fontSize: 16,
         fontWeight: 'bold',
     },
 });
