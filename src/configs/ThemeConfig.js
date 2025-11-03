@@ -1,32 +1,32 @@
 const newColors = {
-  primaryColor1: '#E85A4F',
-  primaryColor2: '#007AFF',
+  primaryColor1: '#1e4160ff',
+  primaryColor2: '#13B0DB',
 
-  primaryColor1SupperLight: '#f1edecff',
+  primaryColor1SupperLight: '#f1f9ffff',
 
-  formInput: '#e4a0a0ff',
+  formInput: '#abcfdaff',
 
   modalEditBG: '#e3e7e8ff',
   modalEditTitle: '#000000',
   
-  hamburgerContainer: '#F5F5F5',
-  hamburgerCardContainer: '#BFAAA1',
+  hamburgerContainer: '#f1f8ffff',
+  hamburgerCardContainer: '#61bbd4ff',
   hamburgerText: '#000000',
 
   backgroundContainer: '#f0f0f0',
   cardItem: '#FFFFFF',
   
-  navBG: '#BFAAA1',
-  navText: '#000000',
-  navIcon: '#000000',
+  navBG: '#1e4160ff',
+  navText: '#ffffff',
+  navIcon: '#ffffff',
 
-  importantText: '#E85A4F',
-  loadingIcon: '#E85A4F',
+  importantText: '#062E52',
+  loadingIcon: '#13B0DB',
   loadingText: '#666',
 
   //btn should always be a prominent color but should not overpower white
-  btnPrimary: '#E85A4F',
-  btnSecondary: '#007AFF',
+  btnPrimary: '#1c4d78ff',
+  btnSecondary: '#13B0DB',
 
   // Black is always the best, never change it
   normalText: '#000000',
