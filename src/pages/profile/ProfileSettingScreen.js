@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect } from 'react';
@@ -390,7 +391,7 @@ const ProfileSettingScreen = ({ navigation }) => {
                             </View>
                             {loading ? (
                                 <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color="#4B84FF" />
+                                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                                 </View>
                             ) : (
                                 <FlatList
@@ -438,7 +439,7 @@ const ProfileSettingScreen = ({ navigation }) => {
 
                             {isLoadingTimezones ? (
                                 <View style={styles.loadingContainer}>
-                                    <ActivityIndicator size="large" color="#4B84FF" />
+                                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                                 </View>
                             ) : (
                                 <FlatList
@@ -460,7 +461,7 @@ const ProfileSettingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     header: {
         flexDirection: 'row',
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
     },
     selectButton: {
         fontSize: 14,
-        color: '#4B84FF',
+        color: AppTheme.colors.btnSecondary,
         fontWeight: '500',
     },
     textInput: {
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     refreshButton: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         padding: 16,
         borderRadius: 8,
         alignItems: 'center',

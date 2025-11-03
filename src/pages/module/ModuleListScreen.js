@@ -373,7 +373,7 @@ export default function ModuleListScreen() {
                     {loading && (
                         <View style={{ padding: 20, alignItems: 'center' }}>
                             <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
-                            <Text style={{ marginTop: 10, color: AppTheme.colors.loadingIcon }}>{translations.loading}</Text>
+                            <Text style={{ marginTop: 10, color: AppTheme.colors.loadingText }}>{translations.loading}</Text>
                         </View>
                     )}
 
@@ -531,6 +531,7 @@ const styles = StyleSheet.create({
     headerCell: {
         flex: 1,
         fontWeight: 'bold',
+        color: AppTheme.colors.navText,
     },
     tableRow: {
         flexDirection: 'row',

@@ -14,11 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
 import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
-
 
 /**
  * RelationshipListScreen_New component
@@ -55,15 +55,15 @@ export default function RelationshipListScreen_New() {
     // Translation states
     const [translations, setTranslations] = useState({
         mdName: displayName,
-        searchPlaceholder: 'Nhập từ khóa tìm kiếm',
-        selectedTypeDefault: 'Tất cả',
-        searchButton: 'Tìm',
-        addButton: 'Thêm',
-        loading: 'Đang tải...',
-        tryAgain: 'Thử lại',
-        pullToRefresh: 'Kéo để tải lại...',
-        noData: 'Không có dữ liệu',
-        createNew: 'Tạo mới'
+        searchPlaceholder: 'Enter search keywords',
+        selectedTypeDefault: 'All',
+        searchButton: 'Search',
+        addButton: 'Add',
+        loading: 'Loading...',
+        tryAgain: 'Try Again',
+        pullToRefresh: 'Pull to refresh...',
+        noData: 'No data available',
+        createNew: 'Create new'
     });
     
     const [translationsLoaded, setTranslationsLoaded] = useState(false);
@@ -118,15 +118,15 @@ export default function RelationshipListScreen_New() {
                 
                 setTranslations({
                     mdName: translated[`LBL_${moduleName.toUpperCase()}`] || displayName,
-                    searchPlaceholder: `${translated.LBL_IMPORT || 'Nhập'} từ khóa tìm kiếm`,
-                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'Tất cả',
-                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm kiếm',
-                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Tạo',
-                    loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
-                    tryAgain: 'Thử lại',
-                    pullToRefresh: 'Kéo để tải lại...',
-                    noData: translated.LBL_NO_DATA || 'Không có dữ liệu',
-                    createNew: 'Tạo mới'
+                    searchPlaceholder: `${translated.LBL_IMPORT || 'Enter'} keywords`,
+                    selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'All',
+                    searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Search',
+                    addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Add',
+                    loading: translated.LBL_EMAIL_LOADING || 'Loading...',
+                    tryAgain: 'Try Again',
+                    pullToRefresh: 'Pull to refresh...',
+                    noData: translated.LBL_NO_DATA || 'No data available',
+                    createNew: 'Create new'
                 });
                 
                 setTranslationsLoaded(true);
@@ -428,7 +428,7 @@ export default function RelationshipListScreen_New() {
                     {/* Table Rows - Scrollable */}
                     {loading && !refreshing ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#4B84FF" />
+                            <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                             <Text>{translations.loading}</Text>
                         </View>
                     ) : error ? (
@@ -453,7 +453,7 @@ export default function RelationshipListScreen_New() {
                                 <RefreshControl
                                     refreshing={refreshing}
                                     onRefresh={handleRefresh}
-                                    colors={['#4B84FF']}
+                                    colors={[AppTheme.colors.loadingIcon]}
                                     title={translations.pullToRefresh}
                                 />
                             }
@@ -522,7 +522,7 @@ export default function RelationshipListScreen_New() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: AppTheme.colors.backgroundContainer
     },
     content: {
         flex: 1,
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     searchButton: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         padding: 6,
         paddingHorizontal: 16,
         borderRadius: 4,
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     addNewBtn: {
         width: 60,
         height: 60,
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         borderRadius: 35,
         justifyContent: 'center',
         alignItems: 'center',
@@ -591,14 +591,14 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#C9B4AB',
+        backgroundColor: AppTheme.colors.navBG,
         padding: 8,
         borderRadius: 4,
     },
     headerCell: {
         flex: 1,
         fontWeight: 'bold',
-        color: '#333',
+        color: AppTheme.colors.navText,
     },
     tableRow: {
         flexDirection: 'row',
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     tableRowEven: {
-        backgroundColor: '#f1edecff',
+        backgroundColor: AppTheme.colors.primaryColor1SupperLight,
     },
     cell: { 
         flex: 1,
@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     activePage: {
-        backgroundColor: '#4B84FF',
-        borderColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
+        borderColor: AppTheme.colors.btnSecondary,
     },
     disabledBtn: {
         borderColor: '#eee',
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     retryButton: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         padding: 10,
         borderRadius: 4,
     },
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
         borderBottomColor: '#eee',
     },
     selectedItem: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.primaryColor2,
     },
     dropdownText: {
         fontSize: 16,

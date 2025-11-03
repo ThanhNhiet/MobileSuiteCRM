@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -260,7 +261,7 @@ const SearchModulesScreen = () => {
         if (loadingMore) {
             return (
                 <View style={styles.footerLoading}>
-                    <ActivityIndicator size="small" color="#007AFF" />
+                    <ActivityIndicator size="small" color={AppTheme.colors.loadingIcon} />
                     <Text style={styles.loadingText}>{translations.loadMore}...</Text>
                 </View>
             );
@@ -285,7 +286,7 @@ const SearchModulesScreen = () => {
         if (loading && !loadingMore) {
             return (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4B84FF" />
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                     <Text style={styles.loadingText}>{translations.loading}...</Text>
                 </View>
             );
@@ -323,7 +324,7 @@ const SearchModulesScreen = () => {
                                 <RefreshControl
                                     refreshing={refreshing}
                                     onRefresh={handleRefresh}
-                                    colors={['#4B84FF']}
+                                    colors={[AppTheme.colors.loadingIcon]}
                                     title="Pull to refresh..."
                                 />
                             }
@@ -338,7 +339,7 @@ const SearchModulesScreen = () => {
         } else {
             return (
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>Nhập từ khóa để tìm kiếm</Text>
+                    <Text style={styles.emptyText}>Enter a keyword to search</Text>
                 </View>
             );
         }
@@ -353,7 +354,7 @@ const SearchModulesScreen = () => {
                         style={styles.backButton}
                         onPress={() => navigation.goBack()}
                     >
-                        <Ionicons name="arrow-back" size={24} color="#fff" />
+                        <Ionicons name="arrow-back" size={24} color={AppTheme.colors.navIcon} />
                     </TouchableOpacity>
                     <Text style={styles.title}>{title || 'Tìm kiếm'}</Text>
                     <View style={styles.placeholder} />
@@ -371,6 +372,7 @@ const SearchModulesScreen = () => {
                             returnKeyType="search"
                             autoCapitalize="none"
                             autoFocus={true}
+                            placeholderTextColor="#999"
                         />
                     </View>
                     <TouchableOpacity
@@ -400,10 +402,10 @@ const SearchModulesScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     header: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.navBG,
         paddingVertical: 16,
         paddingHorizontal: 20,
         flexDirection: 'row',
@@ -416,7 +418,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#fff',
+        color: AppTheme.colors.navText,
         textAlign: 'center',
         flex: 1,
     },
@@ -472,7 +474,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 16,
-        color: '#666',
+        color: AppTheme.colors.loadingIcon,
     },
     noDataContainer: {
         flex: 1,
@@ -501,18 +503,20 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#C9B4AB',
+        backgroundColor: AppTheme.colors.navBG,
         padding: 12,
     },
     headerCell: {
         fontWeight: 'bold',
         fontSize: 16,
         paddingHorizontal: 8,
+        color: AppTheme.colors.navText,
     },
     headerIcon: {
         width: 30,
         alignItems: 'center',
         justifyContent: 'center',
+        tintColor: AppTheme.colors.navIcon,
     },
     list: {
         flex: 1,

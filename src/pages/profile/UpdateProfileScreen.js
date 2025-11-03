@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -159,7 +160,7 @@ export default function UpdateProfileScreen() {
             >
                 {updating && selectedImage ? (
                     <View style={[styles.photoPlaceholder, styles.uploadingContainer]}>
-                        <ActivityIndicator size="large" color="#007BFF" />
+                        <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                         <Text style={styles.uploadingText}>Uploading...</Text>
                     </View>
                 ) : selectedImage || avatarUrl ? (
@@ -227,9 +228,10 @@ export default function UpdateProfileScreen() {
                         style={[styles.input, multiline && { height: '100%', textAlignVertical: 'top' }]}
                         value={value}
                         onChangeText={(text) => updateField(fieldName, text)}
-                        placeholder={`Enter ${label.toLowerCase()}`}
+                        placeholder={`${label.toLowerCase()}`}
                         multiline={multiline}
                         keyboardType={keyboardType}
+                        placeholderTextColor="#999"
                     />
                 </View>
             </View>
@@ -388,7 +390,7 @@ export default function UpdateProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     loadingContainer: {
         flex: 1,
@@ -476,7 +478,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 0,
         right: 0,
-        backgroundColor: '#007BFF',
+        backgroundColor: AppTheme.colors.primaryColor2,
         width: 35,
         height: 35,
         borderRadius: 17.5,
@@ -491,7 +493,7 @@ const styles = StyleSheet.create({
     uploadingText: {
         marginTop: 10,
         fontSize: 14,
-        color: '#007BFF',
+        color: AppTheme.colors.btnSecondary,
         fontWeight: '600',
     },
     photoHint: {
@@ -540,7 +542,7 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: 30,
-        backgroundColor: '#007BFF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         paddingVertical: 15,
         borderRadius: 8,
         elevation: 2,

@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -23,6 +24,7 @@ import { useRelationshipCreate } from '../../services/useApi/relationship/UseRel
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
+
 export default function RelationshipCreateScreen_New() {
     const navigation = useNavigation();
     const route = useRoute();
@@ -1113,8 +1115,8 @@ export default function RelationshipCreateScreen_New() {
                     name="ModuleListScreen"
                 />
                 <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <ActivityIndicator size="large" color="#007AFF" />
-                    <Text style={{ marginTop: 16, color: '#666' }}>{translations.loadingText || 'Đang tải...'}</Text>
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
+                    <Text style={{ marginTop: 16, color: AppTheme.colors.loadingText }}>{translations.loadingText || 'Loading...'}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -1307,7 +1309,7 @@ export default function RelationshipCreateScreen_New() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#d8d8d8',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     content: {
         flex: 1,
@@ -1333,7 +1335,7 @@ const styles = StyleSheet.create({
     },
 
     valueBox: {
-        backgroundColor: '#dc9e9eff',
+        backgroundColor: AppTheme.colors.formInput,
         borderRadius: 6,
         paddingVertical: 12,
         paddingHorizontal: 14,
@@ -1347,7 +1349,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
     },
     valueFile: {
-        backgroundColor: '#2563eb',
+        backgroundColor: AppTheme.colors.btnSecondary,
         borderRadius: 6,
         paddingVertical: 12,
         paddingHorizontal: 14,
@@ -1454,7 +1456,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     saveButton: {
-        backgroundColor: '#007AFF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         paddingVertical: 14,
         borderRadius: 8,
         alignItems: 'center',
@@ -1611,7 +1613,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 2,
     },
     timePickerButton: {
-        backgroundColor: '#007AFF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         borderRadius: 6,
         padding: 8,
         alignItems: 'center',

@@ -1,4 +1,5 @@
 // src/components/navigations/TopNavigation.js
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -55,7 +56,7 @@ const handleSave = () => {
         android_ripple={{ borderless: true }}
         style={styles.iconBtn}
       >
-        <Ionicons name={backIconName} size={26} color="#1e1e1e" />
+        <Ionicons name={backIconName} size={26} color={AppTheme.colors.navIcon} />
       </Pressable>
 
       {/* Tiêu đề */}
@@ -69,7 +70,7 @@ const handleSave = () => {
 
 const styles = StyleSheet.create({
  container: {
-    backgroundColor: '#BFAAA1',
+    backgroundColor: AppTheme.colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -79,6 +80,7 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     fontSize: 24,
+    color: AppTheme.colors.navText,
   },
   isNaN: {
     width: 26

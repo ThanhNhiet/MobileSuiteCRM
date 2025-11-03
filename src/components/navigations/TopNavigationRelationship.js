@@ -1,4 +1,5 @@
 // src/components/navigations/TopNavigation.js
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,7 +16,7 @@ const TopNavigationRelationship = ({ moduleName, navigation }) => {
     <>
       <View style={styles.container}>
             <TouchableOpacity onPress={() => navigation.canGoBack() && navigation.goBack()}>
-            <Ionicons name={backIconName} size={26} color="#1e1e1e" />
+            <Ionicons name={backIconName} size={26} color={AppTheme.colors.navIcon} />
             </TouchableOpacity>
 
             <Text style={styles.title}>{moduleName}</Text>
@@ -30,7 +31,7 @@ const TopNavigationRelationship = ({ moduleName, navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#BFAAA1',
+    backgroundColor: AppTheme.colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -42,6 +43,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     flex: 1,
     textAlign: 'center',
+    color: AppTheme.colors.navText,
   },
   placeholder: {
     width: 26, // Same width as back icon to balance

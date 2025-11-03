@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: AppTheme.colors.loadingIcon,
+        color: AppTheme.colors.loadingText,
     },
     errorContainer: {
         flex: 1,

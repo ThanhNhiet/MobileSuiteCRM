@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -89,7 +90,7 @@ export default function RelationshipDetailScreen_New() {
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId, relatedLink } = route.params || {};
-    
+
 
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
@@ -198,15 +199,15 @@ export default function RelationshipDetailScreen_New() {
             }
         };
         fetchLanguage();
-      }, []);
+    }, []);
     // PDF Export hook
-    const modules = ['AOS_Quotes','AOS_Invoices','AOS_Contracts'];
+    const modules = ['AOS_Quotes', 'AOS_Invoices', 'AOS_Contracts'];
     let isQuotes = false;
     if (modules.includes(moduleName)) {
         isQuotes = true;
     }
     const isRecord = record && Object.keys(record).length > 0;
-    const { onExport, exporting} = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang,moduleName });
+    const { onExport, exporting } = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang, moduleName });
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -289,8 +290,8 @@ export default function RelationshipDetailScreen_New() {
                                                     displayName: moduleName,
                                                     moduleLabel: moduleName
                                                 };
-                                                
-                                                navigation.navigate('RelationshipListScreen_New', { 
+
+                                                navigation.navigate('RelationshipListScreen_New', {
                                                     relationship: relationshipObject,
                                                     sourceModule: route.params?.sourceModule,
                                                     sourceRecordId: route.params?.sourceRecordId,
@@ -388,44 +389,44 @@ export default function RelationshipDetailScreen_New() {
     //     }
     // };
     const onView = async () => {
-    // Ảnh: xem trong app
-    //const fileMeta = await getLinkFile(moduleName,fileName);
-    if (fileMeta?.is_image && fileMeta?.link) {
-      setShowPreview(true);
-      return;
-    }
-    // Không phải ảnh: mở preview_url nếu có, fallback mở file_url/download_url
-    const openUrl = fileMeta.link || fileMeta.downloadLink || fileMeta.downloadLinkNative;
-    if (openUrl) {
-      await WebBrowser.openBrowserAsync(openUrl);
-    } else {
-      Alert.alert("Không có URL để xem.");
-    }
-  };
-  const onDownload = async () => {
-    try {
-      const url = fileMeta.downloadLink;
-      if (!url) return Alert.alert("Không có URL tải.");
-      // đặt tên file khi lưu
-      let name = getFieldValue('filename') || 'file';
-      if (!/\.[a-z0-9]+$/i.test(name)) {
-        const ext = extFromMime(fileMeta.mime);
-        name = ext ? `${name}.${ext}` : `${name}.bin`;
-      }
-      const dest = FileSystem.documentDirectory + name;
-      const { uri } = await FileSystem.downloadAsync(url, dest);
+        // Ảnh: xem trong app
+        //const fileMeta = await getLinkFile(moduleName,fileName);
+        if (fileMeta?.is_image && fileMeta?.link) {
+            setShowPreview(true);
+            return;
+        }
+        // Không phải ảnh: mở preview_url nếu có, fallback mở file_url/download_url
+        const openUrl = fileMeta.link || fileMeta.downloadLink || fileMeta.downloadLinkNative;
+        if (openUrl) {
+            await WebBrowser.openBrowserAsync(openUrl);
+        } else {
+            Alert.alert("Không có URL để xem.");
+        }
+    };
+    const onDownload = async () => {
+        try {
+            const url = fileMeta.downloadLink;
+            if (!url) return Alert.alert("Không có URL tải.");
+            // đặt tên file khi lưu
+            let name = getFieldValue('filename') || 'file';
+            if (!/\.[a-z0-9]+$/i.test(name)) {
+                const ext = extFromMime(fileMeta.mime);
+                name = ext ? `${name}.${ext}` : `${name}.bin`;
+            }
+            const dest = FileSystem.documentDirectory + name;
+            const { uri } = await FileSystem.downloadAsync(url, dest);
 
-      // Mở share sheet
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert("Đã tải xong", uri);
-      }
-    } catch (e) {
-      Alert.alert("Lỗi tải file", String(e?.message || e));
-    }
-  };
+            // Mở share sheet
+            const canShare = await Sharing.isAvailableAsync();
+            if (canShare) {
+                await Sharing.shareAsync(uri);
+            } else {
+                Alert.alert("Đã tải xong", uri);
+            }
+        } catch (e) {
+            Alert.alert("Lỗi tải file", String(e?.message || e));
+        }
+    };
 
     // Render field item
     const renderFieldItem = async (field) => {
@@ -441,36 +442,36 @@ export default function RelationshipDetailScreen_New() {
         }
         if (field.key === 'filename' || field.key === 'product_image') {
             return (
-            <>
-                <View key={field.key} style={styles.fieldContainer}>
-                    {/* <Text style={styles.fieldValue}>
+                <>
+                    <View key={field.key} style={styles.fieldContainer}>
+                        {/* <Text style={styles.fieldValue}>
                             {formatFieldValue(field.key, value)}
                     </Text> */}
-                    <Text style={styles.fieldLabel}>{field.label}</Text>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                        <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
-                            <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={onDownload} style={styles?.btnGhost || styles.btnGhost}>
-                            <Text style={styles?.btnGhostText || styles.btnGhostText}>Tải</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.fieldLabel}>{field.label}</Text>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
+                                <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onDownload} style={styles?.btnGhost || styles.btnGhost}>
+                                <Text style={styles?.btnGhostText || styles.btnGhostText}>Tải</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-                <Modal visible={showPreview} transparent animationType="fade" onRequestClose={() => setShowPreview(false)}>
-                    <View style={styles.modalBackdrop}>
-                    <View style={styles.modalCard}>
-                        {fileMeta?.link ? (
-                        <Image source={{ uri: fileMeta.link }} style={styles.previewImage} />
-                        ) : (
-                        <Text>Không có ảnh để hiển thị.</Text>
-                        )}
-                        <TouchableOpacity onPress={() => setShowPreview(false)} style={[styles.btnPrimary, { marginTop: 12 }]}>
-                        <Text style={styles.btnPrimaryText}>Đóng</Text>
-                        </TouchableOpacity>
-                    </View>
-                    </View>
-                </Modal>
-            </>
+                    <Modal visible={showPreview} transparent animationType="fade" onRequestClose={() => setShowPreview(false)}>
+                        <View style={styles.modalBackdrop}>
+                            <View style={styles.modalCard}>
+                                {fileMeta?.link ? (
+                                    <Image source={{ uri: fileMeta.link }} style={styles.previewImage} />
+                                ) : (
+                                    <Text>Không có ảnh để hiển thị.</Text>
+                                )}
+                                <TouchableOpacity onPress={() => setShowPreview(false)} style={[styles.btnPrimary, { marginTop: 12 }]}>
+                                    <Text style={styles.btnPrimaryText}>Đóng</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+                </>
             );
         }
 
@@ -519,8 +520,8 @@ export default function RelationshipDetailScreen_New() {
                 />
 
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4B84FF" />
-                    <Text style={styles.loadingText}>{translations.loadingText || 'Đang tải chi tiết...'}</Text>
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
+                    <Text style={styles.loadingText}>{translations.loadingText || 'Loading...'}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -565,8 +566,8 @@ export default function RelationshipDetailScreen_New() {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={refreshRecord}
-                            colors={['#4B84FF']}
-                            title={translations.refreshPull || 'Kéo để tải lại...'}
+                            colors={[AppTheme.colors.loadingIcon]}
+                            title={translations.refreshPull || 'Pull to refresh...'}
                         />
                     }
                 >
@@ -598,17 +599,17 @@ export default function RelationshipDetailScreen_New() {
                             </View>
                         </View>
                     )}
-                   {/* PDF */}
+                    {/* PDF */}
                     {modules.includes(moduleName) && (
-                    <View>
-                        <TouchableOpacity
-                        style={styles.updateButton}
-                        onPress={onExport}
-                        disabled={exporting}  // ngăn bấm khi đang xử lý
-                        >
-                        <Text>{exporting ? "Đang xuất..." : "Export PDF"}</Text>
-                        </TouchableOpacity>
-                    </View>
+                        <View>
+                            <TouchableOpacity
+                                style={styles.updateButton}
+                                onPress={onExport}
+                                disabled={exporting}  // ngăn bấm khi đang xử lý
+                            >
+                                <Text>{exporting ? "Đang xuất..." : "Export PDF"}</Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
 
                     {/* ===== RELATIONSHIP ===== */}
@@ -704,7 +705,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#4B84FF'
+        color: AppTheme.colors.primaryColor2,
     },
     loadingContainer: {
         flex: 1,
@@ -715,7 +716,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: '#666',
+        color: AppTheme.colors.loadingText,
     },
     errorContainer: {
         flex: 1,
@@ -802,22 +803,6 @@ const styles = StyleSheet.create({
     fieldsContainer: {
         gap: 15,
     },
-    // fieldContainer: {
-    //     borderBottomWidth: 1,
-    //     borderBottomColor: '#f0f0f0',
-    //     paddingBottom: 12,
-    // },
-    // fieldLabel: {
-    //     fontSize: 14,
-    //     fontWeight: '600',
-    //     color: '#666',
-    //     marginBottom: 6,
-    // },
-    // fieldValue: {
-    //     fontSize: 16,
-    //     color: '#333',
-    //     lineHeight: 22,
-    // },
     fieldContainer: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -840,7 +825,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#fff',
+        backgroundColor: AppTheme.colors.navBG,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         gap: 10,
@@ -850,7 +835,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         paddingVertical: 12,
         borderRadius: 8,
         gap: 8,
@@ -909,7 +894,7 @@ const styles = StyleSheet.create({
     },
     // Relationship styles Y CHANG AccountDetailScreen
     /* Thẻ thông tin */
-   infoCard: {
+    infoCard: {
         paddingVertical: 10,
         paddingHorizontal: 15,
         backgroundColor: '#fff',
@@ -978,45 +963,45 @@ const styles = StyleSheet.create({
     modalCard: { width: "100%", backgroundColor: "white", borderRadius: 12, padding: 12, alignItems: "center" },
     previewImage: { width: "100%", height: 360, resizeMode: "contain", borderRadius: 8 },
     fileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
     },
     btnPrimary: {
-    backgroundColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+        backgroundColor: "#111827",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
     },
     btnPrimaryText: { color: "#fff", fontWeight: "700" },
     btnGhost: {
-    borderWidth: 1,
-    borderColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "#111827",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
     },
     btnGhostText: { color: "#111827", fontWeight: "700" },
     modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 16,
     },
     modalCard: {
-    width: "100%",
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
+        width: "100%",
+        backgroundColor: "white",
+        borderRadius: 12,
+        padding: 12,
+        alignItems: "center",
     },
     previewImage: {
-    width: "100%",
-    height: 360,
-    resizeMode: "contain",
-    borderRadius: 8,
+        width: "100%",
+        height: 360,
+        resizeMode: "contain",
+        borderRadius: 8,
     },
 
 });

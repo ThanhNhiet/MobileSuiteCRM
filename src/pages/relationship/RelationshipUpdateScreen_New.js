@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,33 +25,32 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
-
 export default function RelationshipUpdateScreen_New() {
   const navigation = useNavigation();
   const route = useRoute();
   const { moduleName, recordData, haveParent, relatedLink } = route.params || {};
   const [file, setFile] = useState(null);
-  
-      const pickFile = async () => {
-          try {
-              const result = await DocumentPicker.getDocumentAsync({
-                  multiple: false,
-                  copyToCacheDirectory: true,
-              });
-  
-              if (result.canceled) return;
-  
-              // API mới trả về mảng assets
-              const asset = result.assets?.[0] || result;
-              if (asset) {
-                  setFile(asset);
-                  console.log("File đã chọn:", asset);
-              }
-          } catch (err) {
-              console.log("Lỗi chọn file:", err);
-          }
-      };
-  
+
+  const pickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      // API mới trả về mảng assets
+      const asset = result.assets?.[0] || result;
+      if (asset) {
+        setFile(asset);
+        console.log("File đã chọn:", asset);
+      }
+    } catch (err) {
+      console.log("Lỗi chọn file:", err);
+    }
+  };
+
 
   // SystemLanguageUtils instance
   const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -102,37 +102,37 @@ export default function RelationshipUpdateScreen_New() {
 
         setTranslations({
           mdName: moduleTranslation || moduleName,
-          updateModule: (translatedLabels.LBL_EDIT_BUTTON_LABEL || 'Cập nhật') + ' ' + (moduleTranslation || moduleName),
-          loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
-          successTitle: translatedLabels.LBL_EMAIL_SUCCESS || 'Thành công',
-          successMessage: (translatedLabels.LBL_UPDATE || 'Cập nhật') + ' ' + (translatedLabels.LBL_EMAIL_SUCCESS || 'thành công!'),
-          errorTitle: translatedLabels.LBL_EMAIL_ERROR_DESC || 'Lỗi',
-          errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể cập nhật bản ghi',
+          updateModule: (translatedLabels.LBL_EDIT_BUTTON_LABEL || 'Update') + ' ' + (moduleTranslation || moduleName),
+          loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Loading...',
+          successTitle: translatedLabels.LBL_EMAIL_SUCCESS || 'Success',
+          successMessage: (translatedLabels.LBL_UPDATE || 'Update') + ' ' + (translatedLabels.LBL_EMAIL_SUCCESS || 'successful!'),
+          errorTitle: translatedLabels.LBL_EMAIL_ERROR_DESC || 'Error',
+          errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || 'Unable to update record',
           ok: translatedLabels.LBL_OK,
-          saveButton: translatedLabels.LBL_SAVE_CHANGES_BUTTON_TITLE || 'Lưu',
-          confirmTitle: translatedLabels.LBL_CLOSE_ACTIVITY_HEADER || 'Xác nhận',
-          unsavedChanges: translatedLabels.WARN_UNSAVED_CHANGES || 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
-          cancel: translatedLabels.LBL_CANCEL || 'Hủy',
-          exit: translatedLabels.LBL_CONFIRM_DISREGARD_EMAIL_TITLE || 'Thoát',
-          notification: translatedLabels.Alerts || 'Thông báo',
+          saveButton: translatedLabels.LBL_SAVE_CHANGES_BUTTON_TITLE || 'Save',
+          confirmTitle: translatedLabels.LBL_CLOSE_ACTIVITY_HEADER || 'Confirm',
+          unsavedChanges: translatedLabels.WARN_UNSAVED_CHANGES || 'You have unsaved changes. Do you want to exit?',
+          cancel: translatedLabels.LBL_CANCEL || 'Cancel',
+          exit: translatedLabels.LBL_CONFIRM_DISREGARD_EMAIL_TITLE || 'Exit',
+          notification: translatedLabels.Alerts || 'Notification',
           noRelationship: translatedLabels.MSG_NO_RELATIONSHIP,
-          confirmDeleteRelation: translatedLabels.LBL_DELETE || 'Xóa mối quan hệ',
-          confirmDeleteRelationMsg: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Bạn có chắc chắn muốn xóa mối quan hệ parent này?',
-          success: translatedLabels.LBL_EMAIL_SUCCESS || 'Thành công',
-          deleteRelationSuccess: translatedLabels.LBL_EMAIL_IE_DELETE_SUCCESSFUL || 'Đã xóa mối quan hệ thành công',
-          deleteRelationError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Không thể xóa mối quan hệ',
-          deleteRelation: (translatedLabels.LBL_DELETE || 'Xóa') + ' Relationship (Mối quan hệ)',
-          clearButton: translatedLabels.LBL_CLEAR_BUTTON_LABEL || 'Xóa',
-          checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
+          confirmDeleteRelation: translatedLabels.LBL_DELETE || 'Delete Relationship',
+          confirmDeleteRelationMsg: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Are you sure you want to delete this parent relationship?',
+          success: translatedLabels.LBL_EMAIL_SUCCESS || 'Success',
+          deleteRelationSuccess: translatedLabels.LBL_EMAIL_IE_DELETE_SUCCESSFUL || 'Successfully deleted relationship',
+          deleteRelationError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Unable to delete relationship',
+          deleteRelation: (translatedLabels.LBL_DELETE || 'Delete') + ' Relationship',
+          clearButton: translatedLabels.LBL_CLEAR_BUTTON_LABEL || 'Clear',
+          checkButton: translatedLabels.LBL_SEARCH || 'Search',
           checkPlaceholder: '',
           selectPlaceholder: translatedLabels.LBL_SELECT_PLACEHOLDER,
           checkToVerify: '',
-          parentIdLabel: translatedLabels.LBL_PARENT_ID_LABEL || 'ID Cha',
-          removeConfirmation: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Bạn có chắc bạn muốn loại bỏ mối quan hệ này? Chỉ có các mối quan hệ sẽ được gỡ bỏ. Hồ sơ sẽ không bị xóa.',
-          altInfo: translatedLabels.LBL_ALT_INFO || 'Thông tin',
-          emailLoading: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
-          uploadRequestError: translatedLabels.UPLOAD_REQUEST_ERROR || 'Lỗi đã xảy ra. Xin vui lòng làm tươi lại trang và thử lại.',
-          users: translatedLabels.LBL_USERS || 'Người dùng',
+          parentIdLabel: translatedLabels.LBL_PARENT_ID_LABEL || 'Parent ID',
+          removeConfirmation: translatedLabels.NTC_REMOVE_CONFIRMATION || 'Are you sure you want to remove this relationship? Only the relationships will be removed. The record will not be deleted.',
+          altInfo: translatedLabels.LBL_ALT_INFO || 'Information',
+          emailLoading: translatedLabels.LBL_EMAIL_LOADING || 'Loading...',
+          uploadRequestError: translatedLabels.UPLOAD_REQUEST_ERROR || 'An error occurred. Please refresh the page and try again.',
+          users: translatedLabels.LBL_USERS || 'Users',
           yes: translatedLabels.Yes || 'Yes',
           no: translatedLabels.No || 'No'
         });
@@ -173,8 +173,8 @@ export default function RelationshipUpdateScreen_New() {
     isRelateField,
     getRelatedModuleName,
     handleRelateFieldSelect,
-     saveFile,
-      isFile,
+    saveFile,
+    isFile,
 
   } = useRelationshipUpdate(moduleName, recordData);
 
@@ -256,14 +256,14 @@ export default function RelationshipUpdateScreen_New() {
 
       const currencyFields = updateFields.filter(field => field.type === 'currency');
       const newFormattedValues = {};
-      
+
       for (const field of currencyFields) {
         const value = getFieldValue(field.key);
         if (value) {
           newFormattedValues[field.key] = await formatCurrencyValue(value);
         }
       }
-      
+
       setFormattedCurrencyValues(newFormattedValues);
     };
 
@@ -274,23 +274,23 @@ export default function RelationshipUpdateScreen_New() {
   const handleSave = async () => {
     try {
       setSaving(true);
-       // Upload file trước nếu có
-            let uploadedFilename = null;
-            let mime_type = null;
-            if (isFile && file) {
-                const fileResponse = await saveFile(moduleName, file);
+      // Upload file trước nếu có
+      let uploadedFilename = null;
+      let mime_type = null;
+      if (isFile && file) {
+        const fileResponse = await saveFile(moduleName, file);
 
-                if (fileResponse.success && fileResponse.original_filename) {
-                    uploadedFilename = fileResponse.original_filename;
-                    mime_type = fileResponse.mime_type;
-                } else {
-                    Alert.alert(
-                        translations.errorTitle || 'Lỗi',
-                        `Không thể tải lên file: ${fileResponse.message || 'Unknown error'}`
-                    );
-                    return;
-                }
-            }
+        if (fileResponse.success && fileResponse.original_filename) {
+          uploadedFilename = fileResponse.original_filename;
+          mime_type = fileResponse.mime_type;
+        } else {
+          Alert.alert(
+            translations.errorTitle || 'Lỗi',
+            `Không thể tải lên file: ${fileResponse.message || 'Unknown error'}`
+          );
+          return;
+        }
+      }
       const result = await updateRecord(uploadedFilename, mime_type);
       if (result.success) {
         Alert.alert(
@@ -320,11 +320,11 @@ export default function RelationshipUpdateScreen_New() {
         translations.unsavedChanges || 'Bạn có thay đổi chưa lưu. Bạn có muốn thoát không?',
         [
           { text: translations.cancel || 'Hủy', style: 'cancel' },
-          { text: translations.exit || 'Thoát', style: 'destructive', onPress: () => navigation.navigate('RelationshipDetailScreen_New', { moduleName, recordId:recordData.id , relatedLink }) }
+          { text: translations.exit || 'Thoát', style: 'destructive', onPress: () => navigation.navigate('RelationshipDetailScreen_New', { moduleName, recordId: recordData.id, relatedLink }) }
         ]
       );
     } else {
-      navigation.navigate('RelationshipDetailScreen_New', { moduleName, recordId:recordData.id , relatedLink });
+      navigation.navigate('RelationshipDetailScreen_New', { moduleName, recordId: recordData.id, relatedLink });
     }
   };
 
@@ -390,7 +390,7 @@ export default function RelationshipUpdateScreen_New() {
   // Get currency name by ID with special handling for -99 (Dollar)
   const getCurrencyName = async (currencyId) => {
     if (!currencyId) return '';
-    
+
     // Special case: -99 is Dollar
     if (currencyId === '-99' || currencyId === -99) {
       return 'Dollar';
@@ -455,7 +455,7 @@ export default function RelationshipUpdateScreen_New() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
-      
+
       // For datetime fields, just save the date with midnight time (00:00:00)
       if (getFieldType(currentDateField) === 'datetime') {
         // Create a new date with time set to midnight for consistent format
@@ -505,7 +505,7 @@ export default function RelationshipUpdateScreen_New() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
-      
+
       // For datetimecombo, we need to merge existing date with the new time
       const currentValue = getFieldValue(currentDateField);
 
@@ -629,7 +629,7 @@ export default function RelationshipUpdateScreen_New() {
   const updateTimeComponent = (fieldKey, value, isHours) => {
     // Mark this field as user-modified
     setUserModifiedDateFields(prev => new Set([...prev, fieldKey]));
-    
+
     if (!value.trim()) value = '0'; // Default to 0 if empty
     const numValue = parseInt(value, 10);
 
@@ -679,22 +679,22 @@ export default function RelationshipUpdateScreen_New() {
     try {
       // Use formatDateTimeBySelectedLanguage to get formatted datetime
       const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
-      
+
       // Try to extract time part from formatted string
       // The formatted string might be in different formats depending on language
       // Common patterns: "DD/MM/YYYY HH:MM" or "MM/DD/YYYY HH:MM AM/PM" etc.
       const parts = fullFormatted.split(' ');
-      
+
       // Look for time pattern (contains ":")
       const timePart = parts.find(part => part.includes(':'));
-      
+
       if (timePart) {
         const timeParts = timePart.split(':');
         if (timeParts.length >= 2) {
           return isHours ? timeParts[0] : timeParts[1];
         }
       }
-      
+
       // Fallback: parse from original value
       if (datetimeValue.includes(' ')) {
         const originalTimePart = datetimeValue.split(' ')[1];
@@ -703,7 +703,7 @@ export default function RelationshipUpdateScreen_New() {
           return isHours ? timeParts[0] : timeParts[1];
         }
       }
-      
+
       return '';
     } catch (error) {
       // Fallback to parsing original value
@@ -725,7 +725,7 @@ export default function RelationshipUpdateScreen_New() {
     // If user has modified this field, parse from raw value
     if (userModifiedDateFields.has(fieldKey)) {
       if (!fieldValue.includes(' ')) return '';
-      
+
       const timePart = fieldValue.split(' ')[1];
       if (!timePart || !timePart.includes(':')) return '';
 
@@ -819,8 +819,8 @@ export default function RelationshipUpdateScreen_New() {
           onBack={handleBack}
         />
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={{ marginTop: 16, color: '#666' }}>{translations.loadingText || 'Đang tải...'}</Text>
+          <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
+          <Text style={{ marginTop: 16, color: AppTheme.colors.loadingText }}>{translations.loadingText || 'Loading...'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1120,7 +1120,7 @@ export default function RelationshipUpdateScreen_New() {
               // Handle relate fields as search modal
               if (isRelateField(field.key)) {
                 const relatedModuleName = getRelatedModuleName(field.key);
-                
+
                 return (
                   <View key={field.key} style={styles.row}>
                     {renderFieldLabel(field.key)}
@@ -1145,72 +1145,72 @@ export default function RelationshipUpdateScreen_New() {
                   </View>
                 );
               }
-              if (field.key === 'filename'|| field.key === 'product_image') {
-                              return (
-                                  <View key={field.key} style={styles.row}>
-                                   {renderFieldLabel(field.key)}
-                                      <TouchableOpacity
-                                          onPress={pickFile}
-                                          style={styles.valueFile}
-                                      >
-                                          <Text style={{ color: "white", fontWeight: "bold" }}>{fieldValue}</Text>
-                                      </TouchableOpacity>
-                                      {file && (
-                                          <View
-                                              style={{
-                                                  marginTop: 20,
-                                                  padding: 15,
-                                                  borderRadius: 12,
-                                                  backgroundColor: "#f3f4f6",
-                                                  shadowColor: "#000",
-                                                  shadowOffset: { width: 0, height: 2 },
-                                                  shadowOpacity: 0.1,
-                                                  shadowRadius: 4,
-                                                  elevation: 3,
-                                              }}
-                                          >
-                                              <View
-                                                  style={{
-                                                      flexDirection: "row",
-                                                      justifyContent: "space-between",
-                                                      alignItems: "center",
-                                                  }}
-                                              >
-                                                  <Text style={{ fontSize: 16, fontWeight: "600", flex: 1 }}>
-                                                      📄 {file.name}
-                                                  </Text>
-              
-                                                  <TouchableOpacity
-                                                      onPress={() => setFile(null)}
-                                                      style={{
-                                                          backgroundColor: "#ef4444",
-                                                          paddingVertical: 6,
-                                                          paddingHorizontal: 12,
-                                                          borderRadius: 8,
-                                                      }}
-                                                  >
-                                                      <Text style={{ color: "white", fontWeight: "bold" }}>Xóa</Text>
-                                                  </TouchableOpacity>
-                                              </View>
-              
-                                              <Text style={{ fontSize: 14, color: "#374151", marginTop: 8 }}>
-                                                  Kích thước: {(file.size / 1024).toFixed(1)} KB
-                                              </Text>
-                                              <Text
-                                                  style={{
-                                                      fontSize: 12,
-                                                      color: "#6b7280",
-                                                      marginTop: 4,
-                                                  }}
-                                                  numberOfLines={1}
-                                              >
-                                                  URI: {file.uri}
-                                              </Text>
-                                          </View>
-                                      )}
-                                  </View>
-                              );
-                          }
+              if (field.key === 'filename' || field.key === 'product_image') {
+                return (
+                  <View key={field.key} style={styles.row}>
+                    {renderFieldLabel(field.key)}
+                    <TouchableOpacity
+                      onPress={pickFile}
+                      style={styles.valueFile}
+                    >
+                      <Text style={{ color: "white", fontWeight: "bold" }}>{fieldValue}</Text>
+                    </TouchableOpacity>
+                    {file && (
+                      <View
+                        style={{
+                          marginTop: 20,
+                          padding: 15,
+                          borderRadius: 12,
+                          backgroundColor: "#f3f4f6",
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text style={{ fontSize: 16, fontWeight: "600", flex: 1 }}>
+                            📄 {file.name}
+                          </Text>
+
+                          <TouchableOpacity
+                            onPress={() => setFile(null)}
+                            style={{
+                              backgroundColor: "#ef4444",
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text style={{ color: "white", fontWeight: "bold" }}>Xóa</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <Text style={{ fontSize: 14, color: "#374151", marginTop: 8 }}>
+                          Kích thước: {(file.size / 1024).toFixed(1)} KB
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: "#6b7280",
+                            marginTop: 4,
+                          }}
+                          numberOfLines={1}
+                        >
+                          URI: {file.uri}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              }
 
               // Default handling for all other fields
               return (
@@ -1455,14 +1455,14 @@ export default function RelationshipUpdateScreen_New() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d8d8d8',
+    backgroundColor: AppTheme.colors.backgroundContainer,
   },
   row: {
     marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    color: '#000',
+    color: AppTheme.colors.normalText,
     marginBottom: 6,
     fontWeight: 'bold',
     paddingHorizontal: 20,
@@ -1569,7 +1569,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   valueBox: {
-    backgroundColor: '#e4a0a0ff',
+    backgroundColor: AppTheme.colors.formInput,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1627,7 +1627,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: AppTheme.colors.btnSecondary,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -1816,17 +1816,17 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   valueFile: {
-        backgroundColor: '#2563eb',
-        borderRadius: 6,
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        width: '90%',
-        alignSelf: 'center',
-        justifyContent: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 1 },
-        shadowRadius: 2,
-    },
+    backgroundColor: AppTheme.colors.btnSecondary,
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    width: '90%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
 });

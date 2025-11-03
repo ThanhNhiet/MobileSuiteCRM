@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: '#666',
+        color: AppTheme.colors.loadingText,
         textAlign: 'center',
     },
     errorContainer: {
