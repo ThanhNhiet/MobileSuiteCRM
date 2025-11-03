@@ -268,6 +268,9 @@ export default function LoginScreen() {
               <Ionicons name="trash-outline" size={18} color="#666" />
               <Text style={styles.clearCacheButtonText}>Delete Cache</Text>
             </TouchableOpacity>
+
+            {/*Version app */}
+            <Text style={{ color: '#666', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Version 0.0.4</Text>
           </View>
         </View>
       </ScrollView>
