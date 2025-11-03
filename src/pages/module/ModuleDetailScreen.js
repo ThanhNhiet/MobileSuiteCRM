@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -107,7 +108,7 @@ export default function ModuleDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId } = route.params || {};
-    
+
 
     const [currentUserId, setCurrentUserId] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
@@ -217,19 +218,19 @@ export default function ModuleDetailScreen() {
             }
         };
         fetchLanguage();
-      }, []);
-    
+    }, []);
+
     // Load currency names and format currency values when record changes
     useEffect(() => {
         const loadCurrencyData = async () => {
             if (!record || !detailFields) return;
-            
+
             const currencyUpdates = {};
             const formatUpdates = {};
-            
+
             for (const field of detailFields) {
                 const value = getFieldValue(field.key);
-                
+
                 // Handle currency_id fields
                 if (field.key.includes('currency_id') && value) {
                     const name = await getCurrencyName(value);
@@ -237,7 +238,7 @@ export default function ModuleDetailScreen() {
                         currencyUpdates[field.key] = name;
                     }
                 }
-                
+
                 // Handle currency type fields
                 if (field.type === 'currency' && value) {
                     const formatted = await formatCurrencyValue(value);
@@ -246,27 +247,27 @@ export default function ModuleDetailScreen() {
                     }
                 }
             }
-            
+
             if (Object.keys(currencyUpdates).length > 0) {
                 setCurrencyNames(prev => ({ ...prev, ...currencyUpdates }));
             }
-            
+
             if (Object.keys(formatUpdates).length > 0) {
                 setFormattedCurrencyValues(prev => ({ ...prev, ...formatUpdates }));
             }
         };
-        
+
         loadCurrencyData();
     }, [record, detailFields]);
     // PDF Export hook
-    const modules = ['AOS_Quotes','AOS_Invoices','AOS_Contracts'];
+    const modules = ['AOS_Quotes', 'AOS_Invoices', 'AOS_Contracts'];
     let isQuotes = false;
     if (modules.includes(moduleName)) {
         isQuotes = true;
     }
     //const isQuotes = moduleName === "AOS_Quotes" ;
     const isRecord = record && Object.keys(record).length > 0;
-    const { onExport, exporting} = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang ,moduleName});
+    const { onExport, exporting } = useModule_PDF({ quoteId: isQuotes ? recordId : null, record: isRecord ? record : null, detailFields, getFieldValue, lang, moduleName });
 
     const padData = (raw, cols) => {
         const fullRows = Math.floor(raw.length / cols);
@@ -406,7 +407,7 @@ export default function ModuleDetailScreen() {
         if (fieldKey.includes('currency_id')) {
             return currencyNames[value] || (value === '-99' ? 'Dollar' : value.toString());
         }
-        
+
         // Handle currency type fields
         if (fieldType === 'currency') {
             return formattedCurrencyValues[fieldKey] || value.toString();
@@ -447,7 +448,7 @@ export default function ModuleDetailScreen() {
     // Get currency name by ID with special handling for -99 (Dollar)
     const getCurrencyName = async (currencyId) => {
         if (!currencyId) return '';
-        
+
         // Special case: -99 is Dollar
         if (currencyId === '-99' || currencyId === -99) {
             return 'Dollar';
@@ -483,44 +484,44 @@ export default function ModuleDetailScreen() {
         }
     };
     const onView = async () => {
-    // Ảnh: xem trong app
-    //const fileMeta = await getLinkFile(moduleName,fileName);
-    if (fileMeta?.is_image && fileMeta?.link) {
-      setShowPreview(true);
-      return;
-    }
-    // Không phải ảnh: mở preview_url nếu có, fallback mở file_url/download_url
-    const openUrl = fileMeta.link || fileMeta.downloadLink || fileMeta.downloadLinkNative;
-    if (openUrl) {
-      await WebBrowser.openBrowserAsync(openUrl);
-    } else {
-      Alert.alert("Không có URL để xem.");
-    }
-  };
-  const onDownload = async () => {
-    try {
-      const url = fileMeta.downloadLink;
-      if (!url) return Alert.alert("Không có URL tải.");
-      // đặt tên file khi lưu
-      let name = getFieldValue('filename') || 'file';
-      if (!/\.[a-z0-9]+$/i.test(name)) {
-        const ext = extFromMime(fileMeta.mime);
-        name = ext ? `${name}.${ext}` : `${name}.bin`;
-      }
-      const dest = FileSystem.documentDirectory + name;
-      const { uri } = await FileSystem.downloadAsync(url, dest);
+        // Ảnh: xem trong app
+        //const fileMeta = await getLinkFile(moduleName,fileName);
+        if (fileMeta?.is_image && fileMeta?.link) {
+            setShowPreview(true);
+            return;
+        }
+        // Không phải ảnh: mở preview_url nếu có, fallback mở file_url/download_url
+        const openUrl = fileMeta.link || fileMeta.downloadLink || fileMeta.downloadLinkNative;
+        if (openUrl) {
+            await WebBrowser.openBrowserAsync(openUrl);
+        } else {
+            Alert.alert("Không có URL để xem.");
+        }
+    };
+    const onDownload = async () => {
+        try {
+            const url = fileMeta.downloadLink;
+            if (!url) return Alert.alert("Không có URL tải.");
+            // đặt tên file khi lưu
+            let name = getFieldValue('filename') || 'file';
+            if (!/\.[a-z0-9]+$/i.test(name)) {
+                const ext = extFromMime(fileMeta.mime);
+                name = ext ? `${name}.${ext}` : `${name}.bin`;
+            }
+            const dest = FileSystem.documentDirectory + name;
+            const { uri } = await FileSystem.downloadAsync(url, dest);
 
-      // Mở share sheet
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert("Đã tải xong", uri);
-      }
-    } catch (e) {
-      Alert.alert("Lỗi tải file", String(e?.message || e));
-    }
-  };
+            // Mở share sheet
+            const canShare = await Sharing.isAvailableAsync();
+            if (canShare) {
+                await Sharing.shareAsync(uri);
+            } else {
+                Alert.alert("Đã tải xong", uri);
+            }
+        } catch (e) {
+            Alert.alert("Lỗi tải file", String(e?.message || e));
+        }
+    };
 
     // Render field item
     const renderFieldItem = async (field) => {
@@ -536,36 +537,36 @@ export default function ModuleDetailScreen() {
         }
         if (field.key === 'filename' || field.key === 'product_image') {
             return (
-            <>
-                <View key={field.key} style={styles.fieldContainer}>
-                    {/* <Text style={styles.fieldValue}>
+                <>
+                    <View key={field.key} style={styles.fieldContainer}>
+                        {/* <Text style={styles.fieldValue}>
                             {formatFieldValue(field.key, value)}
                     </Text> */}
-                    <Text style={styles.fieldLabel}>{field.label}</Text>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                        <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
-                            <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={onDownload} style={styles?.btnGhost || styles.btnGhost}>
-                            <Text style={styles?.btnGhostText || styles.btnGhostText}>Tải</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.fieldLabel}>{field.label}</Text>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
+                                <Text style={styles?.btnPrimaryText || styles.btnPrimaryText}>Xem</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onDownload} style={styles?.btnGhost || styles.btnGhost}>
+                                <Text style={styles?.btnGhostText || styles.btnGhostText}>Tải</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-                <Modal visible={showPreview} transparent animationType="fade" onRequestClose={() => setShowPreview(false)}>
-                    <View style={styles.modalBackdrop}>
-                    <View style={styles.modalCard}>
-                        {fileMeta?.link ? (
-                        <Image source={{ uri: fileMeta.link }} style={styles.previewImage} />
-                        ) : (
-                        <Text>Không có ảnh để hiển thị.</Text>
-                        )}
-                        <TouchableOpacity onPress={() => setShowPreview(false)} style={[styles.btnPrimary, { marginTop: 12 }]}>
-                        <Text style={styles.btnPrimaryText}>Đóng</Text>
-                        </TouchableOpacity>
-                    </View>
-                    </View>
-                </Modal>
-            </>
+                    <Modal visible={showPreview} transparent animationType="fade" onRequestClose={() => setShowPreview(false)}>
+                        <View style={styles.modalBackdrop}>
+                            <View style={styles.modalCard}>
+                                {fileMeta?.link ? (
+                                    <Image source={{ uri: fileMeta.link }} style={styles.previewImage} />
+                                ) : (
+                                    <Text>Không có ảnh để hiển thị.</Text>
+                                )}
+                                <TouchableOpacity onPress={() => setShowPreview(false)} style={[styles.btnPrimary, { marginTop: 12 }]}>
+                                    <Text style={styles.btnPrimaryText}>Đóng</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+                </>
             );
         }
 
@@ -574,22 +575,22 @@ export default function ModuleDetailScreen() {
                 <Text style={styles.fieldLabel}>{field.label}</Text>
 
                 {(field.key === 'annual_revenue' || field.type === 'currency') ? (
-                <Text style={styles.fieldValue}>
-                    <FormattedFieldValue
-                    fieldKey={field.key}
-                    value={value}
-                    translations={translations}
-                    systemLanguageUtils={systemLanguageUtils}
-                    fieldType={field.type}
-                    />
-                </Text>
+                    <Text style={styles.fieldValue}>
+                        <FormattedFieldValue
+                            fieldKey={field.key}
+                            value={value}
+                            translations={translations}
+                            systemLanguageUtils={systemLanguageUtils}
+                            fieldType={field.type}
+                        />
+                    </Text>
                 ) : (
-                <Text style={styles.fieldValue}>
-                    {formatFieldValue(field.key, value, field.type)}
-                </Text>
+                    <Text style={styles.fieldValue}>
+                        {formatFieldValue(field.key, value, field.type)}
+                    </Text>
                 )}
             </View>
-            );
+        );
     };
 
     // Loading state 
@@ -603,7 +604,7 @@ export default function ModuleDetailScreen() {
                 />
 
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4B84FF" />
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                     <Text style={styles.loadingText}>{translations.loadingText || 'Đang tải chi tiết...'}</Text>
                 </View>
             </SafeAreaView>
@@ -682,17 +683,17 @@ export default function ModuleDetailScreen() {
                             </View>
                         </View>
                     )}
-                   {/* PDF */}
+                    {/* PDF */}
                     {modules.includes(moduleName) && (
-                    <View>
-                        <TouchableOpacity
-                        style={styles.updateButton}
-                        onPress={onExport}
-                        disabled={exporting}  // ngăn bấm khi đang xử lý
-                        >
-                        <Text>{exporting ? "Đang xuất..." : "Export PDF"}</Text>
-                        </TouchableOpacity>
-                    </View>
+                        <View>
+                            <TouchableOpacity
+                                style={styles.updateButton}
+                                onPress={onExport}
+                                disabled={exporting}  // ngăn bấm khi đang xử lý
+                            >
+                                <Text>{exporting ? "Đang xuất..." : "Export PDF"}</Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
 
                     {/* ===== RELATIONSHIP ===== */}
@@ -735,7 +736,7 @@ export default function ModuleDetailScreen() {
                                 styles.updateButtonText,
                                 (!canEditRecord() || deleting) && styles.disabledButtonText
                             ]}>
-                                {translations.updateButton || 'Cập nhật'}
+                                {translations.updateButton || 'Update'}
                             </Text>
                         </TouchableOpacity>
 
@@ -761,7 +762,7 @@ export default function ModuleDetailScreen() {
                                 styles.deleteButtonText,
                                 !canEditRecord() && styles.disabledButtonText
                             ]}>
-                                {deleting ? (translations.deletingText || 'Đang xóa...') : (translations.deleteButton || 'Xóa')}
+                                {deleting ? (translations.deletingText || 'Deleting...') : (translations.deleteButton || 'Delete')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -774,7 +775,7 @@ export default function ModuleDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     content: {
         flex: 1,
@@ -788,7 +789,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#4B84FF'
+        color: AppTheme.colors.primaryColor2
     },
     loadingContainer: {
         flex: 1,
@@ -799,7 +800,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: '#666',
+        color: AppTheme.colors.loadingIcon,
     },
     errorContainer: {
         flex: 1,
@@ -905,27 +906,11 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
     },
 
-    // fieldContainer: {
-    //     borderBottomWidth: 1,
-    //     borderBottomColor: '#f0f0f0',
-    //     paddingBottom: 12,
-    // },
-    // fieldLabel: {
-    //     fontSize: 14,
-    //     fontWeight: '600',
-    //     color: '#666',
-    //     marginBottom: 6,
-    // },
-    // fieldValue: {
-    //     fontSize: 16,
-    //     color: '#333',
-    //     lineHeight: 22,
-    // },
     actionContainer: {
         flexDirection: 'row',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#fff',
+        backgroundColor: AppTheme.colors.navBG,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         gap: 10,
@@ -935,7 +920,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         paddingVertical: 12,
         borderRadius: 8,
         gap: 8,
@@ -970,7 +955,6 @@ const styles = StyleSheet.create({
     disabledButtonText: {
         color: '#999',
     },
-    // ID field with copy button styles - TỪ NoteDetailScreen
     idContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -992,8 +976,6 @@ const styles = StyleSheet.create({
         minWidth: 32,
         minHeight: 32,
     },
-    // Relationship styles Y CHANG AccountDetailScreen
-    /* Thẻ thông tin */
     infoCard: {
         paddingVertical: 10,
         paddingHorizontal: 15,
@@ -1013,7 +995,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 5,
     },
     card: {
-        backgroundColor: '#2196F3',
+        backgroundColor: AppTheme.colors.primaryColor2,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1063,45 +1045,45 @@ const styles = StyleSheet.create({
     modalCard: { width: "100%", backgroundColor: "white", borderRadius: 12, padding: 12, alignItems: "center" },
     previewImage: { width: "100%", height: 360, resizeMode: "contain", borderRadius: 8 },
     fileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
     },
     btnPrimary: {
-    backgroundColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+        backgroundColor: "#111827",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
     },
     btnPrimaryText: { color: "#fff", fontWeight: "700" },
     btnGhost: {
-    borderWidth: 1,
-    borderColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "#111827",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
     },
     btnGhostText: { color: "#111827", fontWeight: "700" },
     modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 16,
     },
     modalCard: {
-    width: "100%",
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
+        width: "100%",
+        backgroundColor: "white",
+        borderRadius: 12,
+        padding: 12,
+        alignItems: "center",
     },
     previewImage: {
-    width: "100%",
-    height: 360,
-    resizeMode: "contain",
-    borderRadius: 8,
+        width: "100%",
+        height: 360,
+        resizeMode: "contain",
+        borderRadius: 8,
     },
 
 });

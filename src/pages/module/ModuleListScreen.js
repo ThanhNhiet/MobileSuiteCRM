@@ -15,11 +15,13 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useModule_List } from '../../services/useApi/module/UseModule_List';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
+
 // Generic module list screen
 export default function ModuleListScreen() {
     const navigation = useNavigation();
@@ -321,6 +323,7 @@ export default function ModuleListScreen() {
                                     placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
+                                    placeholderTextColor="#999999"
                                 />
                             </View>
                             <View style={styles.searchFormOptions}>
@@ -369,8 +372,8 @@ export default function ModuleListScreen() {
                     {/* Loading State */}
                     {loading && (
                         <View style={{ padding: 20, alignItems: 'center' }}>
-                            <ActivityIndicator size="large" color="#4B84FF" />
-                            <Text style={{ marginTop: 10, color: '#666' }}>{translations.loading}</Text>
+                            <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
+                            <Text style={{ marginTop: 10, color: AppTheme.colors.loadingIcon }}>{translations.loading}</Text>
                         </View>
                     )}
 
@@ -386,8 +389,6 @@ export default function ModuleListScreen() {
                             </TouchableOpacity>
                         </View>
                     )}
-
-
 
                     {/* Table Rows - Scrollable */}
                     {!loading && !error && (
@@ -407,7 +408,7 @@ export default function ModuleListScreen() {
                                 <RefreshControl
                                     refreshing={refreshing}
                                     onRefresh={handleRefresh}
-                                    colors={['#4B84FF']}
+                                    colors={[AppTheme.colors.loadingIcon]}
                                     title={translations.pullToRefresh}
                                 />
                             }
@@ -468,7 +469,7 @@ export default function ModuleListScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
+        backgroundColor:  AppTheme.colors.backgroundContainer,
     },
 
     content: {
@@ -516,14 +517,14 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     searchButton: {
-        backgroundColor: '#4B84FF',
+        backgroundColor:  AppTheme.colors.btnSecondary,
         padding: 6,
         paddingHorizontal: 16,
         borderRadius: 4,
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#C9B4AB',
+        backgroundColor: AppTheme.colors.navBG,
         padding: 8,
         borderRadius: 4,
     },
@@ -534,13 +535,13 @@ const styles = StyleSheet.create({
     tableRow: {
         flexDirection: 'row',
         padding: 11,
-        backgroundColor: '#F3F0EF',
+        backgroundColor: AppTheme.colors.backgroundContainer,
         borderBottomWidth: 1,
         borderColor: '#ddd',
         borderRadius: 4,
     },
     tableRowEven: {
-        backgroundColor: '#f1edecff',
+        backgroundColor: AppTheme.colors.primaryColor1SupperLight,
     },
     cell: { flex: 1 },
     pagination: {
@@ -558,8 +559,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     activePage: {
-        backgroundColor: '#4B84FF',
-        borderColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
+        borderColor: AppTheme.colors.btnSecondary,
     },
     disabledBtn: {
         borderColor: '#eee',
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
     addNewBtn: {
         width: 60,
         height: 60,
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         borderRadius: 35,
         justifyContent: 'center',
         alignItems: 'center',
@@ -606,7 +607,7 @@ const styles = StyleSheet.create({
         borderBottomColor: '#eee',
     },
     selectedItem: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
     },
     dropdownText: {
         fontSize: 16,

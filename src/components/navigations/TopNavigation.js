@@ -2,6 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppTheme } from '../../configs/ThemeConfig';
 import { useAlert } from '../../services/useApi/alert/UseAlert';
 import AlertModal from '../modals/AlertModal';
 import HamburgerModal from '../modals/HamburgerModal';
@@ -17,13 +18,13 @@ const TopNavigation = ({ moduleName, navigation }) => {
     <>
       <View style={styles.container}>
         <TouchableOpacity onPress={() => setShowMenu(true)}>
-          <Ionicons name="menu" size={30} color="black" />
+          <Ionicons name="menu" size={30} color={AppTheme.colors.navIcon} />
         </TouchableOpacity>
 
         <Text style={styles.title}>{moduleName}</Text>
 
         <TouchableOpacity style={styles.notificationContainer} onPress={() => setShowAlert(true)}>
-          <Ionicons name="notifications" size={30} color="black" />
+          <Ionicons name="notifications" size={30} color={AppTheme.colors.navIcon} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
@@ -52,7 +53,7 @@ const TopNavigation = ({ moduleName, navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#BFAAA1',
+    backgroundColor: AppTheme.colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -62,6 +63,7 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     fontSize: 24,
+    color: AppTheme.colors.navText,
   },
   notificationContainer: {
     position: 'relative',

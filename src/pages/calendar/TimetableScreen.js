@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { formatDateTimeBySelectedLanguage } from '@/src/utils/format/FormatDateTime_Zones';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -16,18 +17,18 @@ export default function TimetableScreen({ navigation, route }) {
     const { selectedDate, events, dateString } = route.params;
 
     // Language translations
-    const [durationText, setDurationText] = useState('Thời lượng');
-    const [dateText, setDateText] = useState('Ngày');
-    const [startDateText, setStartDateText] = useState('Ngày bắt đầu');
-    const [dueDateText, setDueDateText] = useState('Ngày đến hạn');
-    const [endDateText, setEndDateText] = useState('Ngày kết thúc');
-    const [closeText, setCloseText] = useState('Đóng');
-    const [timetableText, setTimetableText] = useState('Thời gian biểu');
-    const [overviewText, setOverviewText] = useState('Tổng quan');
-    const [detailScheduleText, setDetailScheduleText] = useState('Lịch trình chi tiết');
-    const [taskText, setTaskText] = useState('Công việc');
-    const [meetingText, setMeetingText] = useState('Cuộc họp');
-    const [callText, setCallText] = useState('Cuộc gọi');
+    const [durationText, setDurationText] = useState('Duration');
+    const [dateText, setDateText] = useState('Date');
+    const [startDateText, setStartDateText] = useState('Start Date');
+    const [dueDateText, setDueDateText] = useState('Due Date');
+    const [endDateText, setEndDateText] = useState('End Date');
+    const [closeText, setCloseText] = useState('Close');
+    const [timetableText, setTimetableText] = useState('Timetable');
+    const [overviewText, setOverviewText] = useState('Overview');
+    const [detailScheduleText, setDetailScheduleText] = useState('Detail Schedule');
+    const [taskText, setTaskText] = useState('Task');
+    const [meetingText, setMeetingText] = useState('Meeting');
+    const [callText, setCallText] = useState('Call');
     const [tasksText, setTasksText] = useState('Tasks');
     const [meetingsText, setMeetingsText] = useState('Meetings');
     const calendarLanguageUtils = CalendarLanguageUtils.getInstance();
@@ -223,7 +224,7 @@ export default function TimetableScreen({ navigation, route }) {
                     onPress={() => navigation.goBack()}
                     style={styles.backButton}
                 >
-                    <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
+                    <Ionicons name="arrow-back" size={24} color={AppTheme.colors.navIcon} />
                 </TouchableOpacity>
                 <View style={styles.headerContent}>
                     <Text style={styles.headerTitle}>{timetableText}</Text>
@@ -327,14 +328,14 @@ export default function TimetableScreen({ navigation, route }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#BFAAA1',
+        backgroundColor: AppTheme.colors.navBG,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,
@@ -356,11 +357,11 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#333',
+        color: AppTheme.colors.navText,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: '#666',
+        color: AppTheme.colors.navSubtitle,
         marginTop: 2,
     },
     scrollContainer: {
@@ -404,6 +405,7 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     summaryText: {
+        paddingRight: 5,
         fontSize: 14,
         fontWeight: '600',
         color: '#333',

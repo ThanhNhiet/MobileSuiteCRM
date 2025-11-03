@@ -22,6 +22,7 @@ import { getAllCurrencyApi, getCurrencyNameApi } from '../../services/api/module
 import { useModule_Create } from '../../services/useApi/module/UseModule_Create';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
+
 export default function ModuleCreateScreen() {
     const navigation = useNavigation();
     const route = useRoute();

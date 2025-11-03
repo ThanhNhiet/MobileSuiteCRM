@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -91,8 +92,8 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={loading}
               onRefresh={refresh}
-              colors={['#007AFF']}
-              tintColor="#007AFF"
+              colors={[AppTheme.colors.loadingIcon]}
+              tintColor={AppTheme.colors.loadingIcon}
             />
           }
         >
@@ -140,12 +141,12 @@ export default function HomeScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{translations.trans_addTab || 'Add tab'}</Text>
               <ScrollView style={{ maxHeight: 300 }}>
-                  {allModules && allModules.map((module, idx) => (
-                    <TouchableOpacity key={module.key} style={styles.checkboxRow} onPress={() => toggleModule(module.key)}>
-                      <View style={[styles.checkbox, checkedModules.includes(module.key) && styles.checkboxChecked]} />
-                      <Text style={styles.checkboxLabel}>{module.trans}</Text>
-                    </TouchableOpacity>
-                  ))}
+                {allModules && allModules.map((module, idx) => (
+                  <TouchableOpacity key={module.key} style={styles.checkboxRow} onPress={() => toggleModule(module.key)}>
+                    <View style={[styles.checkbox, checkedModules.includes(module.key) && styles.checkboxChecked]} />
+                    <Text style={styles.checkboxLabel}>{module.trans}</Text>
+                  </TouchableOpacity>
+                ))}
               </ScrollView>
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSaveModules}>
@@ -170,12 +171,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#eaf6ff',
     borderStyle: 'dashed',
-    borderWidth: 2,
-    borderColor: '#007AFF',
+    borderWidth: 1,
   },
   addIcon: {
     fontSize: 32,
-    color: '#007AFF',
+    color: AppTheme.colors.primaryColor2,
     marginBottom: 4,
     fontWeight: 'bold',
   },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: AppTheme.colors.modalEditBG,
     borderRadius: 12,
     padding: 20,
     width: '80%',
@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
+    color: AppTheme.colors.modalEditTitle,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -214,12 +215,12 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: AppTheme.colors.primaryColor2,
     marginRight: 10,
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#007AFF',
+    backgroundColor: AppTheme.colors.primaryColor2,
   },
   checkboxLabel: {
     fontSize: 16,
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   saveBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: AppTheme.colors.btnSecondary,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -311,7 +312,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4B4B4B',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#888',
+    color: '#808080',
     marginTop: 2,
   },
 });

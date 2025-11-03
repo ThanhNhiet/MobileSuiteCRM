@@ -378,6 +378,7 @@ export default function RelationshipListScreen_New() {
                                     placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
+                                    placeholderTextColor="#999"
                                 />
                             </View>
                             <View style={styles.searchFormOptions}>

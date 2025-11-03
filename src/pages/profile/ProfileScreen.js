@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
@@ -92,7 +93,7 @@ export default function ProfileScreen({ navigation }) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#007AFF" />
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                     <Text style={styles.loadingText}>
                         {translations.loading || 'Loading information...'}
                     </Text>
@@ -220,7 +221,7 @@ export default function ProfileScreen({ navigation }) {
     const ProfileField = ({ fieldName, label, value, icon }) => (
         <View style={styles.fieldContainer}>
             <View style={styles.fieldHeader}>
-                <Ionicons name={icon} size={20} color="#4B84FF" />
+                <Ionicons name={icon} size={20} color={AppTheme.colors.primaryColor2} />
                 <Text style={styles.fieldLabel}>
                     {fieldName ? getFieldLabel(fieldName, label) : label}
                 </Text>
@@ -239,7 +240,7 @@ export default function ProfileScreen({ navigation }) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={refreshProfile}
-                            colors={['#007AFF']}
+                            colors={[AppTheme.colors.loadingIcon]}
                             title="Loading..."
                         />
                     }
@@ -305,7 +306,7 @@ export default function ProfileScreen({ navigation }) {
                             style={styles.secondaryButton}
                             onPress={handleChangePassword}
                         >
-                            <Ionicons name="lock-closed-outline" size={20} color="#4B84FF" />
+                            <Ionicons name="lock-closed-outline" size={20} color={AppTheme.colors.primaryColor1} />
                             <Text style={styles.secondaryButtonText}>
                                 {translations.changePassword || 'Change Password'}
                             </Text>
@@ -315,7 +316,7 @@ export default function ProfileScreen({ navigation }) {
                             style={[styles.secondaryButton, { marginBottom: 12 }]}
                             onPress={handleSettings}
                         >
-                            <Ionicons name="settings-outline" size={20} color="#4B84FF" />
+                            <Ionicons name="settings-outline" size={20} color={AppTheme.colors.primaryColor1} />
                             <Text style={styles.secondaryButtonText}>
                                 {translations.settings || 'Settings'}
                             </Text>
@@ -333,7 +334,7 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     scrollView: {
         flex: 1,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.primaryColor2,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 3,
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     primaryButton: {
-        backgroundColor: '#4B84FF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -454,6 +455,7 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
     secondaryButton: {
+        marginTop: 10,
         backgroundColor: 'white',
         flexDirection: 'row',
         alignItems: 'center',
@@ -461,7 +463,7 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#4B84FF',
+        borderColor: AppTheme.colors.primaryColor1,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: {
@@ -472,7 +474,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2.22,
     },
     secondaryButtonText: {
-        color: '#4B84FF',
+        color: AppTheme.colors.primaryColor1,
         fontSize: 16,
         fontWeight: 'bold',
         marginLeft: 8,
@@ -508,7 +510,7 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     retryButton: {
-        backgroundColor: '#007AFF',
+        backgroundColor: AppTheme.colors.btnSecondary,
         paddingHorizontal: 30,
         paddingVertical: 12,
         borderRadius: 8,

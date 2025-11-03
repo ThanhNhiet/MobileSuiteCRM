@@ -18,6 +18,7 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+import { AppTheme } from '../../configs/ThemeConfig';
 import { getAvailableLanguagesApi } from '../../services/api/login/Login_outApi';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
@@ -139,10 +140,10 @@ export default function LoginScreen() {
   if (isCheckingAuth) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
+        <StatusBar barStyle="dark-content" backgroundColor={AppTheme.colors.backgroundContainer} />
         <View style={styles.loadingContent}>
           <Image source={require("../../assets/images/logo-login.png")} style={styles.imageSize} />
-          <ActivityIndicator size="large" color="#E85A4F" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} style={{ marginTop: 40 }} />
           <Text style={styles.loadingText}>Checking authentication...</Text>
         </View>
       </View>
@@ -160,7 +161,7 @@ export default function LoginScreen() {
       {/** Setting **/}
       <View style={styles.settingRow}>
         <TouchableOpacity style={styles.settingButton} onPress={() => setShowWebsiteModal(true)}>
-          <Ionicons name="settings-outline" size={24} color="#E85A4F" />
+          <Ionicons name="settings-outline" size={24} color={AppTheme.colors.primaryColor1} />
           <Text style={styles.settingLabel}>Configure website link</Text>
         </TouchableOpacity>
       </View>
@@ -171,14 +172,14 @@ export default function LoginScreen() {
             <TextInput
               style={{ backgroundColor: '#E0E0E0', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20 }}
               placeholder="https://..."
-              placeholderTextColor="#888"
+              placeholderTextColor="#999999"
               value={websiteInput}
               onChangeText={setWebsiteInput}
               autoCapitalize="none"
               keyboardType="url"
             />
             <TouchableOpacity
-              style={{ backgroundColor: '#E85A4F', borderRadius: 10, paddingVertical: 12 }}
+              style={{ backgroundColor: AppTheme.colors.btnPrimary, borderRadius: 10, paddingVertical: 12 }}
               onPress={async () => {
                 if (!websiteInput.trim()) return;
                 await AsyncStorage.setItem('url', websiteInput.trim());
@@ -279,7 +280,7 @@ export default function LoginScreen() {
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Select Language</Text>
                 {languageLoading ? (
-                  <ActivityIndicator size="large" color="#E85A4F" />
+                  <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                 ) : (
                   <FlatList
                     data={languageList}
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
   // Loading styles
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: AppTheme.colors.backgroundContainer,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -346,7 +347,7 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 55 },
   eyeIcon: { position: 'absolute', right: 20, top: '50%', transform: [{ translateY: -12 }], padding: 5 },
   loginButton: {
-    backgroundColor: '#E85A4F',
+    backgroundColor: AppTheme.colors.btnPrimary,
     borderRadius: 25,
     paddingVertical: 15,
     paddingHorizontal: 50,
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingLabel: {
-    color: '#E85A4F',
+    color: AppTheme.colors.primaryColor1,
     fontSize: 15,
     fontWeight: '500',
     marginLeft: 6,

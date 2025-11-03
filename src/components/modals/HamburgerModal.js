@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import ModulesConfig from '../../configs/ModulesConfig';
 import RolesConfig from '../../configs/RolesConfig';
+import { AppTheme } from '../../configs/ThemeConfig';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
@@ -308,7 +309,7 @@ const styles = StyleSheet.create({
     },
     sidebar: {
         width: width * 0.6, // 70% of screen width
-        backgroundColor: '#F5F5F5',
+        backgroundColor: AppTheme.colors.hamburgerContainer,
         paddingVertical: 20,
         paddingHorizontal: 0,
         justifyContent: 'space-between',
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     menuItem: {
-        backgroundColor: '#BFAAA1',
+        backgroundColor: AppTheme.colors.hamburgerCardContainer,
         paddingVertical: 15,
         paddingHorizontal: 20,
         marginBottom: 15,
@@ -429,11 +430,13 @@ const styles = StyleSheet.create({
         shadowRadius: 2.22,
     },
     menuText: {
-        color: 'black',
+        color: AppTheme.colors.hamburgerText,
         fontSize: 16,
         fontWeight: '500',
     },
     logoutContainer: {
+        backgroundColor: AppTheme.colors.hamburgerContainer,
+        paddingTop: 20,
         paddingHorizontal: 20,
         paddingBottom: 20,
     },

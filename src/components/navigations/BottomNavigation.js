@@ -1,4 +1,5 @@
 // src/components/navigations/BottomNavigation.js
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -20,12 +21,12 @@ const BottomNavigation = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('HomeScreen')}>
-        <Ionicons name="home-outline" size={24} color="black" />
-        <Text>{translations.home}</Text>
+        <Ionicons name="home-outline" size={24} color={AppTheme.colors.navIcon} />
+        <Text style={{ color: AppTheme.colors.navText }}>{translations.home}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('CalendarScreen')}>
-        <Ionicons name="calendar-outline" size={24} color="black" />
-        <Text>{translations.calendar}</Text>
+        <Ionicons name="calendar-outline" size={24} color={AppTheme.colors.navIcon} />
+        <Text style={{ color: AppTheme.colors.navText }}>{translations.calendar}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -33,7 +34,7 @@ const BottomNavigation = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#BFAAA1',
+    backgroundColor: AppTheme.colors.navBG,
     flexDirection: 'row',
     justifyContent: 'space-around',
     padding: 10,

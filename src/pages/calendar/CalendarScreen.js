@@ -1,3 +1,4 @@
+import { AppTheme } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -19,15 +20,15 @@ export default function CalendarScreen({ navigation }) {
     // Language translations
     const [monthNames, setMonthNames] = useState([]);
     const [dayNames, setDayNames] = useState([]);
-    const [todayText, setTodayText] = useState('Hôm nay');
-    const [noScheduleText, setNoScheduleText] = useState('Không có lịch trình nào trong ngày');
-    const [notificationText, setNotificationText] = useState('Thông báo');
-    const [headerTitle, setHeaderTitle] = useState('Lịch công việc');
-    const [loadingText, setLoadingText] = useState('Đang tải dữ liệu lịch...');
-    const [retryText, setRetryText] = useState('Thử lại');
-    const [refreshText, setRefreshText] = useState('Kéo để tải lại...');
-    const [legendText, setLegendText] = useState('Chú thích');
-    const [hasScheduleText, setHasScheduleText] = useState('Ngày có lịch trình');
+    const [todayText, setTodayText] = useState('Today');
+    const [noScheduleText, setNoScheduleText] = useState('No schedule for today');
+    const [notificationText, setNotificationText] = useState('Notification');
+    const [headerTitle, setHeaderTitle] = useState('Work Schedule');
+    const [loadingText, setLoadingText] = useState('Loading calendar data...');
+    const [retryText, setRetryText] = useState('Retry');
+    const [refreshText, setRefreshText] = useState('Pull to refresh...');
+    const [legendText, setLegendText] = useState('Legend');
+    const [hasScheduleText, setHasScheduleText] = useState('Scheduled');
     const [taskText, setTaskText] = useState('Task');
     const [meetingText, setMeetingText] = useState('Meeting');
     const [callText, setCallText] = useState('Call');
@@ -65,15 +66,15 @@ export default function CalendarScreen({ navigation }) {
                 const dayLabels = await calendarLanguageUtils.getDayNames(true); // true = use short format
 
                 // Get other UI text translations
-                const todayLabel = await calendarLanguageUtils.translate('LBL_TODAY') || 'Hôm nay';
-                const noScheduleMessage = await calendarLanguageUtils.translate('noData') || 'Không có lịch trình nào trong ngày';
-                const notificationLabel = await calendarLanguageUtils.translate('LBL_ALT_INFO') || 'Thông báo';
-                const headerTitleLabel = await calendarLanguageUtils.translate('Calendar') || 'Lịch công việc';
-                const loadingLabel = await calendarLanguageUtils.translate('LBL_LOADING') || 'Đang tải dữ liệu lịch...';
-                const retryLabel = await calendarLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Thử lại';
+                const todayLabel = await calendarLanguageUtils.translate('LBL_TODAY') || 'Today';
+                const noScheduleMessage = await calendarLanguageUtils.translate('noData') || 'No schedule for today';
+                const notificationLabel = await calendarLanguageUtils.translate('LBL_ALT_INFO') || 'Notification';
+                const headerTitleLabel = await calendarLanguageUtils.translate('Calendar') || 'Work Schedule';
+                const loadingLabel = await calendarLanguageUtils.translate('LBL_LOADING') || 'Loading calendar data...';
+                const retryLabel = await calendarLanguageUtils.translate('UPLOAD_REQUEST_ERROR') || 'Retry';
                 const refreshLabel = 'Pull to refresh...';
-                const legendLabel = await calendarLanguageUtils.translate('LBL_DESCRIPTION') || 'Chú thích';
-                const hasScheduleLabel = await calendarLanguageUtils.translate('Planned') || 'Ngày có lịch trình';
+                const legendLabel = await calendarLanguageUtils.translate('LBL_DESCRIPTION') || 'Legend';
+                const hasScheduleLabel = await calendarLanguageUtils.translate('Planned') || 'Scheduled';
                 const taskLabel = await calendarLanguageUtils.translate('LBL_TASKS') || 'Task';
                 const meetingLabel = await calendarLanguageUtils.translate('LBL_MEETINGS') || 'Meeting';
                 const callLabel = await calendarLanguageUtils.translate('LBL_CALLS') || 'Call';
@@ -168,12 +169,12 @@ export default function CalendarScreen({ navigation }) {
                         onPress={() => navigation.goBack()}
                         style={styles.backButton}
                     >
-                        <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
+                        <Ionicons name="arrow-back" size={24} color={AppTheme.colors.navIcon} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>{headerTitle}</Text>
                 </View>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4B84FF" />
+                    <ActivityIndicator size="large" color={AppTheme.colors.loadingIcon} />
                     <Text style={styles.loadingText}>{loadingText}</Text>
                 </View>
             </SafeAreaView>
@@ -188,7 +189,7 @@ export default function CalendarScreen({ navigation }) {
                     onPress={() => navigation.goBack()}
                     style={styles.backButton}
                 >
-                    <Ionicons name="arrow-back" size={24} color="#1e1e1e" />
+                    <Ionicons name="arrow-back" size={24} color={AppTheme.colors.navIcon} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{headerTitle}</Text>
                 <TouchableOpacity
@@ -206,7 +207,7 @@ export default function CalendarScreen({ navigation }) {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        colors={['#4B84FF']}
+                        colors={[AppTheme.colors.loadingIcon]}
                         title={refreshText}
                         titleColor="#666"
                     />
@@ -215,7 +216,7 @@ export default function CalendarScreen({ navigation }) {
                 {/* Calendar Navigation */}
                 <View style={styles.calendarHeader}>
                     <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-                        <Ionicons name="chevron-back" size={24} color="#4B84FF" />
+                        <Ionicons name="chevron-back" size={24} color={AppTheme.colors.primaryColor2} />
                     </TouchableOpacity>
 
                     <Text style={styles.monthYear}>
@@ -223,7 +224,7 @@ export default function CalendarScreen({ navigation }) {
                     </Text>
 
                     <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-                        <Ionicons name="chevron-forward" size={24} color="#4B84FF" />
+                        <Ionicons name="chevron-forward" size={24} color={AppTheme.colors.primaryColor2} />
                     </TouchableOpacity>
                 </View>
 
@@ -263,16 +264,8 @@ export default function CalendarScreen({ navigation }) {
                             <Text style={styles.legendText}>{hasScheduleText}</Text>
                         </View>
                         <View style={styles.legendItem}>
-                            <View style={[styles.legendColor, { backgroundColor: '#FF6B6B' }]} />
-                            <Text style={styles.legendText}>{taskText}</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendColor, { backgroundColor: '#4ECDC4' }]} />
-                            <Text style={styles.legendText}>{meetingText}</Text>
-                        </View>
-                        <View style={styles.legendItem}>
-                            <View style={[styles.legendColor, { backgroundColor: '#FFD700' }]} />
-                            <Text style={styles.legendText}>{callText}</Text>
+                            <View style={[styles.legendColor, { backgroundColor: '#FF9800' }]} />
+                            <Text style={styles.legendText}>{todayText}</Text>
                         </View>
                     </View>
                 </View>
@@ -287,14 +280,14 @@ export default function CalendarScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: AppTheme.colors.backgroundContainer,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: '#BFAAA1',
+        backgroundColor: AppTheme.colors.navBG,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,
@@ -313,7 +306,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#333',
+        color: AppTheme.colors.navText,
     },
     todayButton: {
         position: 'absolute',
