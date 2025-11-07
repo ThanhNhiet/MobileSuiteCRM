@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
         paddingBottom: 20,
     },
     logoutButton: {
-        backgroundColor: '#FF4444',
+        backgroundColor: '#A70605',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
