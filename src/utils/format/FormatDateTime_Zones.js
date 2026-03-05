@@ -82,6 +82,20 @@ const parseIsoIgnoreOffset = (dateString) => {
             );
         }
 
+        // Check for date-only format: "YYYY-MM-DD"
+        const dateOnlyRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+        const dateOnlyMatch = dateString.match(dateOnlyRegex);
+        
+        if (dateOnlyMatch) {
+            const [, year, month, day] = dateOnlyMatch;
+            return new Date(
+                parseInt(year, 10),
+                parseInt(month, 10) - 1,
+                parseInt(day, 10),
+                0, 0, 0
+            );
+        }
+
         // If no regex matches, try fallback parsing
         console.warn('Date formatting error: Unrecognized format', dateString);
         return null;

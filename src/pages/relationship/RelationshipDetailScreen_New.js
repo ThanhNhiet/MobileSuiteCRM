@@ -1,11 +1,11 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -29,10 +29,10 @@ import { useRelationshipDetail } from "../../services/useApi/relationship/UseRel
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
-import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
+import { formatDateBySelectedLanguage, formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
 
 // Component to handle async field value formatting
-const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils }) => {
+const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType }) => {
     const [formattedValue, setFormattedValue] = useState(value);
 
     useEffect(() => {
@@ -42,19 +42,36 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                 return;
             }
 
+            // Handle date type fields based on fieldType
+            if (fieldType === 'date') {
+                const formatted = formatDateBySelectedLanguage(value);
+                setFormattedValue(formatted || value);
+                return;
+            }
+
+            if (fieldType === 'datetime') {
+                const formatted = formatDateTimeBySelectedLanguage(value);
+                setFormattedValue(formatted || value);
+                return;
+            }
+
             switch (fieldKey) {
                 case 'date_entered':
                 case 'date_modified':
-                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    const dtFormatted = formatDateTimeBySelectedLanguage(value);
+                    setFormattedValue(dtFormatted || value);
                     break;
                 case 'date_start':
-                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    const startFormatted = formatDateBySelectedLanguage(value);
+                    setFormattedValue(startFormatted || value);
                     break;
                 case 'date_end':
-                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    const endFormatted = formatDateBySelectedLanguage(value);
+                    setFormattedValue(endFormatted || value);
                     break;
                 case 'date_due':
-                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
+                    const dueFormatted = formatDateBySelectedLanguage(value);
+                    setFormattedValue(dueFormatted || value);
                     break;
                 case 'parent_type':
                 case 'annual_revenue':
@@ -87,6 +104,7 @@ const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 
 export default function RelationshipDetailScreen_New() {
+    const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId, relatedLink } = route.params || {};
@@ -200,6 +218,17 @@ export default function RelationshipDetailScreen_New() {
         };
         fetchLanguage();
     }, []);
+
+    // Refetch data when screen is focused (after update from other screens)
+    useFocusEffect(
+        useCallback(() => {
+            // Only refetch if not initial load and not already loading
+            if (!loading && record) {
+                refreshRecord();
+            }
+        }, [loading, record, refreshRecord])
+    );
+
     // PDF Export hook
     const modules = ['AOS_Quotes', 'AOS_Invoices', 'AOS_Contracts'];
     let isQuotes = false;
@@ -354,19 +383,34 @@ export default function RelationshipDetailScreen_New() {
     };
 
     // Format field value for display
-    const formatFieldValue = (fieldKey, value) => {
+    const formatFieldValue = (fieldKey, value, fieldType = null) => {
         if (!value) return translations.noValue || 'Không có';
+
+        // Handle date type fields based on fieldType
+        if (fieldType === 'date') {
+            const formatted = formatDateBySelectedLanguage(value);
+            return formatted || value;
+        }
+
+        if (fieldType === 'datetime') {
+            const formatted = formatDateTimeBySelectedLanguage(value);
+            return formatted || value;
+        }
 
         switch (fieldKey) {
             case 'date_entered':
             case 'date_modified':
-                return formatDateTimeBySelectedLanguage(value);
+                const dtFormatted = formatDateTimeBySelectedLanguage(value);
+                return dtFormatted || value;
             case 'date_start':
-                return formatDateTimeBySelectedLanguage(value);
+                const startFormatted = formatDateBySelectedLanguage(value);
+                return startFormatted || value;
             case 'date_end':
-                return formatDateTimeBySelectedLanguage(value);
+                const endFormatted = formatDateBySelectedLanguage(value);
+                return endFormatted || value;
             case 'date_due':
-                return formatDateTimeBySelectedLanguage(value);
+                const dueFormatted = formatDateBySelectedLanguage(value);
+                return dueFormatted || value;
             case 'parent_type':
             case 'annual_revenue':
                 // For async formatting, use FormattedFieldValue component
@@ -498,11 +542,12 @@ export default function RelationshipDetailScreen_New() {
                             value={value}
                             translations={translations}
                             systemLanguageUtils={systemLanguageUtils}
+                            fieldType={field.type}
                         />
                     </Text>
                 ) : (
                     <Text style={styles.fieldValue}>
-                        {formatFieldValue(field.key, value)}
+                        {formatFieldValue(field.key, value, field.type)}
                     </Text>
                 )}
             </View>
@@ -688,7 +733,7 @@ export default function RelationshipDetailScreen_New() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f0f0f0',
@@ -705,7 +750,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: AppTheme.colors.primaryColor2,
+        color: colors.primaryColor2,
     },
     loadingContainer: {
         flex: 1,
@@ -716,7 +761,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: AppTheme.colors.loadingText,
+        color: colors.loadingText,
     },
     errorContainer: {
         flex: 1,
@@ -1004,4 +1049,4 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
 
-});
+}));

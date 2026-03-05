@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -18,6 +18,7 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 const SearchModulesScreen = () => {
+    const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
     const { parentType, title, onSelect } = route.params || {};
@@ -399,13 +400,13 @@ const SearchModulesScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer,
+        backgroundColor: colors.backgroundContainer,
     },
     header: {
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         paddingVertical: 16,
         paddingHorizontal: 20,
         flexDirection: 'row',
@@ -418,7 +419,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: AppTheme.colors.navText,
+        color: colors.navText,
         textAlign: 'center',
         flex: 1,
     },
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 16,
-        color: AppTheme.colors.loadingIcon,
+        color: colors.loadingIcon,
     },
     noDataContainer: {
         flex: 1,
@@ -503,20 +504,20 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         padding: 12,
     },
     headerCell: {
         fontWeight: 'bold',
         fontSize: 16,
         paddingHorizontal: 8,
-        color: AppTheme.colors.navText,
+        color: colors.navText,
     },
     headerIcon: {
         width: 30,
         alignItems: 'center',
         justifyContent: 'center',
-        tintColor: AppTheme.colors.navIcon,
+        tintColor: colors.navIcon,
     },
     list: {
         flex: 1,
@@ -555,6 +556,6 @@ const styles = StyleSheet.create({
         color: '#4B84FF',
         fontWeight: '500',
     },
-});
+}));
 
 export default SearchModulesScreen;

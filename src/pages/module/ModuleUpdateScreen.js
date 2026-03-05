@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -26,6 +26,7 @@ import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function ModuleUpdateScreen() {
+  const styles = getStyles();
   const navigation = useNavigation();
   const route = useRoute();
   const { moduleName, recordData, haveParent } = route.params || {};
@@ -464,6 +465,12 @@ export default function ModuleUpdateScreen() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
+      
+      // For date-only fields, save only the date part (YYYY-MM-DD)
+      if (getFieldType(currentDateField) === 'date') {
+        const formattedDate = formatDate(currentDate);
+        updateField(currentDateField, formattedDate);
+      }
       
       // For datetime fields, just save the date with midnight time (00:00:00)
       if (getFieldType(currentDateField) === 'datetime') {
@@ -1503,10 +1510,10 @@ export default function ModuleUpdateScreen() {
 }
 
 // Styles
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AppTheme.colors.backgroundContainer,
+    backgroundColor: colors.backgroundContainer,
   },
   row: {
     marginBottom: 20,
@@ -1620,7 +1627,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   valueBox: {
-    backgroundColor: AppTheme.colors.formInput,
+    backgroundColor: colors.formInput,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1678,7 +1685,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   saveButton: {
-    backgroundColor: AppTheme.colors.btnSecondary,
+    backgroundColor: colors.btnSecondary,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -1803,7 +1810,7 @@ const styles = StyleSheet.create({
   },
   dateBox: {
     flex: 1,
-    backgroundColor: AppTheme.colors.formInput,
+    backgroundColor: colors.formInput,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1823,7 +1830,7 @@ const styles = StyleSheet.create({
   timeInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppTheme.colors.formInput,
+    backgroundColor: colors.formInput,
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -1849,7 +1856,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   timePickerButton: {
-    backgroundColor: AppTheme.colors.btnSecondary,
+    backgroundColor: colors.btnSecondary,
     borderRadius: 6,
     padding: 8,
     alignItems: 'center',
@@ -1867,7 +1874,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   valueFile: {
-    backgroundColor: AppTheme.colors.btnSecondary,
+    backgroundColor: colors.btnSecondary,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1880,4 +1887,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
   },
-});
+}));

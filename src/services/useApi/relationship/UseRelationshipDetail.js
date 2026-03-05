@@ -463,7 +463,6 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         const initializeUserRoles = useCallback(async () => {
             try {
                 const data = await getUserRolesApi();
-                console.log('User roles data:', data);
                 
                 // Check if user has no roles (empty array or null/undefined)
                 if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
