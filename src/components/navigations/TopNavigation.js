@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AppTheme } from '../../configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '../../configs/ThemeConfig';
 import { useAlert } from '../../services/useApi/alert/UseAlert';
 import AlertModal from '../modals/AlertModal';
 import HamburgerModal from '../modals/HamburgerModal';
@@ -13,6 +13,9 @@ const TopNavigation = ({ moduleName, navigation }) => {
   
   // Sử dụng hook để lấy số thông báo chưa đọc
   const { unreadCount } = useAlert();
+
+  // Get dynamic styles
+  const styles = getStyles();
 
   return (
     <>
@@ -51,9 +54,10 @@ const TopNavigation = ({ moduleName, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+// Create dynamic styles
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
   container: {
-    backgroundColor: AppTheme.colors.navBG,
+    backgroundColor: colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -63,7 +67,7 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     fontSize: 24,
-    color: AppTheme.colors.navText,
+    color: colors.navText,
   },
   notificationContainer: {
     position: 'relative',
@@ -87,6 +91,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-});
+}));
 
 export default TopNavigation;

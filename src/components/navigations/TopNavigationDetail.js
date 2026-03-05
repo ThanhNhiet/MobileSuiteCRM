@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { AppTheme } from '../../configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '../../configs/ThemeConfig';
 
 /**
  * Thanh điều hướng ở đầu màn hình.
@@ -17,6 +17,8 @@ export default function TopNavigationDetail({
   rightIcon = { name: Platform.OS === 'ios' ? 'ellipsis-horizontal' : 'ellipsis-vertical' },
   name,
 }) {
+  const styles = getStyles();
+
   // Chọn icon back theo platform
   const backIconName = Platform.select({
     ios: 'chevron-back',
@@ -45,9 +47,9 @@ export default function TopNavigationDetail({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
  container: {
-    backgroundColor: AppTheme.colors.navBG,
+    backgroundColor: colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -55,11 +57,11 @@ const styles = StyleSheet.create({
     height: 60,
   },
   title: {
-    color: AppTheme.colors.navText,
+    color: colors.navText,
     fontWeight: 'bold',
     fontSize: 24,
   },
   placeholder: {
     width: 26, // Same width as back icon to balance
   },
-});
+}));

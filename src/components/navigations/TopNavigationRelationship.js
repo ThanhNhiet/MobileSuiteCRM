@@ -1,5 +1,5 @@
 // src/components/navigations/TopNavigation.js
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -10,7 +10,7 @@ const backIconName = Platform.select({
   });
 
 const TopNavigationRelationship = ({ moduleName, navigation }) => {
- 
+  const styles = getStyles();
 
   return (
     <>
@@ -29,9 +29,9 @@ const TopNavigationRelationship = ({ moduleName, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
   container: {
-    backgroundColor: AppTheme.colors.navBG,
+    backgroundColor: colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -43,11 +43,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     flex: 1,
     textAlign: 'center',
-    color: AppTheme.colors.navText,
+    color: colors.navText,
   },
   placeholder: {
     width: 26, // Same width as back icon to balance
   },
-});
+}));
 
 export default TopNavigationRelationship;
