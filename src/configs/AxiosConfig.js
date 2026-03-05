@@ -4,6 +4,11 @@ import axios from 'axios';
 // Axios instance configuration
 const axiosInstance = axios.create({
   timeout: 30000, // 30 seconds
+  headers: {
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  },
 });
 
 // Flag to prevent multiple simultaneous refresh attempts
