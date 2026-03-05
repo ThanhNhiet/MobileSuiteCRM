@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/Cale
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function CalendarScreen({ navigation }) {
+    const styles = getStyles();
     // Language translations
     const [monthNames, setMonthNames] = useState([]);
     const [dayNames, setDayNames] = useState([]);
@@ -277,17 +278,17 @@ export default function CalendarScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer,
+        backgroundColor: colors.backgroundContainer,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: AppTheme.colors.navText,
+        color: colors.navText,
     },
     todayButton: {
         position: 'absolute',
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: AppTheme.colors.loadingText,
+        color: colors.loadingText,
         textAlign: 'center',
     },
     errorContainer: {
@@ -577,4 +578,4 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
     },
-});
+}));
