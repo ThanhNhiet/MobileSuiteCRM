@@ -4,6 +4,7 @@ import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
+import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
 import {
     createModuleRelationshipApi,
     deleteModuleRelationshipApi,
@@ -576,21 +577,30 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
                 }
-                // if (updateData.date_start) {
-                //     const timezone_store = await AsyncStorage.getItem('timezone') || '';
-                //     const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
-                //     if (timezone_utc) {
-                //         updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
-                //     }
-                // }
-                // if (updateData.date_end) {
-                //     const timezone_store = await AsyncStorage.getItem("timezone") || "";
-                //     const timezone_utc = parseTimezoneString(timezone_store).utc;
+                if (updateData.duration_hours !== undefined) {
+                    const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    
+                    updateData.duration_hours = hours;
+                    updateData.duration_minutes = minutes;
+                }
+                // Convert datetime fields to UTC before submitting
+                if (updateData.date_start) {
+                    const timezone_store = await AsyncStorage.getItem('timezone') || '';
+                    const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
+                    if (timezone_utc) {
+                        updateData.date_start = convertToUTC(updateData.date_start, timezone_utc);
+                    }
+                }
+                if (updateData.date_end) {
+                    const timezone_store = await AsyncStorage.getItem("timezone") || "";
+                    const timezone_utc = parseTimezoneString(timezone_store).utc;
 
-                //     if (timezone_utc) {
-                //         updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
-                //     }
-                // }
+                    if (timezone_utc) {
+                        updateData.date_end = convertToUTC(updateData.date_end, timezone_utc);
+                    }
+                }
                 // Add filename from uploaded file (ưu tiên filename từ upload)
                 if (uploadedFilename) {
                     updateData.filename = uploadedFilename;

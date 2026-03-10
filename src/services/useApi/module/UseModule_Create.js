@@ -550,6 +550,14 @@ export const useModule_Create = (moduleName) => {
                 recordData.duration_hours = hours;
                 recordData.duration_minutes = minutes;
             }
+            if (updateData.duration_hours !== undefined) {
+                const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+
+                updateData.duration_hours = hours;
+                updateData.duration_minutes = minutes;
+            }
             if (recordData.date_start) {
                 const timezone_store = await AsyncStorage.getItem('timezone') || '';
                 const timezone_utc = parseTimezoneString(timezone_store).utc; // e.g., "+07:00"
