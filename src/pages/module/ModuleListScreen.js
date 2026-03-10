@@ -87,6 +87,12 @@ export default function ModuleListScreen() {
     useEffect(() => {
         const initializeTranslations = async () => {
             try {
+                // Clear cache to force reload from file system
+                systemLanguageUtils.clearCache();
+                
+                // Force reload language data
+                await systemLanguageUtils.loadLanguageData(true);
+                
                 // Get translations
                 const translated = await systemLanguageUtils.translateKeys([
                     `LBL_${moduleName.toUpperCase()}`,
@@ -313,7 +319,6 @@ export default function ModuleListScreen() {
         <SafeAreaView style={styles.container}>
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
-                
                 <TopNavigation moduleName={translations.mdName} navigation={navigation}/>
 
                 <View style={styles.content}>
