@@ -79,13 +79,13 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                     setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
                 case 'date_start':
-                    setFormattedValue(formatDateBySelectedLanguage(value));
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
                 case 'date_end':
-                    setFormattedValue(formatDateBySelectedLanguage(value));
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
                 case 'date_due':
-                    setFormattedValue(formatDateBySelectedLanguage(value));
+                    setFormattedValue(formatDateTimeBySelectedLanguage(value));
                     break;
                 case 'parent_type':
                 case 'annual_revenue':
@@ -441,11 +441,11 @@ export default function ModuleDetailScreen() {
             case 'date_modified':
                 return formatDateTimeBySelectedLanguage(value);
             case 'date_start':
-                return formatDateBySelectedLanguage(value);
+                return formatDateTimeBySelectedLanguage(value);
             case 'date_end':
-                return formatDateBySelectedLanguage(value);
+                return formatDateTimeBySelectedLanguage(value);
             case 'date_due':
-                return formatDateBySelectedLanguage(value);
+                return formatDateTimeBySelectedLanguage(value);
             case 'parent_type':
             case 'annual_revenue':
                 // For async formatting, use FormattedFieldValue component

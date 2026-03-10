@@ -530,8 +530,8 @@ export default function ModuleUpdateScreen() {
       }
 
       const rawDate = new Date(event.nativeEvent.timestamp);
-      const hours = rawDate.getUTCHours();
-      const minutes = rawDate.getUTCMinutes();
+      const hours = rawDate.getHours();  // Use local hours instead of UTC
+      const minutes = rawDate.getMinutes();  // Use local minutes instead of UTC
 
       const dateStr = formatDate(baseDate); // YYYY-MM-DD
       const hoursStr = String(hours).padStart(2, '0');
