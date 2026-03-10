@@ -56,7 +56,7 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
                 }
 
                 const data = await getNameUserByIdApi(userId);
-                if (!data ) {
+                if (!data) {
                     console.warn('No user data returned from API');
                     return;
                 }
@@ -72,9 +72,9 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
         };
 
         // Chỉ fetch khi có moduleName và createFields đã được load
-       
-            fetchUserName();
-        
+
+        fetchUserName();
+
     }, [moduleName]); // Thêm createFields vào dependencies
 
     // Get default fields for different modules
@@ -502,16 +502,16 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
             setLoading(true);
             setError(null);
             const token = await AsyncStorage.getItem('token');
-                if (!token) {
-                    console.warn('No token found in AsyncStorage');
-                    return;
-                }
+            if (!token) {
+                console.warn('No token found in AsyncStorage');
+                return;
+            }
 
-                const userId = getUserIdFromToken(token);
-                if (!userId) {
-                    console.warn('Could not extract userId from token');
-                    return;
-                }
+            const userId = getUserIdFromToken(token);
+            if (!userId) {
+                console.warn('Could not extract userId from token');
+                return;
+            }
 
             // Validate form
             const isValid = await validateForm();
@@ -603,9 +603,14 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
 
                 recordData.duration_hours = hours;
                 recordData.duration_minutes = minutes;
-                
-                // Remove duration field as server should only receive duration_hours/duration_minutes
-                delete recordData.duration;
+            }
+            if (updateData.duration_hours !== undefined) {
+                const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+
+                updateData.duration_hours = hours;
+                updateData.duration_minutes = minutes;
             }
             if (recordData.date_start) {
                 const timezone_store = await AsyncStorage.getItem('timezone') || '';
@@ -622,19 +627,19 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
                     recordData.date_end = convertToUTC(recordData.date_end, timezone_utc);
                 }
             }
-            const relate = createFields.filter(f => {return f.type === 'relate'});
+            const relate = createFields.filter(f => { return f.type === 'relate' });
             relate.map(field => {
                 const relatedModuleName = getRelatedModuleName(field.key);
-               if(relatedModuleName === "Users" && !formData[field.key]){
-                 if (field.key === "assigned_user_name") {
-                    recordData.assigned_user_name = nameUserById;
-                 } else if (field.key === "assigned_user_id") {
-                    recordData.assigned_user_id = userId;
-                 }
-                } else if(recordForRela.moduleName === relatedModuleName){
+                if (relatedModuleName === "Users" && !formData[field.key]) {
+                    if (field.key === "assigned_user_name") {
+                        recordData.assigned_user_name = nameUserById;
+                    } else if (field.key === "assigned_user_id") {
+                        recordData.assigned_user_id = userId;
+                    }
+                } else if (recordForRela.moduleName === relatedModuleName) {
                     recordData.field.key = recordForRela.name;
                 }
-                
+
             });
 
             const response = await createModuleRecordApi(moduleName, recordData);
@@ -938,7 +943,7 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
 
     useEffect(() => {
         const fetchRecordForRela = async () => {
-            try{
+            try {
                 if (!relaFor) return;
                 const attributes = await getRecordByIdApi(relaFor);
                 if (!attributes) {
@@ -946,18 +951,18 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
                     return;
                 }
                 const recordData =
-                    {
-                       moduleName : relaFor.moduleName,
-                       id : relaFor.recordId,
-                       name : attributes.name || ''    
-                    };
+                {
+                    moduleName: relaFor.moduleName,
+                    id: relaFor.recordId,
+                    name: attributes.name || ''
+                };
                 setRecordForRela(recordData || null);
-            }catch(err){
+            } catch (err) {
                 console.warn('Fetch record for relationship error:', err);
             }
         }
         fetchRecordForRela();
-    },[relaFor]);
+    }, [relaFor]);
 
     return {
         formData,

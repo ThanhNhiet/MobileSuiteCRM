@@ -570,10 +570,11 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
             // Update basic record data if there are changes
             if (Object.keys(updateData).length > 0) {
                 // Special handling for duration - convert to duration_hours and duration_minutes only
+                // Note: duration value is in MINUTES, not seconds
                 if (updateData.duration) {
-                    const totalSeconds = parseInt(updateData.duration, 10) || 0;
-                    const hours = Math.floor(totalSeconds / 3600);
-                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const totalMinutes = parseInt(updateData.duration, 10) || 0;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
 
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
@@ -583,7 +584,15 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
                 }
                 
                 // If duration_hours or duration_minutes changed, calculate new date_end
+                // Note: duration_hours may contain TOTAL MINUTES if user just modified it
                 if (updateData.duration_hours !== undefined || updateData.duration_minutes !== undefined) {
+                    // First, if duration_hours was just modified, it contains total minutes - need to convert
+                    if (updateData.duration_hours !== undefined && updateData.duration_minutes === undefined) {
+                        const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
+                        updateData.duration_hours = Math.floor(totalMinutes / 60);
+                        updateData.duration_minutes = totalMinutes % 60;
+                    }
+                    
                     const currentDateStart = updateData.date_start || formData.date_start || originalData.date_start;
                     const currentDurationHours = updateData.duration_hours !== undefined ? 
                         parseInt(updateData.duration_hours) : 

@@ -1,11 +1,11 @@
 import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -62,15 +62,15 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                     setFormattedValue(dtFormatted || value);
                     break;
                 case 'date_start':
-                    const startFormatted = formatDateBySelectedLanguage(value);
+                    const startFormatted = formatDateTimeBySelectedLanguage(value);
                     setFormattedValue(startFormatted || value);
                     break;
                 case 'date_end':
-                    const endFormatted = formatDateBySelectedLanguage(value);
+                    const endFormatted = formatDateTimeBySelectedLanguage(value);
                     setFormattedValue(endFormatted || value);
                     break;
                 case 'date_due':
-                    const dueFormatted = formatDateBySelectedLanguage(value);
+                    const dueFormatted = formatDateTimeBySelectedLanguage(value);
                     setFormattedValue(dueFormatted || value);
                     break;
                 case 'parent_type':
@@ -403,13 +403,13 @@ export default function RelationshipDetailScreen_New() {
                 const dtFormatted = formatDateTimeBySelectedLanguage(value);
                 return dtFormatted || value;
             case 'date_start':
-                const startFormatted = formatDateBySelectedLanguage(value);
+                const startFormatted = formatDateTimeBySelectedLanguage(value);
                 return startFormatted || value;
             case 'date_end':
-                const endFormatted = formatDateBySelectedLanguage(value);
+                const endFormatted = formatDateTimeBySelectedLanguage(value);
                 return endFormatted || value;
             case 'date_due':
-                const dueFormatted = formatDateBySelectedLanguage(value);
+                const dueFormatted = formatDateTimeBySelectedLanguage(value);
                 return dueFormatted || value;
             case 'parent_type':
             case 'annual_revenue':
