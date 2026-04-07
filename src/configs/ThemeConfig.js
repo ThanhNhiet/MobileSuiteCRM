@@ -2,27 +2,43 @@ import { writeCacheTheme } from '../utils/cacheViewManagement/Theme/WriteCacheTh
 
 // Default fallback colors
 const defaultColors = {
-  primaryColor1: '#E85A4F',
-  primaryColor2: '#007AFF',
-  primaryColor1SupperLight: '#f1edecff',
-  formInput: '#e4a0a0ff',
-  modalEditBG: '#e3e7e8ff',
-  modalEditTitle: '#000000',
-  hamburgerContainer: '#F5F5F5',
-  hamburgerCardContainer: '#BFAAA1',
-  hamburgerText: '#000000',
-  backgroundContainer: '#f0f0f0',
-  cardItem: '#FFFFFF',
-  navBG: '#BFAAA1',
-  navText: '#000000',
-  navIcon: '#000000',
-  importantText: '#E85A4F',
-  loadingIcon: '#E85A4F',
-  loadingText: '#666',
-  btnPrimary: '#E85A4F',
-  btnSecondary: '#007AFF',
-  normalText: '#000000',
-  normalIcon: '#000000',
+  // Màu xanh dương chủ đạo (như nút Tổng quan và logo)
+  primaryColor1: '#0088FF', 
+  // Màu xanh đậm hơn cho các điểm nhấn hoặc sidebar
+  primaryColor2: '#12223B', 
+  // Màu nền rất nhạt cho các vùng highlight
+  primaryColor1SupperLight: '#E6F4FF', 
+  
+  // Input và Modal (xám nhạt trung tính, không còn tông đỏ)
+  formInput: '#FFFFFF',
+  modalEditBG: '#F4F6F8',
+  modalEditTitle: '#212B36',
+
+  // Sidebar (Nền tối như trong ảnh)
+  hamburgerContainer: '#12223B', 
+  hamburgerCardContainer: '#1B2A4E',
+  hamburgerText: '#FFFFFF',
+
+  // Layout chung
+  backgroundContainer: '#F0F2F5', // Màu nền xám nhạt của trang
+  cardItem: '#FFFFFF', // Màu trắng cho các block nội dung
+
+  // Navigation / Sidebar Menu
+  navBG: '#12223B', 
+  navText: '#A6B0CF', // Màu chữ khi không active
+  navIcon: '#A6B0CF',
+
+  // Trạng thái và Văn bản
+  importantText: '#0088FF', 
+  loadingIcon: '#0088FF',
+  loadingText: '#637381',
+  
+  // Buttons
+  btnPrimary: '#0088FF', // Nút xanh dương
+  btnSecondary: '#F4F6F8', // Nút phụ màu xám nhạt
+  
+  normalText: '#212B36', // Màu chữ đen xám đậm
+  normalIcon: '#637381', // Màu icon xám
 };
 
 // Theme Manager Class
