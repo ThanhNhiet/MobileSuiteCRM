@@ -1,5 +1,5 @@
 // src/components/navigations/BottomNavigation.js
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -18,6 +18,9 @@ const BottomNavigation = ({ navigation }) => {
     loadTranslations();
   }, []);
 
+  // Get dynamic styles with current theme colors
+  const styles = getStyles();
+
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('HomeScreen')}>
@@ -32,9 +35,10 @@ const BottomNavigation = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+// Create dynamic styles that update with theme
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
   container: {
-    backgroundColor: AppTheme.colors.navBG,
+    backgroundColor: colors.navBG,
     flexDirection: 'row',
     justifyContent: 'space-around',
     padding: 10,
@@ -42,6 +46,6 @@ const styles = StyleSheet.create({
   item: {
     alignItems: 'center',
   },
-});
+}));
 
 export default BottomNavigation;

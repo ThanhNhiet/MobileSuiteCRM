@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -30,7 +30,7 @@ import { useModule_PDF } from "../../services/useApi/module/UseModule_PDF";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
-import { formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
+import { formatDateBySelectedLanguage, formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
 
 // Component to handle async field value formatting
 const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType }) => {
@@ -57,6 +57,19 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                     console.warn('Error formatting currency field:', error);
                     setFormattedValue(value.toString());
                 }
+                return;
+            }
+
+            // Handle date type fields based on fieldType
+            if (fieldType === 'date') {
+                const formatted = formatDateBySelectedLanguage(value);
+                setFormattedValue(formatted || value);
+                return;
+            }
+
+            if (fieldType === 'datetime') {
+                const formatted = formatDateTimeBySelectedLanguage(value);
+                setFormattedValue(formatted || value);
                 return;
             }
 
@@ -105,6 +118,7 @@ const { width } = Dimensions.get('window');
 const ITEM_W = (width - 8 * 2 - 4 * 2 * 4) / 4;
 
 export default function ModuleDetailScreen() {
+    const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
     const { moduleName, recordId } = route.params || {};
@@ -411,6 +425,15 @@ export default function ModuleDetailScreen() {
         // Handle currency type fields
         if (fieldType === 'currency') {
             return formattedCurrencyValues[fieldKey] || value.toString();
+        }
+
+        // Handle date type fields based on fieldType
+        if (fieldType === 'date') {
+            return formatDateBySelectedLanguage(value);
+        }
+
+        if (fieldType === 'datetime') {
+            return formatDateTimeBySelectedLanguage(value);
         }
 
         switch (fieldKey) {
@@ -772,10 +795,10 @@ export default function ModuleDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer,
+        backgroundColor: colors.backgroundContainer,
     },
     content: {
         flex: 1,
@@ -789,7 +812,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: AppTheme.colors.primaryColor2
+        color: colors.primaryColor2
     },
     loadingContainer: {
         flex: 1,
@@ -800,7 +823,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 15,
         fontSize: 16,
-        color: AppTheme.colors.loadingText,
+        color: colors.loadingText,
     },
     errorContainer: {
         flex: 1,
@@ -910,7 +933,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         borderTopWidth: 1,
         borderTopColor: '#eee',
         gap: 10,
@@ -920,7 +943,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         paddingVertical: 12,
         borderRadius: 8,
         gap: 8,
@@ -995,7 +1018,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 5,
     },
     card: {
-        backgroundColor: AppTheme.colors.primaryColor2,
+        backgroundColor: colors.primaryColor2,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1086,4 +1109,4 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
 
-});
+}));

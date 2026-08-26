@@ -9,7 +9,6 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { initializeLocaleCache, updateLocaleCache } from '../../../utils/format/FormatDateTime_Zones';
 import {
-    getActiveCurrenciesNameApi,
     getDetailCurrenciesApi,
     getLanguageApi,
     getSystemLanguageApi
@@ -177,7 +176,7 @@ export const useUserSetting = () => {
             setLoading(true);
             
             // Get currency names first
-            const currencyNamesResponse = await getActiveCurrenciesNameApi();
+            // const currencyNamesResponse = await getActiveCurrenciesNameApi();
             
             // Get detailed currency data
             const detailCurrenciesResponse = await getDetailCurrenciesApi();
@@ -200,9 +199,8 @@ export const useUserSetting = () => {
             currencyList.push(usdOption);
             
             if (detailCurrenciesResponse && detailCurrenciesResponse.data) {
-                // Add other currencies from API
-                currencyList = [...currencyList, ...detailCurrenciesResponse.data];
-                
+                // Add other currencies from API - don't merge, keep both
+                currencyList.push(...detailCurrenciesResponse.data);
                 setCurrencies(currencyList);
                 
                 // Save to cache (including USD option)

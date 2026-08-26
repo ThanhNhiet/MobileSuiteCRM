@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { formatDateTimeBySelectedLanguage } from '@/src/utils/format/FormatDateTime_Zones';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CalendarLanguageUtils from '../../utils/cacheViewManagement/Calendar/CalendarLanguageUtils';
 
 export default function TimetableScreen({ navigation, route }) {
+    const styles = getStyles();
     const { selectedDate, events, dateString } = route.params;
 
     // Language translations
@@ -325,17 +326,17 @@ export default function TimetableScreen({ navigation, route }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer,
+        backgroundColor: colors.backgroundContainer,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 15,
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
         elevation: 2,
@@ -357,11 +358,11 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: AppTheme.colors.navText,
+        color: colors.navText,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: AppTheme.colors.navSubtitle,
+        color: colors.navSubtitle,
         marginTop: 2,
     },
     scrollContainer: {
@@ -556,4 +557,4 @@ const styles = StyleSheet.create({
     bottomSpacing: {
         height: 30,
     },
-});
+}));

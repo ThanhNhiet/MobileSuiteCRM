@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, Platform, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppRouter from "./src/commons/AppRouter";
+import { themeManager } from './src/configs/ThemeConfig';
 import { initializeLocaleCache } from './src/utils/format/FormatDateTime_Zones';
 import { setupNotificationListeners } from './src/utils/PushNotifications';
 
@@ -72,6 +73,14 @@ export default function App() {
         await initializeLocaleCache();
       } catch (error) {
         console.warn('No locale cache found');
+      }
+      
+      // Load theme colors from cache
+      try {
+        const colors = await themeManager.loadThemeColors();
+        console.log('Theme loaded successfully:', Object.keys(colors).length, 'colors');
+      } catch (error) {
+        console.warn('Failed to load theme, using defaults:', error);
       }
     };
     initializeApp();

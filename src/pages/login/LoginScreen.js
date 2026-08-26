@@ -18,13 +18,14 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import { AppTheme } from '../../configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '../../configs/ThemeConfig';
 import { getAvailableLanguagesApi } from '../../services/api/login/Login_outApi';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
 import { convertLocaleCode } from '../../utils/convert/ConvertLanguageCode';
 
 export default function LoginScreen() {
+  const styles = getStyles();
   const [showPassword, setShowPassword] = useState(false);
   const [languageList, setLanguageList] = useState([]);
   const [websiteInput, setWebsiteInput] = useState('');
@@ -307,8 +308,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: AppTheme.colors.backgroundContainer },
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundContainer },
   scrollContent: { flexGrow: 1 },
   content: { flex: 1, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', minHeight: '100%' },
   logoContainer: { marginBottom: 40, alignItems: 'center' },
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   // Loading styles
   loadingContainer: {
     flex: 1,
-    backgroundColor: AppTheme.colors.backgroundContainer,
+    backgroundColor: colors.backgroundContainer,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 55 },
   eyeIcon: { position: 'absolute', right: 20, top: '50%', transform: [{ translateY: -12 }], padding: 5 },
   loginButton: {
-    backgroundColor: AppTheme.colors.btnPrimary,
+    backgroundColor: colors.btnPrimary,
     borderRadius: 25,
     paddingVertical: 15,
     paddingHorizontal: 50,
@@ -454,9 +455,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingLabel: {
-    color: AppTheme.colors.primaryColor1,
+    color: colors.primaryColor1,
     fontSize: 15,
     fontWeight: '500',
     marginLeft: 6,
   },
-});
+}));

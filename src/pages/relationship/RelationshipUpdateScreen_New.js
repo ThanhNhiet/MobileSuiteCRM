@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -26,6 +26,7 @@ import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function RelationshipUpdateScreen_New() {
+  const styles = getStyles();
   const navigation = useNavigation();
   const route = useRoute();
   const { moduleName, recordData, haveParent, relatedLink } = route.params || {};
@@ -455,6 +456,12 @@ export default function RelationshipUpdateScreen_New() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
+
+      // For date-only fields, save only the date part (YYYY-MM-DD)
+      if (getFieldType(currentDateField) === 'date') {
+        const formattedDate = formatDate(currentDate);
+        updateField(currentDateField, formattedDate);
+      }
 
       // For datetime fields, just save the date with midnight time (00:00:00)
       if (getFieldType(currentDateField) === 'datetime') {
@@ -1452,17 +1459,17 @@ export default function RelationshipUpdateScreen_New() {
 }
 
 // Styles
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AppTheme.colors.backgroundContainer,
+    backgroundColor: colors.backgroundContainer,
   },
   row: {
     marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    color: AppTheme.colors.normalText,
+    color: colors.normalText,
     marginBottom: 6,
     fontWeight: 'bold',
     paddingHorizontal: 20,
@@ -1569,7 +1576,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   valueBox: {
-    backgroundColor: AppTheme.colors.formInput,
+    backgroundColor: colors.formInput,
     borderRadius: 6,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -1829,4 +1836,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
   },
-});
+}));

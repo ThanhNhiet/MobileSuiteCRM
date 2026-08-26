@@ -1,5 +1,5 @@
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useEffect, useState, useCallback } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
 import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
@@ -26,6 +26,7 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
  * Receives relationship data via route params
  */
 export default function RelationshipListScreen_New() {
+    const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
     
@@ -138,6 +139,16 @@ export default function RelationshipListScreen_New() {
         
         initializeTranslations();
     }, [moduleName, systemLanguageUtils, displayName]);
+
+    // Refetch data when screen is focused (after create/update)
+    useFocusEffect(
+        useCallback(() => {
+            // Only refetch if not initial load and not already loading
+            if (!loading && translationsLoaded) {
+                handleRefresh();
+            }
+        }, [loading, translationsLoaded, handleRefresh])
+    );
 
     // Update filter dropdown defaults when options are loaded
     useEffect(() => {
@@ -446,6 +457,7 @@ export default function RelationshipListScreen_New() {
                             data={records || []}
                             renderItem={renderItem}
                             keyExtractor={(item) => item.id}
+                            extraData={records}
                             style={styles.list}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             showsVerticalScrollIndicator={false}
@@ -519,10 +531,10 @@ export default function RelationshipListScreen_New() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer
+        backgroundColor: colors.backgroundContainer
     },
     content: {
         flex: 1,
@@ -571,7 +583,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     searchButton: {
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         padding: 6,
         paddingHorizontal: 16,
         borderRadius: 4,
@@ -579,7 +591,7 @@ const styles = StyleSheet.create({
     addNewBtn: {
         width: 60,
         height: 60,
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         borderRadius: 35,
         justifyContent: 'center',
         alignItems: 'center',
@@ -591,14 +603,14 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: AppTheme.colors.navBG,
+        backgroundColor: colors.navBG,
         padding: 8,
         borderRadius: 4,
     },
     headerCell: {
         flex: 1,
         fontWeight: 'bold',
-        color: AppTheme.colors.navText,
+        color: colors.navText,
     },
     tableRow: {
         flexDirection: 'row',
@@ -609,7 +621,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     tableRowEven: {
-        backgroundColor: AppTheme.colors.primaryColor1SupperLight,
+        backgroundColor: colors.primaryColor1SupperLight,
     },
     cell: { 
         flex: 1,
@@ -635,8 +647,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     activePage: {
-        backgroundColor: AppTheme.colors.btnSecondary,
-        borderColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
+        borderColor: colors.btnSecondary,
     },
     disabledBtn: {
         borderColor: '#eee',
@@ -659,7 +671,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     retryButton: {
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         padding: 10,
         borderRadius: 4,
     },
@@ -699,7 +711,7 @@ const styles = StyleSheet.create({
         borderBottomColor: '#eee',
     },
     selectedItem: {
-        backgroundColor: AppTheme.colors.primaryColor2,
+        backgroundColor: colors.primaryColor2,
     },
     dropdownText: {
         fontSize: 16,
@@ -709,4 +721,4 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
-});
+}));

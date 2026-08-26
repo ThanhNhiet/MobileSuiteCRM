@@ -463,10 +463,26 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         const initializeUserRoles = useCallback(async () => {
             try {
                 const data = await getUserRolesApi();
-                if (!data || !data.roles) {
-                    console.warn('No roles found, using default options');
-                    setUserRoles([{ label: 'No Role', value: 'no_role' }]);
-                } 
+                
+                // Check if user has no roles (empty array or null/undefined)
+                if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
+                    // Create full permission object when user has no roles
+                    const fullPermissions = nameRole.map(permission => ({
+                        name: permission,
+                        action_name: permission,
+                        category: moduleName,
+                        access_level_name: 'all',
+                        access_override: 100 // Admin level access
+                    }));
+                    
+                    const roleOptions = {
+                        roleName: 'full_access',
+                        roles: fullPermissions
+                    };
+                    setUserRoles(roleOptions);
+                    return;
+                }
+                
                 const roles = data.roles[0] || [];
                 const roleOptions = {
                     roleName: roles.role_name,
@@ -477,6 +493,19 @@ export const useRelationshipDetail = (moduleName, recordId) => {
                 setUserRoles(roleOptions);
             } catch (error) {
                 console.error('Error initializing user roles:', error);
+                // On error, provide full access as fallback to avoid blocking users
+                const fullPermissions = nameRole.map(permission => ({
+                    name: permission,
+                    action_name: permission, 
+                    category: moduleName,
+                    access_level_name: 'all',
+                    access_override: 100
+                }));
+                
+                setUserRoles({
+                    roleName: 'fallback_full_access',
+                    roles: fullPermissions
+                });
             }
         }, [moduleName]);
         const initializationSecurityGroupsRelationsApi = async (name) => {

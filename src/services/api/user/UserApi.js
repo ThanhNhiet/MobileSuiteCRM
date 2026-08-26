@@ -173,10 +173,41 @@ export const getActiveCurrenciesNameApi = async () => {
 //GET /Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol,iso4217,conversion_rate
 export const getDetailCurrenciesApi = async () => {
     try {
-        const response = await axiosInstance.get(`/Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol,iso4217,conversion_rate`);
+        // console.log("Request URL with pagination:", `/Api/V8/module/Currencies?filter[deleted][eq]=0&filter[status][eq]=Active&fields[Currencies]=name,symbol,iso4217,conversion_rate&page[size]=50&page[number]=1`);
+        
+        const response = await axiosInstance.get(`/Api/V8/module/Currencies`, {
+            params: {
+                'filter[deleted][eq]': '0',
+                'filter[status][eq]': 'Active', 
+                'fields[Currencies]': 'name,symbol,iso4217,conversion_rate',
+                'page[size]': 50,
+                'page[number]': 1
+            },
+            headers: {
+                'Accept': 'application/vnd.api+json',
+                'Content-Type': 'application/vnd.api+json'
+            }
+        });
+        
+        if (response.data?.data) {
+            response.data.data.forEach((currency, index) => {
+                console.log(`Currency ${index + 1}:`, {
+                    id: currency.id,
+                    name: currency.attributes?.name,
+                    iso4217: currency.attributes?.iso4217,
+                    symbol: currency.attributes?.symbol,
+                    conversion_rate: currency.attributes?.conversion_rate
+                });
+            });
+        }
+        
         return response.data;
     } catch (error) {
-        console.warn("Get Active Currencies API error:", error);
+        console.error("❌ Get Active Currencies API error:", error);
+        if (error.response) {
+            console.error("❌ Error response:", error.response.data);
+            console.error("❌ Error status:", error.response.status);
+        }
         throw error;
     }
 };

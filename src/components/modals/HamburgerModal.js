@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import ModulesConfig from '../../configs/ModulesConfig';
 import RolesConfig from '../../configs/RolesConfig';
-import { AppTheme } from '../../configs/ThemeConfig';
+import { createThemedStyles } from '../../configs/ThemeConfig';
 import { useLogin_out } from '../../services/useApi/login/UseLogin_out';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 
 const { width } = Dimensions.get('window');
 
 const HamburgerModal = ({ visible, onClose, navigation }) => {
+    const styles = getStyles();
     const slideAnim = useRef(new Animated.Value(-width * 0.6)).current; // Start off-screen left
     const { handleLogout } = useLogin_out();
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
@@ -299,7 +300,7 @@ const HamburgerModal = ({ visible, onClose, navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     },
     sidebar: {
         width: width * 0.6, // 70% of screen width
-        backgroundColor: AppTheme.colors.hamburgerContainer,
+        backgroundColor: colors.hamburgerContainer,
         paddingVertical: 20,
         paddingHorizontal: 0,
         justifyContent: 'space-between',
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     menuItem: {
-        backgroundColor: AppTheme.colors.hamburgerCardContainer,
+        backgroundColor: colors.hamburgerCardContainer,
         paddingVertical: 15,
         paddingHorizontal: 20,
         marginBottom: 15,
@@ -430,12 +431,12 @@ const styles = StyleSheet.create({
         shadowRadius: 2.22,
     },
     menuText: {
-        color: AppTheme.colors.hamburgerText,
+        color: colors.hamburgerText,
         fontSize: 16,
         fontWeight: '500',
     },
     logoutContainer: {
-        backgroundColor: AppTheme.colors.hamburgerContainer,
+        backgroundColor: colors.hamburgerContainer,
         paddingTop: 20,
         paddingHorizontal: 20,
         paddingBottom: 20,
@@ -463,6 +464,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginRight: 8,
     },
-});
+}));
 
 export default HamburgerModal;

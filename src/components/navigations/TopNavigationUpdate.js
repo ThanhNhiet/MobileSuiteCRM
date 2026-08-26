@@ -1,5 +1,5 @@
 // src/components/navigations/TopNavigation.js
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,6 +16,8 @@ export default function TopNavigationUpdate({
   rightIcon = { name: Platform.OS === 'ios' ? 'ellipsis-horizontal' : 'save-outline' },
   name
 }) {
+  const styles = getStyles();
+
   // Chọn icon back theo platform
   const backIconName = Platform.select({
     ios: 'chevron-back',
@@ -49,9 +51,9 @@ const handleSave = () => {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
 container: {
-    backgroundColor: AppTheme.colors.navBG,
+    backgroundColor: colors.navBG,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -63,9 +65,9 @@ container: {
     fontWeight: 'bold',
     justifyContent: 'center',
     fontSize: 24,
-    color: AppTheme.colors.navText,
+    color: colors.navText,
   },
   placeholder: {
     width: 26, // Same width as back icon to balance
   },
-});
+}));

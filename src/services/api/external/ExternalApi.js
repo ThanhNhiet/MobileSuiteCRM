@@ -258,3 +258,14 @@ export const sendPushNotificationApi = async (expo_token, moduleName, recordData
     throw error;
   }
 };
+
+// GET /custom/public/api/get_themeColorMobile.php
+export const getThemeColorApi = async () => {
+  try {
+    const response = await axiosInstance.get(`/custom/public/api/get_themeColorMobile.php`);
+    return response.data;
+  } catch (error) {
+    console.warn("Get Theme Color API error:", error);
+    throw error;
+  }
+};

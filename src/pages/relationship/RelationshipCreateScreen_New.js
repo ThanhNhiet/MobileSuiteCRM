@@ -1,4 +1,4 @@
-import { AppTheme } from '@/src/configs/ThemeConfig';
+import { AppTheme, createThemedStyles } from '@/src/configs/ThemeConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,6 +26,7 @@ import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 
 export default function RelationshipCreateScreen_New() {
+    const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
 
@@ -352,6 +353,12 @@ export default function RelationshipCreateScreen_New() {
         }
 
         if (currentDateField) {
+            // For date-only fields, save only the date part (YYYY-MM-DD)
+            if (getFieldType(currentDateField) === 'date') {
+                const formattedDate = formatDate(currentDate);
+                updateField(currentDateField, formattedDate);
+            }
+
             // For datetime fields, just save the date with midnight time (00:00:00)
             if (getFieldType(currentDateField) === 'datetime') {
                 // Create a new date with time set to midnight for consistent format
@@ -905,6 +912,24 @@ export default function RelationshipCreateScreen_New() {
                 );
             }
 
+            // Handle date-only fields (date picker without time)
+            if (field.type === 'date') {
+                return (
+                    <View key={field.key} style={styles.row}>
+                        {renderFieldLabel(field.key)}
+                        <TouchableOpacity
+                            style={[styles.valueBox, fieldError && styles.errorInput]}
+                            onPress={() => showDatePickerForField(field.key, 'date')}
+                        >
+                            <Text style={[styles.value, !fieldValue && styles.placeholderText]}>
+                                {fieldValue || (translations.selectPlaceholder || '--------')}
+                            </Text>
+                        </TouchableOpacity>
+                        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                    </View>
+                );
+            }
+
             // Handle datetime fields
             if (field.type === 'datetime') {
                 return (
@@ -1306,10 +1331,10 @@ export default function RelationshipCreateScreen_New() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = createThemedStyles((colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.colors.backgroundContainer,
+        backgroundColor: colors.backgroundContainer,
     },
     content: {
         flex: 1,
@@ -1335,7 +1360,7 @@ const styles = StyleSheet.create({
     },
 
     valueBox: {
-        backgroundColor: AppTheme.colors.formInput,
+        backgroundColor: colors.formInput,
         borderRadius: 6,
         paddingVertical: 12,
         paddingHorizontal: 14,
@@ -1349,7 +1374,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
     },
     valueFile: {
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         borderRadius: 6,
         paddingVertical: 12,
         paddingHorizontal: 14,
@@ -1456,7 +1481,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     saveButton: {
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         paddingVertical: 14,
         borderRadius: 8,
         alignItems: 'center',
@@ -1613,7 +1638,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 2,
     },
     timePickerButton: {
-        backgroundColor: AppTheme.colors.btnSecondary,
+        backgroundColor: colors.btnSecondary,
         borderRadius: 6,
         padding: 8,
         alignItems: 'center',
@@ -1650,4 +1675,4 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: '500',
     },
-});
+}));
