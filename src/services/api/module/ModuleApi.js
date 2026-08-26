@@ -120,7 +120,7 @@ export const createModuleRecordApi = async (moduleName, recordData) => {
                     }
                 }
             });
-        } else{
+        } else {
             response = await axiosInstance.post(`/Api/V8/module`, {
                 data: {
                     type: moduleName,
@@ -183,6 +183,23 @@ export const searchModuleByKeywordApi = async (moduleName, keyword, page = 1, fi
             params: {
                 'keyword': keyword,
                 'assigned_user_id': userId,
+                'fields': fields,
+                'page': page
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.warn(`Search ${moduleName} API error:`, error);
+        throw error;
+    }
+};
+
+export const searchModuleByKeywordApi_noAssignedUser = async (moduleName, keyword, page = 1, fields = 'name,description,created_by,assigned_user_id,date_entered') => {
+    try {
+
+        const response = await axiosInstance.get(`/Api/V8/custom/${moduleName}`, {
+            params: {
+                'keyword': keyword,
                 'fields': fields,
                 'page': page
             }
@@ -437,22 +454,22 @@ export const getAosProductsQuotesLangApi = async (lang) => {
 //http://192.168.1.10/suitecrm7/Api/V8/custom/file/Notes/Classdiragram-Page-1.png
 export const postFileModuleApi = async (moduleName, file) => {
     try {
-        
+
         // Tạo FormData để upload file
         const formData = new FormData();
-            formData.append('file', {
-                uri: file.uri,
-                name: file.name,
-                type: file.mimeType
-            });
+        formData.append('file', {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType
+        });
 
-            const url = `/Api/V8/custom/file/${moduleName}/${file.name}`;
+        const url = `/Api/V8/custom/file/${moduleName}/${file.name}`;
         const response = await axiosInstance.post(url, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             }
         });
-        
+
         return response.data;
     } catch (error) {
         console.warn("Post File Module API error:", error);
@@ -461,10 +478,10 @@ export const postFileModuleApi = async (moduleName, file) => {
 }
 //{{suitecrm.url}}/V8/custom/file/Notes/8062c3a4-4b27-6f4d-0763-68a599955a7e
 export const getLinkFileModuleApi = async (moduleName, fileName) => {
-    try{
+    try {
         const response = await axiosInstance.get(`/Api/V8/custom/file/${moduleName}/${fileName}`);
         return response.data;
-    }catch (error){
+    } catch (error) {
         console.warn("Get Link File Module API error:", error);
         throw error;
     }
@@ -486,13 +503,13 @@ export const getRelateModuleApi = async (moduleName, fields_relateType) => {
 };
 
 export const getNameUserByIdApi = async (user_id) => {
-  try {
-    const response = await axiosInstance.get(`/Api/V8/module/Users/${user_id}`); 
-    return response.data.data.attributes;
-  } catch (error) {
-    console.warn("Get User Name by ID API error:", error);
-    throw error;
-  }
+    try {
+        const response = await axiosInstance.get(`/Api/V8/module/Users/${user_id}`);
+        return response.data.data.attributes;
+    } catch (error) {
+        console.warn("Get User Name by ID API error:", error);
+        throw error;
+    }
 };
 
 // /Api/V8/module/Currencies/{currency_id}?fields[Currencies]=name
