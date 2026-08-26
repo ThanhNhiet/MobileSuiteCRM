@@ -20,19 +20,66 @@ import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigation from '../../components/navigations/TopNavigation';
 import { useModule_List } from '../../services/useApi/module/UseModule_List';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { ModuleLanguageUtils } from '../../utils/cacheViewManagement/ModuleLanguageUtils';
 import { formatDateBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
+
+// Component to handle async field value formatting in list
+const FormattedListValue = ({ fieldKey, value, moduleName, moduleLanguageUtils }) => {
+    const [formattedValue, setFormattedValue] = useState(value || '');
+
+    useEffect(() => {
+        let isMounted = true;
+        
+        const formatValue = async () => {
+            if (!value && value !== 0) {
+                if (isMounted) setFormattedValue('');
+                return;
+            }
+
+            // Format dates
+            if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified') || fieldKey.includes('_due') || fieldKey.includes('_start') || fieldKey.includes('_end')) {
+                try {
+                    const isoString = String(value).includes('T') ? value : new Date(value).toISOString();
+                    if (isMounted) setFormattedValue(formatDateBySelectedLanguage(isoString));
+                } catch {
+                    if (isMounted) setFormattedValue(String(value));
+                }
+                return;
+            }
+
+            // Default to string
+            let translatedValue = String(value);
+            
+            // Attempt to translate the value (this handles enum keys)
+            if (moduleLanguageUtils && moduleName) {
+                try {
+                    translatedValue = await moduleLanguageUtils.translate(value, translatedValue, moduleName);
+                } catch(e) {}
+            }
+            
+            if (isMounted) setFormattedValue(translatedValue);
+        };
+
+        formatValue();
+        
+        return () => { isMounted = false; };
+    }, [fieldKey, value, moduleName, moduleLanguageUtils]);
+
+    return <>{formattedValue}</>;
+};
 
 // Generic module list screen
 export default function ModuleListScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    
+
     // Get module name
     const moduleName = route.params?.moduleName;
-    
+
     // Language utils
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
-    
+    const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
+
     // Translations
     const [translations, setTranslations] = useState({
         mdName: moduleName,
@@ -45,7 +92,7 @@ export default function ModuleListScreen() {
         pullToRefresh: 'Pull to refresh...',
         noData: 'No data available'
     });
-    
+
     const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
     // Search & filter state
@@ -89,13 +136,15 @@ export default function ModuleListScreen() {
             try {
                 // Clear cache to force reload from file system
                 systemLanguageUtils.clearCache();
-                
+                moduleLanguageUtils.clearCache(null, moduleName);
+
                 // Force reload language data
                 await systemLanguageUtils.loadLanguageData(true);
-                
+                await moduleLanguageUtils.loadLanguageData(moduleName, true);
+
                 // Get translations
-                const translated = await systemLanguageUtils.translateKeys([
-                    `LBL_${moduleName.toUpperCase()}`,
+                const translated = await moduleLanguageUtils.translateKeys([
+                    'LBL_MODULE_NAME',
                     'LBL_SEARCH_BUTTON_LABEL',
                     'LBL_CREATE_BUTTON_LABEL',
                     'LBL_EMAIL_LOADING',
@@ -104,11 +153,11 @@ export default function ModuleListScreen() {
                     'LBL_DROPDOWN_LIST_ALL',
                     'LBL_IMPORT',
                     'LBL_SUBJECT'
-                ]);
-                
+                ], moduleName);
+
                 setTranslations({
-                    mdName: translated[`LBL_${moduleName.toUpperCase()}`] || moduleName,
-                    searchPlaceholder: translated.LBL_IMPORT + ' ' + translated.LBL_SUBJECT || 'Type to search',
+                    mdName: translated['LBL_MODULE_NAME'] && translated['LBL_MODULE_NAME'] !== 'LBL_MODULE_NAME' ? translated['LBL_MODULE_NAME'] : moduleName,
+                    searchPlaceholder: 'Type to search',
                     selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'All',
                     searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Search',
                     addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Add',
@@ -117,14 +166,14 @@ export default function ModuleListScreen() {
                     pullToRefresh: 'Pull to refresh...',
                     noData: translated.LBL_NO_DATA || 'No data available'
                 });
-                
+
                 setTranslationsLoaded(true);
             } catch (error) {
                 console.error(`ModuleListScreen (${moduleName}): Error loading translations:`, error);
                 setTranslationsLoaded(true);
             }
         };
-        
+
         initializeTranslations();
     }, [moduleName, systemLanguageUtils]);
 
@@ -151,7 +200,7 @@ export default function ModuleListScreen() {
 
     const formatCellValue = (fieldKey, value) => {
         if (!value) return '';
-        
+
         // Format dates
         if (fieldKey.includes('date') || fieldKey.includes('_entered') || fieldKey.includes('_modified') || fieldKey.includes('_due') || fieldKey.includes('_start') || fieldKey.includes('_end')) {
             try {
@@ -162,7 +211,7 @@ export default function ModuleListScreen() {
                 return value;
             }
         }
-        
+
         return String(value);
     };
 
@@ -172,7 +221,7 @@ export default function ModuleListScreen() {
         if (searchText !== undefined) {
             hookHandleSearch(searchText);
         }
-        
+
         // Apply time filter
         if (filters.time_filter !== undefined) {
             handleFilter({}, filters.time_filter);
@@ -187,20 +236,20 @@ export default function ModuleListScreen() {
         const maxVisible = 3;
         let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
         let end = Math.min(totalPages, start + maxVisible - 1);
-        
+
         // Adjust start if end reaches max
         if (end - start + 1 < maxVisible) {
             start = Math.max(1, end - maxVisible + 1);
         }
-        
+
         const pages = [];
         for (let i = start; i <= end; i++) {
             pages.push(i);
         }
-        
+
         return pages;
     };
-    
+
     const visiblePages = getVisiblePages();
 
     // Disable at start/end
@@ -222,7 +271,7 @@ export default function ModuleListScreen() {
 
     const handleSearchAction = () => {
         const filters = {};
-        
+
         // Time filter comparison
         const allTimeOption = timeFilterOptions[0]?.label || 'Tất cả';
         if (selectedTimeFilter !== allTimeOption) {
@@ -231,7 +280,7 @@ export default function ModuleListScreen() {
                 filters.time_filter = timeFilter.value;
             }
         }
-        
+
         searchRecords(searchText, filters);
     };
 
@@ -239,7 +288,7 @@ export default function ModuleListScreen() {
     const handleFilterSelect = (selectedLabel) => {
         setSelectedTimeFilter(selectedLabel);
         setShowTimeDropdown(false);
-        
+
         // Automatically trigger search with the new filter
         const allTimeOption = timeFilterOptions[0]?.label || 'Tất cả';
         if (selectedLabel !== allTimeOption) {
@@ -255,22 +304,27 @@ export default function ModuleListScreen() {
     };
 
     const renderItem = ({ item, index }) => (
-        <TouchableOpacity 
-            style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]} 
+        <TouchableOpacity
+            style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}
             onPress={() => {
                 if (viewPerm.includes(item.id)) {
-                    navigation.navigate('ModuleDetailScreen', { 
+                    navigation.navigate('ModuleDetailScreen', {
                         moduleName: moduleName,
                         recordId: item.id
                     });
-                } else{
+                } else {
                     Alert.alert('Permission Denied', 'You do not have permission to view this record.');
                 }
             }}
         >
             {columns.map((column, index) => (
                 <Text key={index} style={styles.cell}>
-                    {formatCellValue(column.key, getFieldValue(item, column.key))}
+                    <FormattedListValue 
+                        fieldKey={column.key} 
+                        value={getFieldValue(item, column.key)} 
+                        moduleName={moduleName} 
+                        moduleLanguageUtils={moduleLanguageUtils} 
+                    />
                 </Text>
             ))}
         </TouchableOpacity>
@@ -284,9 +338,9 @@ export default function ModuleListScreen() {
             animationType="fade"
             onRequestClose={onClose}
         >
-            <TouchableOpacity 
-                style={styles.modalOverlay} 
-                activeOpacity={1} 
+            <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
                 onPress={onClose}
             >
                 <View style={styles.dropdownContainer}>
@@ -319,15 +373,15 @@ export default function ModuleListScreen() {
         <SafeAreaView style={styles.container}>
             <SafeAreaProvider>
                 <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
-                <TopNavigation moduleName={translations.mdName} navigation={navigation}/>
+                <TopNavigation moduleName={translations.mdName} navigation={navigation} />
 
                 <View style={styles.content}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between'}}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         {/* Search Form */}
                         <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                             <View style={styles.searchBar}>
-                                <TextInput 
-                                    style={styles.input} 
+                                <TextInput
+                                    style={styles.input}
                                     placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
@@ -335,8 +389,8 @@ export default function ModuleListScreen() {
                                 />
                             </View>
                             <View style={styles.searchFormOptions}>
-                                <TouchableOpacity 
-                                    style={styles.select} 
+                                <TouchableOpacity
+                                    style={styles.select}
                                     onPress={() => filtersInitialized && setShowTimeDropdown(true)}
                                     disabled={!filtersInitialized}
                                 >
@@ -345,8 +399,8 @@ export default function ModuleListScreen() {
                                     </Text>
                                     <Text style={styles.dropdownArrow}>▼</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
-                                    style={styles.searchButton} 
+                                <TouchableOpacity
+                                    style={styles.searchButton}
                                     onPress={handleSearchAction}
                                 >
                                     <Text style={{ color: '#fff' }}>{translations.searchButton}</Text>
@@ -389,8 +443,8 @@ export default function ModuleListScreen() {
                     {error && (
                         <View style={{ padding: 20, alignItems: 'center' }}>
                             <Text style={{ color: '#FF3B30', marginBottom: 10 }}>{error}</Text>
-                            <TouchableOpacity 
-                                style={styles.searchButton} 
+                            <TouchableOpacity
+                                style={styles.searchButton}
                                 onPress={handleRefresh}
                             >
                                 <Text style={{ color: '#fff' }}>{translations.tryAgain}</Text>
@@ -456,8 +510,8 @@ export default function ModuleListScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
-                
-                <BottomNavigation navigation={navigation}/>
+
+                <BottomNavigation navigation={navigation} />
 
                 {/* Dropdown Modal - only show when filters are initialized */}
                 {filtersInitialized && (
@@ -555,7 +609,7 @@ const getStyles = createThemedStyles((colors) => StyleSheet.create({
     cell: { flex: 1 },
     pagination: {
         flexDirection: 'row',
-        justifyContent: 'center', 
+        justifyContent: 'center',
         paddingVertical: 10,
         gap: 6,
     },

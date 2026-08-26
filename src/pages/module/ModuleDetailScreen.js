@@ -28,18 +28,31 @@ import { getCurrencyNameApi } from "../../services/api/module/ModuleApi";
 import { useModule_Detail } from "../../services/useApi/module/UseModule_Detail";
 import { useModule_PDF } from "../../services/useApi/module/UseModule_PDF";
 import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLanguageUtils";
+import { ModuleLanguageUtils } from "../../utils/cacheViewManagement/ModuleLanguageUtils";
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
 import { formatDateBySelectedLanguage, formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
 
 // Component to handle async field value formatting
-const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType }) => {
+const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType, options, moduleName, moduleLanguageUtils }) => {
     const [formattedValue, setFormattedValue] = useState(value);
 
     useEffect(() => {
         const formatValue = async () => {
-            if (!value) {
+            if (!value && value !== 0) {
                 setFormattedValue(translations.noValue || 'Không có');
+                return;
+            }
+
+            // Handle enums and dropdowns
+            if (fieldType === 'enum' || fieldType === 'dynamicenum' || options) {
+                let translatedValue = value.toString();
+                if (moduleLanguageUtils && moduleName) {
+                    try {
+                        translatedValue = await moduleLanguageUtils.translate(value, value.toString(), moduleName);
+                    } catch(e) {}
+                }
+                setFormattedValue(translatedValue);
                 return;
             }
 
@@ -109,7 +122,7 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
         };
 
         formatValue();
-    }, [fieldKey, value, translations, systemLanguageUtils]);
+    }, [fieldKey, value, translations, systemLanguageUtils, moduleLanguageUtils, moduleName, options]);
 
     return formattedValue;
 };
@@ -128,11 +141,17 @@ export default function ModuleDetailScreen() {
     const [showPreview, setShowPreview] = useState(false);
     const [currencyNames, setCurrencyNames] = useState({}); // Cache for currency names
     const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency values
+    
+    // Line items modal state
+    const [showLineItemModal, setShowLineItemModal] = useState(false);
+    const [lineItemModalData, setLineItemModalData] = useState(null);
+
     // Check if navigation is available
     const isNavigationReady = navigation && typeof navigation.goBack === 'function';
 
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
 
     // Initialize LanguageUtils and translations
     const [translations, setTranslations] = useState({});
@@ -218,6 +237,7 @@ export default function ModuleDetailScreen() {
         shouldDisplayField,
         fileMeta,
         relaFor,
+        moduleMetadata,
     } = useModule_Detail(moduleName, recordId);
     const [lang, setLang] = useState(null);
     useEffect(() => {
@@ -546,8 +566,57 @@ export default function ModuleDetailScreen() {
         }
     };
 
+    // Render JSON Table if matched with lineitems_field
+    const renderLineItemsTable = (fieldKey, value) => {
+        if (!moduleMetadata || !moduleMetadata.lineitems_field || !moduleMetadata.lineitems_field[fieldKey]) {
+            return null;
+        }
+
+        const viewConfig = moduleMetadata.lineitems_field[fieldKey].view || {};
+        const columns = Object.keys(viewConfig);
+        
+        let parsedData = [];
+        if (typeof value === 'string') {
+            try {
+                // Unescape HTML entities like &quot; before parsing
+                let unescapedValue = value
+                    .replace(/&quot;/g, '"')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&#039;/g, "'")
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>');
+                parsedData = JSON.parse(unescapedValue);
+            } catch (e) {
+                return <Text style={styles.fieldValue}>{value}</Text>;
+            }
+        } else if (Array.isArray(value)) {
+            parsedData = value;
+        }
+
+        if (!parsedData || parsedData.length === 0) {
+            return <Text style={styles.fieldValue}>Không có dữ liệu</Text>;
+        }
+
+        return (
+            <TouchableOpacity 
+                style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 }]} 
+                onPress={() => {
+                    setLineItemModalData({ 
+                        parsedData, 
+                        columns, 
+                        viewConfig, 
+                        fieldLabel: getFieldLabel(fieldKey) 
+                    });
+                    setShowLineItemModal(true);
+                }}
+            >
+                <Text style={[styles.btnPrimaryText, { fontSize: 12 }]}>Xem</Text>
+            </TouchableOpacity>
+        );
+    };
+
     // Render field item
-    const renderFieldItem = async (field) => {
+    const renderFieldItem = (field) => {
         const value = getFieldValue(field.key);
 
         if (!shouldDisplayField(field.key)) {
@@ -562,9 +631,6 @@ export default function ModuleDetailScreen() {
             return (
                 <>
                     <View key={field.key} style={styles.fieldContainer}>
-                        {/* <Text style={styles.fieldValue}>
-                            {formatFieldValue(field.key, value)}
-                    </Text> */}
                         <Text style={styles.fieldLabel}>{field.label}</Text>
                         <View style={{ flexDirection: "row", gap: 8 }}>
                             <TouchableOpacity onPress={() => onView()} style={styles?.btnPrimary || styles.btnPrimary}>
@@ -593,11 +659,15 @@ export default function ModuleDetailScreen() {
             );
         }
 
+        const isLineItems = moduleMetadata && moduleMetadata.lineitems_field && moduleMetadata.lineitems_field[field.key];
+
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{field.label}</Text>
-
-                {(field.key === 'annual_revenue' || field.type === 'currency') ? (
+                
+                {isLineItems ? (
+                    renderLineItemsTable(field.key, value)
+                ) : (field.key === 'annual_revenue' || field.type === 'currency' || field.type === 'enum' || field.type === 'dynamicenum' || field.options) ? (
                     <Text style={styles.fieldValue}>
                         <FormattedFieldValue
                             fieldKey={field.key}
@@ -605,6 +675,9 @@ export default function ModuleDetailScreen() {
                             translations={translations}
                             systemLanguageUtils={systemLanguageUtils}
                             fieldType={field.type}
+                            options={field.options}
+                            moduleName={moduleName}
+                            moduleLanguageUtils={moduleLanguageUtils}
                         />
                     </Text>
                 ) : (
@@ -790,6 +863,42 @@ export default function ModuleDetailScreen() {
                         </TouchableOpacity>
                     </View>
                 )}
+
+                {/* Line Items Modal */}
+                <Modal visible={showLineItemModal} transparent={true} animationType="fade" onRequestClose={() => setShowLineItemModal(false)}>
+                    <View style={styles.modalBackdrop}>
+                        <View style={[styles.modalCard, { maxHeight: '80%', padding: 16 }]}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 12 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{lineItemModalData?.fieldLabel || 'Chi tiết'}</Text>
+                                <TouchableOpacity onPress={() => setShowLineItemModal(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+                            <ScrollView horizontal>
+                                <View>
+                                    <View style={{ flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 1, borderColor: '#e2e8f0' }}>
+                                        {lineItemModalData?.columns?.map(col => (
+                                            <Text key={col} style={{ width: 120, padding: 8, fontWeight: 'bold', fontSize: 12 }}>
+                                                {lineItemModalData.viewConfig[col]}
+                                            </Text>
+                                        ))}
+                                    </View>
+                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                        {lineItemModalData?.parsedData?.map((row, index) => (
+                                            <View key={index} style={{ flexDirection: 'row', borderBottomWidth: index === lineItemModalData.parsedData.length - 1 ? 0 : 1, borderColor: '#f1f5f9' }}>
+                                                {lineItemModalData?.columns?.map(col => (
+                                                    <Text key={col} style={{ width: 120, padding: 8, fontSize: 12 }}>
+                                                        {row[col] !== undefined && row[col] !== null ? row[col].toString() : ''}
+                                                    </Text>
+                                                ))}
+                                            </View>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            </ScrollView>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </SafeAreaProvider>
     );

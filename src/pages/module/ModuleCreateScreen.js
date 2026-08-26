@@ -15,13 +15,15 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    FlatList
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import TopNavigationCreate from '../../components/navigations/TopNavigationCreate';
-import { getAllCurrencyApi, getCurrencyNameApi } from '../../services/api/module/ModuleApi';
+import { getAllCurrencyApi, getCurrencyNameApi, searchModuleByKeywordApi, searchModuleByKeywordApi_noAssignedUser } from '../../services/api/module/ModuleApi';
 import { useModule_Create } from '../../services/useApi/module/UseModule_Create';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 
 export default function ModuleCreateScreen() {
@@ -66,6 +68,100 @@ export default function ModuleCreateScreen() {
 
     // Local loading states
     const [saving, setSaving] = useState(false);
+
+    // Dynamic line item search modal state
+    const [searchModal, setSearchModal] = useState({
+        visible: false,
+        rowIndex: null,
+        colKey: null,
+        query: '',
+        results: [],
+        loading: false,
+        relateConfig: null,
+        moduleToSearch: null,
+        fieldKey: null
+    });
+
+    useEffect(() => {
+        const timeoutId = setTimeout(async () => {
+            if (searchModal.visible && searchModal.query.length >= 1 && searchModal.moduleToSearch) {
+                setSearchModal(prev => ({ ...prev, loading: true }));
+                try {
+                    // Extract all required fields from relateConfig to pass to the API
+                    let requiredFields = ['id', 'name'];
+                    if (searchModal.relateConfig) {
+                        for (const mapping of Object.values(searchModal.relateConfig)) {
+                            const parts = mapping.split('.');
+                            if (parts.length >= 2 && parts[0] === searchModal.moduleToSearch) {
+                                requiredFields.push(parts[1]);
+                            }
+                        }
+                    }
+                    const fieldsParam = Array.from(new Set(requiredFields)).join(',');
+
+                    const response = await searchModuleByKeywordApi_noAssignedUser(searchModal.moduleToSearch, searchModal.query, 1, fieldsParam);
+                    if (response && response.data) {
+                        setSearchModal(prev => ({ ...prev, results: response.data, loading: false }));
+                    } else {
+                        setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+                    }
+                } catch (error) {
+                    console.warn('Lineitem search error:', error);
+                    setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+                }
+            } else if (searchModal.visible && searchModal.query.length === 0) {
+                setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+            }
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [searchModal.query, searchModal.visible, searchModal.moduleToSearch]);
+
+    const handleSelectLineItemSearch = async (selectedItem) => {
+        const { rowIndex, relateConfig, fieldKey } = searchModal;
+        const rows = Array.isArray(formData[fieldKey]) ? [...formData[fieldKey]] : [];
+        const rowToUpdate = { ...rows[rowIndex] };
+
+        // ModuleLanguageUtils instance if we need to translate
+        const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
+
+        for (const [colName, mapping] of Object.entries(relateConfig)) {
+            const parts = mapping.split('.');
+            const targetModule = parts[0];
+            const sourceField = parts[1];
+            let value = selectedItem.attributes ? selectedItem.attributes[sourceField] : selectedItem[sourceField];
+            
+            if (parts.includes('translate')) {
+                try {
+                    // Try to load translation and translate
+                    await moduleLanguageUtils.loadLanguageData(targetModule);
+                    const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
+                    // Find enum list key for the field
+                    const translated = moduleLanguageUtils.searchNestedValue(listStrings, value);
+                    if (translated) value = translated;
+                } catch (e) {
+                    console.warn('Translate error:', e);
+                }
+            }
+            rowToUpdate[colName] = value || '';
+        }
+        
+        const newRows = [...rows];
+        newRows[rowIndex] = rowToUpdate;
+        updateField(fieldKey, newRows);
+        
+        setSearchModal({
+            visible: false,
+            rowIndex: null,
+            colKey: null,
+            query: '',
+            results: [],
+            loading: false,
+            relateConfig: null,
+            moduleToSearch: null,
+            fieldKey: null
+        });
+    };
+
     // file picker state
     const [file, setFile] = useState(null);
 
@@ -95,9 +191,11 @@ export default function ModuleCreateScreen() {
     useEffect(() => {
         const initializeTranslations = async () => {
             try {
+                // Get module translation
+                const moduleTranslation = await systemLanguageUtils.translate(moduleName);
+
                 // Get all translations at once using SystemLanguageUtils
                 const translatedLabels = await systemLanguageUtils.translateKeys([
-                    `LBL_${moduleName.toUpperCase()}`,
                     'LBL_CREATE_BUTTON_LABEL',
                     'LBL_EMAIL_LOADING',
                     'LBL_EMAIL_SUCCESS',
@@ -121,8 +219,8 @@ export default function ModuleCreateScreen() {
                 ]);
 
                 setTranslations({
-                    mdName: translatedLabels[`LBL_${moduleName.toUpperCase()}`] || moduleName,
-                    createModule: translatedLabels.LBL_CREATE_BUTTON_LABEL + ' ' + (translatedLabels[`LBL_${moduleName.toUpperCase()}`] || moduleName),
+                    mdName: moduleTranslation || moduleName,
+                    createModule: (translatedLabels.LBL_CREATE_BUTTON_LABEL || 'Tạo') + ' ' + (moduleTranslation || moduleName),
                     loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
                     successTitle: translatedLabels.LBL_ALT_INFO || 'Thông tin',
                     successMessage: translatedLabels.LBL_EMAIL_SUCCESS || `Tạo ${moduleName} thành công!`,
@@ -179,7 +277,8 @@ export default function ModuleCreateScreen() {
         isReadonlyField,
         isRelateField,
         getRelatedModuleName,
-        toggleBoolField
+        toggleBoolField,
+        moduleMetadata
     } = useModule_Create(moduleName);
 
     // Load parent type options when component mounts
@@ -518,9 +617,25 @@ export default function ModuleCreateScreen() {
     // Handle relate field selection  
     const handleRelateFieldSelect = async (fieldKey, selectedItem) => {
         await updateField(fieldKey, selectedItem.name);
-        // Store the related ID in a hidden field, replace the "name" of the relate field by id: ex: account_name -> account_id
-        if (!fieldKey.endsWith('_id')) {
-            const idFieldKey = fieldKey.replace(/_name$/, '_id');
+        
+        // Find field definition to get id_name
+        const fieldDef = createFields.find(f => f.key === fieldKey);
+        let idFieldKey = '';
+        
+        // 1. Check custom id_name mapping in list_of_modules.json
+        if (moduleMetadata && moduleMetadata['relate-modules-iddb'] && moduleMetadata['relate-modules-iddb'][fieldKey]) {
+            idFieldKey = moduleMetadata['relate-modules-iddb'][fieldKey];
+        }
+        // 2. Check field definition from API
+        else if (fieldDef && fieldDef.id_name) {
+            idFieldKey = fieldDef.id_name;
+        } 
+        // 3. Fallback heuristic
+        else if (!fieldKey.endsWith('_id')) {
+            idFieldKey = fieldKey.replace(/_name$/, '_id');
+        }
+        
+        if (idFieldKey) {
             await updateField(idFieldKey, selectedItem.id);
         }
     };
@@ -616,11 +731,144 @@ export default function ModuleCreateScreen() {
         return fieldType === 'int' || fieldType === 'currency';
     };
 
+    // Render Editable Line Items Table
+    const renderEditableLineItems = (fieldKey, fieldLabel, fieldError) => {
+        if (!moduleMetadata || !moduleMetadata.lineitems_field || !moduleMetadata.lineitems_field[fieldKey]) {
+            return null;
+        }
+
+        const config = moduleMetadata.lineitems_field[fieldKey];
+        const editView = config['edit-view'] || {};
+        const columns = Object.keys(editView);
+        const editDataKeys = config['edit-data'] || columns; // Fallback to columns if edit-data is missing
+
+        const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
+
+        const updateRowsWithNo = (newRows) => {
+            return newRows.map((row, index) => ({
+                ...row,
+                ...(columns.includes('no') ? { no: String(index + 1) } : {})
+            }));
+        };
+
+        const handleAddRow = () => {
+            const newRow = {};
+            editDataKeys.forEach(key => {
+                newRow[key] = key === 'no' ? String(rows.length + 1) : '';
+            });
+            updateField(fieldKey, updateRowsWithNo([...rows, newRow]));
+        };
+
+        const handleRemoveRow = (index) => {
+            const newRows = [...rows];
+            newRows.splice(index, 1);
+            updateField(fieldKey, updateRowsWithNo(newRows));
+        };
+
+        const relateConfig = config['relate-modules'];
+
+        const getSearchModule = (col) => {
+            if (!relateConfig || !relateConfig[col]) return null;
+            const mapping = relateConfig[col];
+            if (mapping.includes('.searchmain') || mapping.includes('.search')) {
+                return mapping.split('.')[0];
+            }
+            return null;
+        };
+
+        const handleCellChange = (text, rowIndex, colKey) => {
+            const newRows = [...rows];
+            newRows[rowIndex] = { ...newRows[rowIndex], [colKey]: text };
+            updateField(fieldKey, newRows);
+        };
+
+        return (
+            <View key={fieldKey} style={styles.row}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={styles.label}>{fieldLabel}</Text>
+                    <TouchableOpacity onPress={handleAddRow} style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12 }]}>
+                        <Text style={[styles.btnPrimaryText, { fontSize: 12 }]}>+ Thêm dòng</Text>
+                    </TouchableOpacity>
+                </View>
+                
+                <ScrollView horizontal style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4 }}>
+                    <View>
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 1, borderColor: '#e2e8f0' }}>
+                            {columns.map(col => (
+                                <Text key={col} style={{ width: 120, padding: 8, fontWeight: 'bold', fontSize: 12 }}>
+                                    {editView[col]}
+                                </Text>
+                            ))}
+                            <Text style={{ width: 60, padding: 8, fontWeight: 'bold', fontSize: 12, textAlign: 'center' }}>Thao tác</Text>
+                        </View>
+                        {/* Rows */}
+                        {rows.length === 0 ? (
+                            <View style={{ padding: 16, alignItems: 'center' }}>
+                                <Text style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa có dữ liệu</Text>
+                            </View>
+                        ) : (
+                            rows.map((row, rowIndex) => (
+                                <View key={rowIndex} style={{ flexDirection: 'row', borderBottomWidth: rowIndex === rows.length - 1 ? 0 : 1, borderColor: '#f1f5f9' }}>
+                                    {columns.map(col => (
+                                        <View key={col} style={{ width: 120, padding: 4, justifyContent: 'center' }}>
+                                            {getSearchModule(col) ? (
+                                                <TouchableOpacity
+                                                    style={[styles.input, { padding: 4, height: 30, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', justifyContent: 'center' }]}
+                                                    onPress={() => {
+                                                        setSearchModal(prev => ({
+                                                            ...prev,
+                                                            visible: true,
+                                                            rowIndex,
+                                                            colKey: col,
+                                                            relateConfig,
+                                                            moduleToSearch: getSearchModule(col),
+                                                            fieldKey,
+                                                            query: row[col] || '',
+                                                            results: []
+                                                        }));
+                                                    }}
+                                                >
+                                                    <Text style={{ fontSize: 12, color: row[col] ? '#000' : '#999' }} numberOfLines={1}>
+                                                        {row[col] ? String(row[col]) : editView[col]}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <TextInput
+                                                    style={[styles.input, { padding: 4, fontSize: 12, height: 30, color: col === 'no' ? '#6b7280' : '#000', backgroundColor: col === 'no' ? '#f3f4f6' : '#fff', borderWidth: 1, borderColor: '#ccc' }]}
+                                                    value={col === 'no' ? String(rowIndex + 1) : (row[col] !== undefined && row[col] !== null ? String(row[col]) : '')}
+                                                    onChangeText={(text) => handleCellChange(text, rowIndex, col)}
+                                                    placeholder={editView[col]}
+                                                    editable={col !== 'no'}
+                                                />
+                                            )}
+                                        </View>
+                                    ))}
+                                    <View style={{ width: 60, padding: 4, justifyContent: 'center', alignItems: 'center' }}>
+                                        <TouchableOpacity onPress={() => handleRemoveRow(rowIndex)} style={{ backgroundColor: '#ef4444', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4 }}>
+                                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>Xóa</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+                    </View>
+                </ScrollView>
+                {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+            </View>
+        );
+    };
+
     // Render form fields
     const renderFormFields = () => {
         return createFields.map((field) => {
             const fieldError = getFieldError(field.key);
             const fieldValue = getFieldValue(field.key);
+            
+            // Check if this is a custom lineitems_field
+            if (moduleMetadata && moduleMetadata.lineitems_field && moduleMetadata.lineitems_field[field.key]) {
+                return renderEditableLineItems(field.key, getFieldLabel(field.key), fieldError);
+            }
 
             // Handle currency_id field as modal dropdown
             if (field.key === 'currency_id') {
@@ -1258,6 +1506,65 @@ export default function ModuleCreateScreen() {
                         onChange={handleTimeChange}
                     />
                 )}
+
+                {/* Line Item Search Modal */}
+                <Modal
+                    visible={searchModal.visible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setSearchModal(prev => ({ ...prev, visible: false }))}
+                >
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' }}
+                    >
+                        <View style={{ backgroundColor: '#fff', margin: 20, borderRadius: 8, maxHeight: '80%', padding: 16 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tìm kiếm</Text>
+                                <TouchableOpacity onPress={() => setSearchModal(prev => ({ ...prev, visible: false }))}>
+                                    <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <TextInput
+                                style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
+                                placeholder="Nhập từ khóa tìm kiếm..."
+                                value={searchModal.query}
+                                onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
+                                autoFocus={true}
+                            />
+
+                            {searchModal.loading ? (
+                                <View style={{ padding: 20, alignItems: 'center' }}>
+                                    <ActivityIndicator size="large" color="#007AFF" />
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={searchModal.results}
+                                    keyExtractor={(item, index) => item.id || String(index)}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity 
+                                            style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                                            onPress={() => handleSelectLineItemSearch(item)}
+                                        >
+                                            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.attributes ? item.attributes.name : item.name}</Text>
+                                            {(item.attributes?.part_number || item.part_number) && (
+                                                <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                                                    Mã: {item.attributes ? item.attributes.part_number : item.part_number}
+                                                </Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                    ListEmptyComponent={() => (
+                                        <View style={{ padding: 20, alignItems: 'center' }}>
+                                            <Text style={{ color: '#999' }}>Không tìm thấy kết quả nào</Text>
+                                        </View>
+                                    )}
+                                />
+                            )}
+                        </View>
+                    </KeyboardAvoidingView>
+                </Modal>
             </SafeAreaView>
         </SafeAreaProvider>
     );
