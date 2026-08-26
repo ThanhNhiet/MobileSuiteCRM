@@ -6,8 +6,9 @@ import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
-import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
+import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi, getAllModulesApi } from '../../api/external/ExternalApi';
 import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getModuleFieldsRequiredApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
+import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
 export const useModule_Detail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -19,10 +20,12 @@ export const useModule_Detail = (moduleName, recordId) => {
 
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
+    const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
     
     // Fields and labels
     const [detailFields, setDetailFields] = useState([]);
     const [nameFields, setNameFields] = useState('');
+    const [moduleMetadata, setModuleMetadata] = useState(null);
 
     // Initialize fields and language for detail view
     const initializeDetailFields = useCallback(async () => {
@@ -55,35 +58,20 @@ export const useModule_Detail = (moduleName, recordId) => {
                 requiredFields = cachedRequiredFields;
             }
 
-            // Get selected language
-            const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
-            let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
+            await moduleLanguageUtils.loadLanguageData(moduleName);
 
-            // If languageData is not found
-            if (!languageData) {
-                const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
-                if (!languageExists) {
-                    // Language cache missing - user needs to login to fetch data
+            // Fetch custom module metadata (like lineitems_field)
+            let metadata = null;
+            try {
+                const modulesResponse = await getAllModulesApi();
+                if (modulesResponse && modulesResponse.data && modulesResponse.data.attributes) {
+                    metadata = modulesResponse.data.attributes[moduleName];
+                    setModuleMetadata(metadata);
                 }
+            } catch (e) {
+                console.warn('Could not fetch module metadata:', e);
             }
-            
-            let modStrings = null;
-            let appStrings = null;
-            if (languageData && languageData.data) {
-                modStrings = languageData.data.mod_strings;
-                appStrings = languageData.data.app_strings;
-            }
-            
-            const findTranslation = (key) => {
-                if (modStrings && modStrings[key]) {
-                    return modStrings[key];
-                }
-                if (appStrings && appStrings[key]) {
-                    return appStrings[key];
-                }
-                return null;
-            };
-            
+
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
@@ -100,29 +88,35 @@ export const useModule_Detail = (moduleName, recordId) => {
             const nameFieldsString = finalFieldKeys.join(',');
             setNameFields(nameFieldsString);
             
-            const detailFieldsData = Object.entries(fieldsData).map(([fieldKey, labelValue]) => {
+            const detailFieldsData = await Promise.all(Object.entries(fieldsData).map(async ([fieldKey, labelValue]) => {
                 let vietnameseLabel = labelValue || fieldKey;
                 
-                if ((modStrings || appStrings) && labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
-                    const translation = findTranslation(labelValue);
-                    if (translation) {
-                        vietnameseLabel = translation;
+                // Translate the field label
+                vietnameseLabel = await moduleLanguageUtils.translateFieldName(fieldKey, vietnameseLabel, moduleName);
+                
+                // Fallback for assigned_user_name if not translated
+                if (fieldKey === 'assigned_user_name' && (vietnameseLabel === fieldKey || vietnameseLabel === 'assigned_user_name' || !vietnameseLabel)) {
+                    vietnameseLabel = await moduleLanguageUtils.translate('LBL_ASSIGNED_TO', 'Người phụ trách', moduleName);
+                    if (!vietnameseLabel || vietnameseLabel === 'LBL_ASSIGNED_TO') {
+                        vietnameseLabel = await moduleLanguageUtils.translate('LBL_LIST_ASSIGNED_TO_NAME', 'Người phụ trách', moduleName) || 'Người phụ trách';
                     }
                 }
 
                 // Get field metadata for type information
                 const fieldInfo = requiredFields[fieldKey] || {};
                 const fieldType = fieldInfo.type || 'text';
+                const fieldOptions = fieldInfo.options || null;
                 
                 return {
                     key: fieldKey,
                     label: vietnameseLabel,
-                    type: fieldType, // Use actual field type instead of hardcoded 'text'
+                    type: fieldType,
+                    options: fieldOptions,
                     required: false
                 };
-            });
+            }));
             
-            const idLabel = findTranslation('LBL_ID') || 'ID';
+            const idLabel = await moduleLanguageUtils.translate('LBL_ID', 'ID', moduleName);
             detailFieldsData.unshift({
                 key: 'id',
                 label: idLabel,
@@ -749,6 +743,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         deleting,
         haveParent,
         relaFor,
+        moduleMetadata,
         
         // Actions
         fetchRecord,

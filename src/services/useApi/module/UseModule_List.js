@@ -6,7 +6,7 @@ import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLa
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
-import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
+import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi, getAllModulesApi } from '../../api/external/ExternalApi';
 import {
     buildDateFilter,
     getModuleListFieldsApi,
@@ -169,6 +169,29 @@ export const useModule_List = (moduleName) => {
                 modStrings = languageData.data.mod_strings;
             }
             
+            // Fetch custom module metadata (like listview)
+            let customMetadata = null;
+            try {
+                const modulesResponse = await getAllModulesApi();
+                if (modulesResponse && modulesResponse.data && modulesResponse.data.attributes) {
+                    customMetadata = modulesResponse.data.attributes[moduleName];
+                }
+            } catch (e) {
+                console.warn('Could not fetch module metadata:', e);
+            }
+            
+            if (customMetadata && customMetadata.listview && Array.isArray(customMetadata.listview) && customMetadata.listview.length > 0) {
+                // Use custom listview!
+                fieldsData = {};
+                customMetadata.listview.forEach(field => {
+                    fieldsData[field.toUpperCase()] = {
+                        label: `LBL_${field.toUpperCase()}`,
+                        width: "30%",
+                        type: "varchar" // Type will be resolved later or fallback
+                    };
+                });
+            }
+
             // Validate fields
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
                 fieldsData = {
@@ -187,11 +210,12 @@ export const useModule_List = (moduleName) => {
                 };
             }
             
-            // First 2 fields
-            let fieldEntries;
+            // Limit fields to display in the list to avoid clutter, unless custom listview is defined
             const allFieldEntries = Object.entries(fieldsData);
-            // Remove set_complete field
-            fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE').slice(0, 2);
+            let fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE');
+            if (!customMetadata || !customMetadata.listview) {
+                fieldEntries = fieldEntries.slice(0, 2);
+            }
 
             // Build nameFields
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());

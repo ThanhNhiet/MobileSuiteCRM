@@ -15,6 +15,7 @@ import {
     postFileModuleApi,
     updateModuleRecordApi
 } from '../../api/module/ModuleApi';
+import { getAllModulesApi } from '../../api/external/ExternalApi';
 
 export const useModuleUpdate = (moduleName, initialRecordData = null) => {
     // SystemLanguageUtils instance
@@ -29,6 +30,9 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
 
     // Track original data for comparison
     const [originalData, setOriginalData] = useState({});
+
+    // Module metadata for custom configs like lineitems_field
+    const [moduleMetadata, setModuleMetadata] = useState(null);
 
     // Fields configuration
     const [updateFields, setUpdateFields] = useState([]);
@@ -121,6 +125,16 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         try {
             if (!moduleName) {
                 throw new Error('Module name is required');
+            }
+
+            // Fetch custom module metadata
+            try {
+                const modulesResponse = await getAllModulesApi();
+                if (modulesResponse && modulesResponse.data && modulesResponse.data.attributes) {
+                    setModuleMetadata(modulesResponse.data.attributes[moduleName]);
+                }
+            } catch (e) {
+                console.warn('Could not fetch module metadata:', e);
             }
 
             // 1. Check cache editviewdefs.json
@@ -435,6 +449,24 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
             }
         });
 
+        // Check for lineitems_field configuration to parse JSON strings
+        if (moduleMetadata && moduleMetadata.lineitems_field) {
+            Object.keys(moduleMetadata.lineitems_field).forEach(key => {
+                if (recordData[key] && typeof recordData[key] === 'string') {
+                    try {
+                        const unescapedValue = recordData[key].replace(/&quot;/g, '"');
+                        formValues[key] = JSON.parse(unescapedValue);
+                    } catch (e) {
+                        formValues[key] = [];
+                    }
+                } else if (Array.isArray(recordData[key])) {
+                    formValues[key] = recordData[key];
+                } else {
+                    formValues[key] = [];
+                }
+            });
+        }
+
         // Ensure these fields are always included, even if not in updateFields
         formValues['parent_id'] = recordData['parent_id'] || '';
         formValues['assigned_user_id'] = recordData['assigned_user_id'] || '';
@@ -447,7 +479,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         setValidationErrors({});
         setError(null);
 
-    }, [updateFields]);
+    }, [updateFields, moduleMetadata]);
 
     // Update form field
     const updateField = useCallback(async (fieldKey, value) => {
@@ -470,9 +502,16 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
     // Check if form has changes
     const hasChanges = useCallback(() => {
         const excludeFields = []; // No fields to exclude
-        return Object.keys(formData).some(key =>
-            !excludeFields.includes(key) && formData[key] !== originalData[key]
-        );
+        return Object.keys(formData).some(key => {
+            if (excludeFields.includes(key)) return false;
+            
+            // Compare objects/arrays deeply
+            if (typeof formData[key] === 'object' || typeof originalData[key] === 'object') {
+                return JSON.stringify(formData[key]) !== JSON.stringify(originalData[key]);
+            }
+            
+            return formData[key] !== originalData[key];
+        });
     }, [formData, originalData]);
 
     // Check if parent_name field exists in editviewdefs
@@ -553,6 +592,14 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                 // For readonly fields that have changed, include them
                 if (fieldDef && fieldDef.type === 'readonly' && formData[key] !== originalData[key]) {
                     updateData[key] = formData[key];
+                    return;
+                }
+
+                // For object fields like lineitems_data, stringify if changed
+                if (typeof formData[key] === 'object') {
+                    if (JSON.stringify(formData[key]) !== JSON.stringify(originalData[key])) {
+                        updateData[key] = JSON.stringify(formData[key]);
+                    }
                     return;
                 }
 
@@ -951,12 +998,30 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         // Update the relate field with selected record name
         await updateField(fieldKey, selectedRecord.name || '');
 
+        // Find field definition to get id_name
+        const fieldDef = updateFields.find(f => f.key === fieldKey);
+        let idFieldKey = '';
+        
+        // 1. Check custom id_name mapping in list_of_modules.json
+        if (moduleMetadata && moduleMetadata['relate-modules-iddb'] && moduleMetadata['relate-modules-iddb'][fieldKey]) {
+            idFieldKey = moduleMetadata['relate-modules-iddb'][fieldKey];
+        }
+        // 2. Check field definition from API
+        else if (fieldDef && fieldDef.id_name) {
+            idFieldKey = fieldDef.id_name;
+        } 
+        // 3. Fallback heuristics
+        else if (fieldKey.includes('_name')) {
+            idFieldKey = fieldKey.replace('_name', '_id');
+        } else if (!fieldKey.endsWith('_id')) {
+            idFieldKey = fieldKey + '_id'; // Fallback
+        }
+
         // Also update the corresponding ID field if it exists
-        const idFieldKey = fieldKey.replace('_name', '_id');
-        if (selectedRecord.id) {
+        if (idFieldKey && selectedRecord.id) {
             await updateField(idFieldKey, selectedRecord.id);
         }
-    }, [updateField]);
+    }, [updateField, updateFields, moduleMetadata]);
 
     const [isFile, setIsFile] = useState(false);
 
@@ -1036,6 +1101,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         toggleBoolField,
         isRelateField,
         getRelatedModuleName,
-        handleRelateFieldSelect
+        handleRelateFieldSelect,
+        moduleMetadata
     };
 };

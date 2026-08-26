@@ -6,7 +6,7 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { getUserIdFromToken } from '../../../utils/DecodeToken';
 import { convertToUTC, parseTimezoneString } from '../../../utils/format/FormatDateTime_Zones';
-import { getDeviceTokenApi, sendPushNotificationApi } from '../../api/external/ExternalApi';
+import { getDeviceTokenApi, sendPushNotificationApi, getAllModulesApi } from '../../api/external/ExternalApi';
 import {
     createModuleRecordApi,
     createModuleRelationshipApi,
@@ -28,6 +28,9 @@ export const useModule_Create = (moduleName) => {
 
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({});
+    
+    // Module metadata for custom configs like lineitems_field
+    const [moduleMetadata, setModuleMetadata] = useState(null);
 
     // Fields configuration
     const [createFields, setCreateFields] = useState([]);
@@ -106,6 +109,16 @@ export const useModule_Create = (moduleName) => {
     // Initialize create fields and language
     const initializeCreateFields = useCallback(async () => {
         try {
+            // Fetch custom module metadata (like lineitems_field)
+            try {
+                const modulesResponse = await getAllModulesApi();
+                if (modulesResponse && modulesResponse.data && modulesResponse.data.attributes) {
+                    setModuleMetadata(modulesResponse.data.attributes[moduleName]);
+                }
+            } catch (e) {
+                console.warn('Could not fetch module metadata:', e);
+            }
+
             // 1. Check cache editviewdefs.json
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
@@ -496,9 +509,14 @@ export const useModule_Create = (moduleName) => {
                 }
 
                 // For regular fields, only include if they're not in excludeFields and have a value
-                if (!excludeFields.includes(key) && formData[key]?.trim && formData[key].trim()) {
-                    // For enum fields, we store the key (not the translated value)
-                    recordData[key] = formData[key].trim();
+                if (!excludeFields.includes(key) && formData[key] !== undefined && formData[key] !== null) {
+                    // For arrays/objects (like lineitems_data), serialize to JSON string
+                    if (typeof formData[key] === 'object') {
+                        recordData[key] = JSON.stringify(formData[key]);
+                    } else {
+                        // For enum fields and text, we store the key/string
+                        recordData[key] = formData[key].toString().trim();
+                    }
                 }
             });
 
@@ -550,13 +568,13 @@ export const useModule_Create = (moduleName) => {
                 recordData.duration_hours = hours;
                 recordData.duration_minutes = minutes;
             }
-            if (updateData.duration_hours !== undefined) {
-                const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
+            if (recordData.duration_hours !== undefined) {
+                const totalMinutes = parseInt(recordData.duration_hours, 10) || 0;
                 const hours = Math.floor(totalMinutes / 60);
                 const minutes = totalMinutes % 60;
 
-                updateData.duration_hours = hours;
-                updateData.duration_minutes = minutes;
+                recordData.duration_hours = hours;
+                recordData.duration_minutes = minutes;
             }
             if (recordData.date_start) {
                 const timezone_store = await AsyncStorage.getItem('timezone') || '';
@@ -690,14 +708,17 @@ export const useModule_Create = (moduleName) => {
 
     // Check if form is valid for submission
     const isFormValid = useCallback(() => {
-        // Find the primary field (name, first_name, etc.)
-        const primaryField = createFields.find(field =>
-            field.key === 'name' || field.key === 'first_name' || field.key === 'subject'
-        );
-        const primaryValue = primaryField ? formData[primaryField.key]?.trim() : '';
+        // Check if all required fields are filled
+        const hasRequiredFieldsError = createFields.some(field => {
+            if (field.required) {
+                const fieldValue = formData[field.key];
+                return !fieldValue || (typeof fieldValue === 'string' && !fieldValue.trim());
+            }
+            return false;
+        });
 
-        return primaryValue && Object.keys(validationErrors).length === 0;
-    }, [formData, validationErrors, createFields]);
+        return !hasRequiredFieldsError && Object.keys(validationErrors).length === 0;
+    }, [formData, createFields, validationErrors]);
 
     // Check if parent_name field exists in editviewdefs
     const hasParentNameField = useCallback(() => {
@@ -924,6 +945,8 @@ export const useModule_Create = (moduleName) => {
         isFunctionField,
         isReadonlyField,
         isRelateField,
-        getRelatedModuleName
+        getRelatedModuleName,
+        toggleBoolField,
+        moduleMetadata // Export for ModuleCreateScreen
     };
 };
