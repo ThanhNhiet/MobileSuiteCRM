@@ -27,7 +27,7 @@ class ModuleLanguageUtils {
         try {
             // Construct path to cache file
             const cacheFilePath = `${FileSystem.documentDirectory}cache/${moduleName}/language/${selectedLanguage}.json`;
-            
+
             // Check if cache file exists
             const cacheFileInfo = await FileSystem.getInfoAsync(cacheFilePath);
             if (!cacheFileInfo.exists) {
@@ -49,7 +49,7 @@ class ModuleLanguageUtils {
                     fullData: languageData.data, // Keep full data for flexibility
                     moduleName: moduleName // Track which module this is for
                 };
-                
+
                 // Cache the result
                 this.cachedLanguageData[cacheKey] = result;
                 console.log(`Successfully loaded ${moduleName} language data from cache for ${selectedLanguage}`);
@@ -79,12 +79,15 @@ class ModuleLanguageUtils {
         return emptyData;
     }
 
-    // Helper method to search nested objects in app_list_strings
+    // Helper to search in nested objects for appListStrings
     searchNestedValue(obj, searchValue) {
         if (!obj || typeof obj !== 'object') return null;
-        
+
         for (const key in obj) {
             if (obj.hasOwnProperty(key)) {
+                if (key === 'dom_email_types' || key === 'dom_outbound_email_auth_types') {
+                    continue; // Skip these email-related lists to avoid false positives like "out": "Sent"
+                }
                 const value = obj[key];
                 if (typeof value === 'string' && key === searchValue) {
                     return value;
@@ -101,13 +104,13 @@ class ModuleLanguageUtils {
     async translate(key, defaultValue = null, moduleName = 'Users') {
         try {
             const languageData = await this.loadLanguageData(moduleName);
-            
+
             // Try modStrings first (module strings)
             let translation = languageData.modStrings[key];
             if (translation) {
                 return String(translation);
             }
-            
+
             // Try appStrings second
             if (!translation) {
                 translation = languageData.appStrings[key];
@@ -115,7 +118,7 @@ class ModuleLanguageUtils {
                     return String(translation);
                 }
             }
-            
+
             // Then try appListStrings direct lookup
             if (!translation) {
                 translation = languageData.appListStrings[key];
@@ -123,7 +126,7 @@ class ModuleLanguageUtils {
                     return String(translation);
                 }
             }
-            
+
             // Then try nested search in appListStrings (for values like "unread", "read", etc.)
             if (!translation) {
                 translation = this.searchNestedValue(languageData.appListStrings, key);
@@ -131,7 +134,7 @@ class ModuleLanguageUtils {
                     return String(translation);
                 }
             }
-            
+
             // If not found, try with common prefix variations
             if (!translation && key.startsWith('LBL_')) {
                 // Try without LBL_ prefix in all sources
@@ -140,7 +143,7 @@ class ModuleLanguageUtils {
                 if (translation) {
                     return String(translation);
                 }
-                
+
                 // Try with LBL_LIST_ prefix
                 if (!translation) {
                     const listKey = key.replace('LBL_', 'LBL_LIST_');
@@ -169,28 +172,28 @@ class ModuleLanguageUtils {
             for (const key of keys) {
                 // Try modStrings first (module strings)
                 let translation = languageData.modStrings[key];
-                
+
                 // Try appStrings second
                 if (!translation) {
                     translation = languageData.appStrings[key];
                 }
-                
+
                 // Then try appListStrings direct lookup
                 if (!translation) {
                     translation = languageData.appListStrings[key];
                 }
-                
+
                 // Then try nested search in appListStrings
                 if (!translation) {
                     translation = this.searchNestedValue(languageData.appListStrings, key);
                 }
-                
+
                 // If not found, try with common prefix variations
                 if (!translation && key.startsWith('LBL_')) {
                     // Try without LBL_ prefix in all sources
                     const simpleKey = key.replace('LBL_', '');
                     translation = languageData.modStrings[simpleKey] || languageData.appStrings[simpleKey] || languageData.appListStrings[simpleKey];
-                    
+
                     // Try with LBL_LIST_ prefix
                     if (!translation) {
                         const listKey = key.replace('LBL_', 'LBL_LIST_');
@@ -279,17 +282,17 @@ class ModuleLanguageUtils {
             });
 
             const loadResults = await Promise.allSettled(loadPromises);
-            
+
             loadResults.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
                     const { moduleName, data, success } = result.value;
                     results[moduleName] = { data, success };
                 } else {
                     const moduleName = moduleNames[index];
-                    results[moduleName] = { 
-                        data: null, 
-                        success: false, 
-                        error: result.reason 
+                    results[moduleName] = {
+                        data: null,
+                        success: false,
+                        error: result.reason
                     };
                 }
             });
