@@ -5,7 +5,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -220,13 +220,15 @@ export default function RelationshipDetailScreen_New() {
     }, []);
 
     // Refetch data when screen is focused (after update from other screens)
+    const isFirstMount = useRef(true);
     useFocusEffect(
         useCallback(() => {
-            // Only refetch if not initial load and not already loading
-            if (!loading && record) {
-                refreshRecord();
+            if (isFirstMount.current) {
+                isFirstMount.current = false;
+                return;
             }
-        }, [loading, record, refreshRecord])
+            refreshRecord();
+        }, [refreshRecord])
     );
 
     // PDF Export hook

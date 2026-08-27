@@ -101,6 +101,7 @@ export default function RelationshipCreateScreen_New() {
                 // Get all translations at once using SystemLanguageUtils
                 const translatedLabels = await systemLanguageUtils.translateKeys([
                     `LBL_${moduleName.toUpperCase()}`,
+                    moduleName,
                     'LBL_CREATE_BUTTON_LABEL',
                     'LBL_EMAIL_LOADING',
                     'LBL_EMAIL_SUCCESS',
@@ -123,14 +124,20 @@ export default function RelationshipCreateScreen_New() {
                     'No'
                 ]);
 
+                let translatedMdName = translatedLabels[moduleName];
+                if (!translatedMdName || translatedMdName === moduleName) {
+                    translatedMdName = translatedLabels[`LBL_${moduleName.toUpperCase()}`];
+                }
+                const finalModuleName = (translatedMdName && translatedMdName !== `LBL_${moduleName.toUpperCase()}`) ? translatedMdName : moduleName;
+
                 setTranslations({
-                    mdName: translatedLabels[`LBL_${moduleName.toUpperCase()}`] || moduleName,
-                    createModule: translatedLabels.LBL_CREATE_BUTTON_LABEL + ' ' + (translatedLabels[`LBL_${moduleName.toUpperCase()}`] || moduleName),
+                    mdName: finalModuleName,
+                    createModule: translatedLabels.LBL_CREATE_BUTTON_LABEL + ' ' + finalModuleName,
                     loadingText: translatedLabels.LBL_EMAIL_LOADING || 'Đang tải...',
                     successTitle: translatedLabels.LBL_ALT_INFO || 'Thông tin',
-                    successMessage: translatedLabels.LBL_EMAIL_SUCCESS || `Tạo ${moduleName} thành công!`,
+                    successMessage: translatedLabels.LBL_EMAIL_SUCCESS || `Tạo ${finalModuleName} thành công!`,
                     errorTitle: translatedLabels.Alerts || 'Lỗi',
-                    errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || `Không thể tạo ${moduleName}`,
+                    errorMessage: translatedLabels.UPLOAD_REQUEST_ERROR || `Không thể tạo ${finalModuleName}`,
                     ok: translatedLabels.LBL_OK || 'OK',
                     createButton: translatedLabels.LBL_CREATE_BUTTON_LABEL || 'Tạo',
                     checkButton: translatedLabels.LBL_SEARCH || 'Tìm',
@@ -578,8 +585,13 @@ export default function RelationshipCreateScreen_New() {
     const getModuleTranslation = async (moduleName) => {
         if (!moduleName) return '';
         const translationKey = `LBL_${moduleName.toUpperCase()}`;
-        const translated = await systemLanguageUtils.translate(translationKey);
-        return translated || moduleName;
+        // First try the module name exactly (which checks moduleList in appListStrings)
+        let translated = await systemLanguageUtils.translate(moduleName);
+        if (translated === moduleName) {
+            // Then fallback to LBL_ prefixed
+            translated = await systemLanguageUtils.translate(translationKey);
+        }
+        return (translated && translated !== translationKey) ? translated : moduleName;
     };
 
     // Handle assigned user selection

@@ -1,5 +1,5 @@
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -29,9 +29,9 @@ export default function RelationshipListScreen_New() {
     const styles = getStyles();
     const navigation = useNavigation();
     const route = useRoute();
-    
+
     // Get relationship data from route params (passed from ModuleDetailScreen renderRelationshipItem)
-    const { 
+    const {
         relationship,           // relationship object with moduleName, displayName, relatedLink, etc.
         sourceModule,           // source/parent module name  
         sourceRecordId,         // source/parent record ID
@@ -40,19 +40,19 @@ export default function RelationshipListScreen_New() {
         parentRecord,          // parent record data (optional)
         relaFor
     } = route.params;
-    
+
     // Extract moduleName and relatedLink from relationship
     const moduleName = relationship?.moduleName;
     const relatedLink = relationship?.relatedLink;
     const displayName = relationship?.displayName || relationship?.moduleLabel || moduleName;
-    
+
     // Use sourceModule/sourceRecordId if available, otherwise fall back to parentModule/parentId
     const actualParentModule = sourceModule || parentModule;
     const actualParentId = sourceRecordId || parentId;
-    
+
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
-    
+
     // Translation states
     const [translations, setTranslations] = useState({
         mdName: displayName,
@@ -66,7 +66,7 @@ export default function RelationshipListScreen_New() {
         noData: 'No data available',
         createNew: 'Create new'
     });
-    
+
     const [translationsLoaded, setTranslationsLoaded] = useState(false);
 
     // State cho search và filter
@@ -104,22 +104,27 @@ export default function RelationshipListScreen_New() {
             try {
                 // Get all translations at once using SystemLanguageUtils
                 const translated = await systemLanguageUtils.translateKeys([
-                    `LBL_${moduleName.toUpperCase()}`,
+                    'LBL_IMPORT',
+                    'LBL_DROPDOWN_LIST_ALL',
                     'LBL_SEARCH_BUTTON_LABEL',
                     'LBL_CREATE_BUTTON_LABEL',
                     'LBL_EMAIL_LOADING',
-                    'UPLOAD_REQUEST_ERROR',
                     'LBL_NO_DATA',
-                    'LBL_DROPDOWN_LIST_ALL',
-                    'LBL_IMPORT',
+                    `LBL_${moduleName.toUpperCase()}`,
+                    moduleName,
+                    'LBL_ID',
+                    'LBL_DATE_ENTERED',
                     'LBL_SUBJECT',
                 ]);
-                
 
-                
+                let translatedMdName = translated[moduleName];
+                if (!translatedMdName || translatedMdName === moduleName) {
+                    translatedMdName = translated[`LBL_${moduleName.toUpperCase()}`];
+                }
+
                 setTranslations({
-                    mdName: translated[`LBL_${moduleName.toUpperCase()}`] || displayName,
-                    searchPlaceholder: `${translated.LBL_IMPORT || 'Enter'} keywords`,
+                    mdName: (translatedMdName && translatedMdName !== `LBL_${moduleName.toUpperCase()}`) ? translatedMdName : displayName,
+                    searchPlaceholder: `Type to search...`,
                     selectedTypeDefault: translated.LBL_DROPDOWN_LIST_ALL || 'All',
                     searchButton: translated.LBL_SEARCH_BUTTON_LABEL || 'Search',
                     addButton: translated.LBL_CREATE_BUTTON_LABEL || 'Add',
@@ -129,25 +134,27 @@ export default function RelationshipListScreen_New() {
                     noData: translated.LBL_NO_DATA || 'No data available',
                     createNew: 'Create new'
                 });
-                
+
                 setTranslationsLoaded(true);
             } catch (error) {
                 console.error(`RelationshipListScreen_New (${moduleName}): Error loading translations:`, error);
                 setTranslationsLoaded(true);
             }
         };
-        
+
         initializeTranslations();
     }, [moduleName, systemLanguageUtils, displayName]);
 
     // Refetch data when screen is focused (after create/update)
+    const isFirstMount = useRef(true);
     useFocusEffect(
         useCallback(() => {
-            // Only refetch if not initial load and not already loading
-            if (!loading && translationsLoaded) {
-                handleRefresh();
+            if (isFirstMount.current) {
+                isFirstMount.current = false;
+                return;
             }
-        }, [loading, translationsLoaded, handleRefresh])
+            handleRefresh();
+        }, [handleRefresh])
     );
 
     // Update filter dropdown defaults when options are loaded
@@ -215,28 +222,28 @@ export default function RelationshipListScreen_New() {
 
     const handleSearchAction = () => {
         const filters = {};
-        
+
         // Find selected time filter value
         const selectedTimeOption = timeFilterOptions.find(opt => opt.label === selectedTimeFilter);
         if (selectedTimeOption && selectedTimeOption.value) {
             filters.time_filter = selectedTimeOption.value;
         }
-        
+
         searchRecords(searchText, filters);
     };
 
     // Handle time filter selection - filter immediately
     const handleTimeFilterSelect = (selectedOption) => {
         setSelectedTimeFilter(selectedOption);
-        
+
         // Find selected time filter value and apply filter immediately
         const selectedTimeOption = timeFilterOptions.find(opt => opt.label === selectedOption);
         const filters = {};
-        
+
         if (selectedTimeOption && selectedTimeOption.value) {
             filters.time_filter = selectedTimeOption.value;
         }
-        
+
         // Apply filter immediately without waiting for search button
         searchRecords(searchText, filters);
     };
@@ -252,7 +259,7 @@ export default function RelationshipListScreen_New() {
     // Navigation to create screen
     const navigateToCreateScreen = () => {
         const targetScreen = 'RelationshipCreateScreen_New';
-        
+
         try {
             navigation.navigate(targetScreen, {
                 moduleName,
@@ -302,7 +309,7 @@ export default function RelationshipListScreen_New() {
                 fieldKey.toLowerCase().replace(/_/g, ''),
                 fieldKey.toUpperCase().replace(/_/g, '')
             ];
-            
+
             for (const key of possibleKeys) {
                 if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
                     return item[key];
@@ -310,7 +317,7 @@ export default function RelationshipListScreen_New() {
             }
             return '';
         };
-            
+
         return (
             <TouchableOpacity
                 style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}
@@ -384,8 +391,8 @@ export default function RelationshipListScreen_New() {
                         {/* Search Form */}
                         <View style={{ flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                             <View style={styles.searchBar}>
-                                <TextInput 
-                                    style={styles.input} 
+                                <TextInput
+                                    style={styles.input}
                                     placeholder={translations.searchPlaceholder}
                                     value={searchText}
                                     onChangeText={setSearchText}
@@ -623,7 +630,7 @@ const getStyles = createThemedStyles((colors) => StyleSheet.create({
     tableRowEven: {
         backgroundColor: colors.primaryColor1SupperLight,
     },
-    cell: { 
+    cell: {
         flex: 1,
         color: '#333',
     },

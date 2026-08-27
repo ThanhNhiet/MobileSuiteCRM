@@ -65,6 +65,8 @@ export default function RelationshipUpdateScreen_New() {
       try {
         // Get all translations at once using SystemLanguageUtils
         const translatedLabels = await systemLanguageUtils.translateKeys([
+          `LBL_${moduleName.toUpperCase()}`,
+          moduleName,
           'LBL_EDIT_BUTTON_LABEL',
           'LBL_EMAIL_LOADING',
           'LBL_EMAIL_SUCCESS',
@@ -99,7 +101,10 @@ export default function RelationshipUpdateScreen_New() {
         ]);
 
         // Get module specific translation
-        const moduleTranslation = await systemLanguageUtils.translate(moduleName);
+        let moduleTranslation = await systemLanguageUtils.translate(moduleName);
+        if (moduleTranslation === moduleName) {
+            moduleTranslation = translatedLabels[`LBL_${moduleName.toUpperCase()}`] || moduleName;
+        }
 
         setTranslations({
           mdName: moduleTranslation || moduleName,
@@ -228,8 +233,12 @@ export default function RelationshipUpdateScreen_New() {
   // Get module translation for relate field
   const getModuleTranslation = useCallback(async (moduleName) => {
     try {
-      const translation = await systemLanguageUtils.translate(moduleName);
-      return translation || moduleName;
+      let translation = await systemLanguageUtils.translate(moduleName);
+      if (translation === moduleName) {
+        const translationKey = `LBL_${moduleName.toUpperCase()}`;
+        translation = await systemLanguageUtils.translate(translationKey);
+      }
+      return (translation && translation !== `LBL_${moduleName.toUpperCase()}`) ? translation : moduleName;
     } catch (error) {
       console.warn('Error translating module name:', error);
       return moduleName;
