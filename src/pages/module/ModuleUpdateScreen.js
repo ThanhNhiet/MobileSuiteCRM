@@ -276,10 +276,13 @@ export default function ModuleUpdateScreen() {
           const parts = mapping.split('.');
           const targetModule = parts[0];
           const sourceField = parts[1];
-          let value = selectedItem.attributes && selectedItem.attributes[sourceField] !== undefined ? selectedItem.attributes[sourceField] : selectedItem[sourceField];
-          
-          if (value === undefined && selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
+          let value;
+          if (selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
               value = selectedItem[`${targetModule}_${sourceField}`];
+          } else if (selectedItem.attributes && selectedItem.attributes[sourceField] !== undefined) {
+              value = selectedItem.attributes[sourceField];
+          } else {
+              value = selectedItem[sourceField];
           }
           
           if (Array.isArray(value)) {

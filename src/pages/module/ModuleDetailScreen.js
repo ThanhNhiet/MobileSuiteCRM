@@ -32,6 +32,7 @@ import { ModuleLanguageUtils } from "../../utils/cacheViewManagement/ModuleLangu
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
 import { formatDateBySelectedLanguage, formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
+import { detailViewBtnRegistry } from "../feature/smartsea/DetailViewButtonRegistry";
 
 // Component to handle async field value formatting
 const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType, options, moduleName, moduleLanguageUtils }) => {
@@ -50,7 +51,7 @@ const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtil
                 if (moduleLanguageUtils && moduleName) {
                     try {
                         translatedValue = await moduleLanguageUtils.translate(value, value.toString(), moduleName);
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 setFormattedValue(translatedValue);
                 return;
@@ -141,10 +142,14 @@ export default function ModuleDetailScreen() {
     const [showPreview, setShowPreview] = useState(false);
     const [currencyNames, setCurrencyNames] = useState({}); // Cache for currency names
     const [formattedCurrencyValues, setFormattedCurrencyValues] = useState({}); // Cache for formatted currency values
-    
+
     // Line items modal state
     const [showLineItemModal, setShowLineItemModal] = useState(false);
     const [lineItemModalData, setLineItemModalData] = useState(null);
+
+    // Custom feature modal state
+    const [customModal, setCustomModal] = useState({ visible: false, registry: null, apiConfig: null, btnKey: null });
+    const [showActionsModal, setShowActionsModal] = useState(false);
 
     // Check if navigation is available
     const isNavigationReady = navigation && typeof navigation.goBack === 'function';
@@ -566,6 +571,78 @@ export default function ModuleDetailScreen() {
         }
     };
 
+    const renderDetailButtons = () => {
+        const detailButtons = moduleMetadata?.["detailview-btn"];
+        if (!detailButtons || typeof detailButtons !== 'object') return null;
+
+        const validButtons = Object.entries(detailButtons).filter(([btnKey, btnConfig]) => {
+            const [feature] = btnConfig;
+            return feature === 'smartsea' && detailViewBtnRegistry[moduleName] && detailViewBtnRegistry[moduleName][btnKey];
+        });
+
+        if (validButtons.length === 0) return null;
+
+        return (
+            <>
+                <TouchableOpacity
+                    style={[styles.updateButton, { backgroundColor: '#4B84FF', alignItems: 'center', justifyContent: 'center' }]}
+                    onPress={() => setShowActionsModal(true)}
+                >
+                    <Ionicons name="apps-outline" size={20} color="#fff" />
+                    <Text style={[styles.updateButtonText, { includeFontPadding: false }]}>Thao tác</Text>
+                </TouchableOpacity>
+
+                {/* Actions Sheet Modal */}
+                <Modal visible={showActionsModal} transparent={true} animationType="slide" onRequestClose={() => setShowActionsModal(false)}>
+                    <TouchableOpacity style={styles.actionSheetBackdrop} activeOpacity={1} onPress={() => setShowActionsModal(false)}>
+                        <View style={styles.actionSheetContainer}>
+                            <View style={styles.actionSheetHeader}>
+                                <Text style={styles.actionSheetTitle}>Thao tác</Text>
+                                <TouchableOpacity onPress={() => setShowActionsModal(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+                            <View style={styles.actionSheetBody}>
+                                {validButtons.map(([btnKey, btnConfig]) => {
+                                    const [, label, apiConfig, isModalStr] = btnConfig;
+                                    const registry = detailViewBtnRegistry[moduleName][btnKey];
+                                    const isModal = isModalStr === "[MODAL]";
+
+                                    const handlePress = () => {
+                                        setShowActionsModal(false);
+                                        // Give the modal time to close before opening the next one
+                                        setTimeout(() => {
+                                            if (isModal) {
+                                                setCustomModal({ visible: true, registry, apiConfig, btnKey });
+                                            } else {
+                                                if (registry.process) {
+                                                    registry.process({ recordId, apiConfig, record, navigation });
+                                                }
+                                            }
+                                        }, 100);
+                                    };
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={btnKey}
+                                            style={[styles.actionSheetBtn, registry.color && { borderColor: registry.color, borderWidth: 1 }]}
+                                            onPress={handlePress}
+                                        >
+                                            <View style={[styles.actionSheetIconWrapper, registry.color && { backgroundColor: registry.color }]}>
+                                                {registry.icon && <Ionicons name={registry.icon} size={20} color="#fff" />}
+                                            </View>
+                                            <Text style={[styles.actionSheetBtnText, registry.color && { color: registry.color }]}>{label}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+            </>
+        );
+    };
+
     // Render JSON Table if matched with lineitems_field
     const renderLineItemsTable = (fieldKey, value) => {
         if (!moduleMetadata || !moduleMetadata.lineitems_field || !moduleMetadata.lineitems_field[fieldKey]) {
@@ -574,7 +651,7 @@ export default function ModuleDetailScreen() {
 
         const viewConfig = moduleMetadata.lineitems_field[fieldKey].view || {};
         const columns = Object.keys(viewConfig);
-        
+
         let parsedData = [];
         if (typeof value === 'string') {
             try {
@@ -598,14 +675,14 @@ export default function ModuleDetailScreen() {
         }
 
         return (
-            <TouchableOpacity 
-                style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 }]} 
+            <TouchableOpacity
+                style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 }]}
                 onPress={() => {
-                    setLineItemModalData({ 
-                        parsedData, 
-                        columns, 
-                        viewConfig, 
-                        fieldLabel: getFieldLabel(fieldKey) 
+                    setLineItemModalData({
+                        parsedData,
+                        columns,
+                        viewConfig,
+                        fieldLabel: getFieldLabel(fieldKey)
                     });
                     setShowLineItemModal(true);
                 }}
@@ -664,7 +741,7 @@ export default function ModuleDetailScreen() {
         return (
             <View key={field.key} style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>{field.label}</Text>
-                
+
                 {isLineItems ? (
                     renderLineItemsTable(field.key, value)
                 ) : (field.key === 'annual_revenue' || field.type === 'currency' || field.type === 'enum' || field.type === 'dynamicenum' || field.options) ? (
@@ -815,6 +892,9 @@ export default function ModuleDetailScreen() {
                 {/* Action Buttons */}
                 {record && (
                     <View style={styles.actionContainer}>
+                        {/* Custom Detail Buttons */}
+                        {renderDetailButtons()}
+
                         <TouchableOpacity
                             style={[
                                 styles.updateButton,
@@ -899,6 +979,21 @@ export default function ModuleDetailScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Custom Feature Modal */}
+                {customModal.visible && customModal.registry?.modal && (
+                    <customModal.registry.modal
+                        visible={customModal.visible}
+                        onClose={() => setCustomModal({ visible: false, registry: null, apiConfig: null, btnKey: null })}
+                        recordId={recordId}
+                        record={record}
+                        apiConfig={customModal.apiConfig}
+                        onSuccess={() => {
+                            setCustomModal({ visible: false, registry: null, apiConfig: null, btnKey: null });
+                            refreshRecord();
+                        }}
+                    />
+                )}
             </SafeAreaView>
         </SafeAreaProvider>
     );
@@ -1217,5 +1312,56 @@ const getStyles = createThemedStyles((colors) => StyleSheet.create({
         resizeMode: "contain",
         borderRadius: 8,
     },
-
+    actionSheetBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    actionSheetContainer: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 20,
+        minHeight: 200,
+    },
+    actionSheetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+        paddingBottom: 15,
+    },
+    actionSheetTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827',
+    },
+    actionSheetBody: {
+        gap: 12,
+    },
+    actionSheetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        backgroundColor: '#f9fafb',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    actionSheetIconWrapper: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#6b7280',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    actionSheetBtnText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#374151',
+    },
 }));

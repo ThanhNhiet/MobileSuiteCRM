@@ -29,7 +29,7 @@ const FormattedListValue = ({ fieldKey, value, moduleName, moduleLanguageUtils }
 
     useEffect(() => {
         let isMounted = true;
-        
+
         const formatValue = async () => {
             if (!value && value !== 0) {
                 if (isMounted) setFormattedValue('');
@@ -49,19 +49,19 @@ const FormattedListValue = ({ fieldKey, value, moduleName, moduleLanguageUtils }
 
             // Default to string
             let translatedValue = String(value);
-            
+
             // Attempt to translate the value (this handles enum keys)
             if (moduleLanguageUtils && moduleName) {
                 try {
                     translatedValue = await moduleLanguageUtils.translate(value, translatedValue, moduleName);
-                } catch(e) {}
+                } catch (e) { }
             }
-            
+
             if (isMounted) setFormattedValue(translatedValue);
         };
 
         formatValue();
-        
+
         return () => { isMounted = false; };
     }, [fieldKey, value, moduleName, moduleLanguageUtils]);
 
@@ -319,11 +319,11 @@ export default function ModuleListScreen() {
         >
             {columns.map((column, index) => (
                 <Text key={index} style={styles.cell}>
-                    <FormattedListValue 
-                        fieldKey={column.key} 
-                        value={getFieldValue(item, column.key)} 
-                        moduleName={moduleName} 
-                        moduleLanguageUtils={moduleLanguageUtils} 
+                    <FormattedListValue
+                        fieldKey={column.key}
+                        value={getFieldValue(item, column.key)}
+                        moduleName={moduleName}
+                        moduleLanguageUtils={moduleLanguageUtils}
                     />
                 </Text>
             ))}
