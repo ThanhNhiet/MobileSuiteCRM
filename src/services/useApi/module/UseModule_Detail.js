@@ -235,7 +235,7 @@ export const useModule_Detail = (moduleName, recordId) => {
     };
 
     // Process relationships
-    const processRelationships = (relationshipsData) => {
+    const processRelationships = async (relationshipsData) => {
         if (!relationshipsData || typeof relationshipsData !== 'object') {
             return [];
         }
@@ -243,20 +243,26 @@ export const useModule_Detail = (moduleName, recordId) => {
         const processedRelationships = [];
         
         // Map relationship data to display format
-        Object.keys(relationshipsData).forEach((relationshipKey, index) => {
+        for (const relationshipKey of Object.keys(relationshipsData)) {
             const relationshipInfo = relationshipsData[relationshipKey];
             
             if (relationshipInfo && relationshipInfo.links && relationshipInfo.links.related) {
+                let moduleLabel = getModuleDisplayName(relationshipKey);
+                if (moduleLabel === relationshipKey) {
+                    // Try to fetch from system language if not found in hardcoded list
+                    moduleLabel = await systemLanguageUtils.translate(relationshipKey, relationshipKey);
+                }
+
                 processedRelationships.push({
-                    id: `relationship_${index}`,
+                    id: `relationship_${processedRelationships.length}`,
                     moduleName: relationshipKey,
                     displayName: relationshipKey,
-                    moduleLabel: getModuleDisplayName(relationshipKey),
+                    moduleLabel: moduleLabel,
                     relatedLink: relationshipInfo.links.related,
                     count: 0 // Will be populated by RelationshipsData
                 });
             }
-        });
+        }
 
         return processedRelationships;
     };
@@ -340,7 +346,7 @@ export const useModule_Detail = (moduleName, recordId) => {
                 const systemModules = ['AOS_Line_Item_Groups', 'AOS_Products_Quotes'];
                 const modules = ['AOS_Quotes','AOS_Invoices','AOS_Contracts'];
                 
-                let processedRelationships = processRelationships(response.data.relationships);
+                let processedRelationships = await processRelationships(response.data.relationships);
                 
                 processedRelationships = processedRelationships.filter(r => r.moduleName !== 'Users');
 

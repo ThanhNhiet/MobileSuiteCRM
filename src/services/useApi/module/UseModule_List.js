@@ -21,11 +21,11 @@ export const useModule_List = (moduleName) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Utils
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
-    
+
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -35,16 +35,16 @@ export const useModule_List = (moduleName) => {
         nextLink: null,
         prevLink: null
     });
-    
+
     // Fields
     const [columns, setColumns] = useState([]);
     const [nameFields, setNameFields] = useState('');
-    
+
     // Search & filter
     const [searchText, setSearchText] = useState('');
     const [additionalFilters, setAdditionalFilters] = useState({});
     const [timeFilter, setTimeFilter] = useState('');
-    
+
     // Filter options
     const [filterOptions, setFilterOptions] = useState({});
     const [timeFilterOptions, setTimeFilterOptions] = useState([]);
@@ -56,12 +56,12 @@ export const useModule_List = (moduleName) => {
     // Roles
     const [userRoles, setUserRoles] = useState([]);
     const [recordsRole, setRecordsRole] = useState([]);
-    const nameRole = ['delete','list','edit','create','view'];
+    const nameRole = ['delete', 'list', 'edit', 'create', 'view'];
 
     const initializeUserRoles = useCallback(async () => {
         try {
             const data = await getUserRolesApi();
-            
+
             // Check if user has no roles (empty array or null/undefined)
             if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
                 // Create full permission object when user has no roles
@@ -72,7 +72,7 @@ export const useModule_List = (moduleName) => {
                     access_level_name: 'all',
                     access_override: 100 // Admin level access
                 }));
-                
+
                 const roleOptions = {
                     roleName: 'full_access',
                     roles: fullPermissions
@@ -80,7 +80,7 @@ export const useModule_List = (moduleName) => {
                 setUserRoles(roleOptions);
                 return;
             }
-            
+
             const roles = data.roles[0] || [];
             const roleOptions = {
                 roleName: roles.role_name,
@@ -94,12 +94,12 @@ export const useModule_List = (moduleName) => {
             // On error, provide full access as fallback to avoid blocking users
             const fullPermissions = nameRole.map(permission => ({
                 name: permission,
-                action_name: permission, 
+                action_name: permission,
                 category: moduleName,
                 access_level_name: 'all',
                 access_override: 100
             }));
-            
+
             setUserRoles({
                 roleName: 'fallback_full_access',
                 roles: fullPermissions
@@ -108,11 +108,11 @@ export const useModule_List = (moduleName) => {
     }, [moduleName]);
     const initializationSecurityGroupsRelationsApi = async (name) => {
         try {
-           const data = await getUserSecurityGroupsRelationsApi(name);
-                if (!data) {
-                    return [];
-                }
-                return data;
+            const data = await getUserSecurityGroupsRelationsApi(name);
+            if (!data) {
+                return [];
+            }
+            return data;
         } catch (error) {
             console.error('Error initializing security groups relations:', error);
         }
@@ -133,42 +133,42 @@ export const useModule_List = (moduleName) => {
             // Check cache
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'listviewdefs');
-            
+
             if (!cachedFields) {
                 // Fetch from API
                 const fieldsResponse = await getModuleListFieldsApi(moduleName);
-                
+
                 // Extract fields
                 if (fieldsResponse && fieldsResponse.default_fields) {
                     fieldsData = fieldsResponse.default_fields;
                 } else {
                     fieldsData = {};
                 }
-                
+
                 // Cache fields
                 await WriteCacheView.saveModuleField(moduleName, 'listviewdefs', fieldsData);
             } else {
                 // Use cache
                 fieldsData = cachedFields;
             }
-            
+
             // Get language
             const selectedLanguage = await AsyncStorage.getItem('selectedLanguage') || 'vi_VN';
             let languageData = await cacheManager.getModuleLanguage(moduleName, selectedLanguage);
-            
+
             // Fallback
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
                 }
             }
-            
+
             // Extract strings
             let modStrings = null;
             if (languageData && languageData.data && languageData.data.mod_strings) {
                 modStrings = languageData.data.mod_strings;
             }
-            
+
             // Fetch custom module metadata (like listview)
             let customMetadata = null;
             try {
@@ -179,7 +179,7 @@ export const useModule_List = (moduleName) => {
             } catch (e) {
                 console.warn('Could not fetch module metadata:', e);
             }
-            
+
             if (customMetadata && customMetadata.listview && Array.isArray(customMetadata.listview) && customMetadata.listview.length > 0) {
                 // Use custom listview!
                 fieldsData = {};
@@ -209,7 +209,7 @@ export const useModule_List = (moduleName) => {
                     }
                 };
             }
-            
+
             // Limit fields to display in the list to avoid clutter, unless custom listview is defined
             const allFieldEntries = Object.entries(fieldsData);
             let fieldEntries = allFieldEntries.filter(([key]) => key !== 'SET_COMPLETE');
@@ -219,7 +219,7 @@ export const useModule_List = (moduleName) => {
 
             // Build nameFields
             const fieldKeys = fieldEntries.map(([key]) => key.toLowerCase());
-            
+
             // Filter invalid fields
             const validFields = fieldKeys.filter(field =>
                 field &&
@@ -227,9 +227,9 @@ export const useModule_List = (moduleName) => {
                 field.trim() !== '' &&
                 !field.includes(' ')
             );
-            
+
             const nameFieldsString = validFields.join(',');
-            
+
             // Set nameFields
             let finalNameFields;
             if (!nameFieldsString || nameFieldsString.trim() === '') {
@@ -237,25 +237,25 @@ export const useModule_List = (moduleName) => {
             } else {
                 finalNameFields = nameFieldsString;
             }
-            
+
             setNameFields(finalNameFields);
-            
+
             // Build columns
             const columnsData = fieldEntries.map(([fieldKey, fieldInfo]) => {
                 let translatedLabel = fieldKey;
                 const labelValue = fieldInfo?.label;
-                
+
                 if (modStrings) {
                     // Use API label
                     if (labelValue && typeof labelValue === 'string' && labelValue.trim() !== '') {
                         let translation = modStrings[labelValue];
-                        
+
                         // Try alternative
                         if (!translation) {
                             const listKey = labelValue.replace('LBL_', 'LBL_LIST_');
                             translation = modStrings[listKey];
                         }
-                        
+
                         translatedLabel = translation || labelValue;
                     } else {
                         // Use standard pattern
@@ -266,7 +266,7 @@ export const useModule_List = (moduleName) => {
                     // Fallback translation
                     try {
                         const fallbackTranslation = moduleLanguageUtils.translate(
-                            labelValue || `LBL_${fieldKey.toUpperCase()}`, 
+                            labelValue || `LBL_${fieldKey.toUpperCase()}`,
                             fieldKey,
                             moduleName
                         );
@@ -275,7 +275,7 @@ export const useModule_List = (moduleName) => {
                         translatedLabel = fieldKey;
                     }
                 }
-                
+
                 return {
                     key: fieldKey.toLowerCase(),
                     label: translatedLabel,
@@ -284,12 +284,12 @@ export const useModule_List = (moduleName) => {
                     link: fieldInfo?.link || false
                 };
             });
-            
+
             setColumns(columnsData);
-            
+
         } catch (error) {
             console.error(`Error initializing fields and language for ${moduleName}:`, error);
-            
+
             // Fallback structure
             setNameFields('name,date_entered,assigned_user_id,created_by');
             setColumns([
@@ -310,7 +310,7 @@ export const useModule_List = (moduleName) => {
                 { label: 'this_month', value: 'this_month' },
                 { label: 'this_year', value: 'this_year' }
             ];
-            
+
             // Translate options
             const translatedTimeOptions = await Promise.all(
                 timeOptions.map(async (option) => {
@@ -324,7 +324,7 @@ export const useModule_List = (moduleName) => {
                     }
                 })
             );
-            
+
             setTimeFilterOptions(translatedTimeOptions);
             setFiltersInitialized(true);
         } catch (error) {
@@ -337,25 +337,25 @@ export const useModule_List = (moduleName) => {
     const fetchRecords = useCallback(async (page = 1, isRefresh = false, searchMode = false, overrideTimeFilter = null, overrideSearchText = null) => {
         const activeTimeFilter = overrideTimeFilter !== null ? overrideTimeFilter : timeFilter;
         const activeSearchText = overrideSearchText !== null ? overrideSearchText : searchText;
-        
+
         try {
             if (isRefresh) {
                 setRefreshing(true);
             } else if (!isRefresh && page === 1) {
                 setLoading(true);
             }
-            
+
             setError(null);
-            
+
             let response;
-            
+
             if (activeSearchText.trim() && searchMode) {
                 // Keyword search
                 response = await searchModuleByKeywordApi(moduleName, activeSearchText.trim(), page);
             } else if (Object.keys(additionalFilters).length > 0 || activeTimeFilter) {
                 // Filter search
                 const filters = { ...additionalFilters };
-                
+
                 // Add date filter
                 if (activeTimeFilter) {
                     const dateFilters = buildDateFilter(activeTimeFilter);
@@ -366,7 +366,7 @@ export const useModule_List = (moduleName) => {
                 // Default fetch
                 response = await getModuleRecordsApi(moduleName, 10, page, nameFields);
             }
-            
+
             if (response && response.data) {
                 const newRecords = response.data.map(item => {
                     // Handle formats
@@ -386,18 +386,18 @@ export const useModule_List = (moduleName) => {
                         };
                     }
                 });
-                
+
                 // Replace records for correct page display
                 setRecords(newRecords);
-                
+
                 // Update pagination
                 if (response.meta) {
                     const totalPages = response.meta['total-pages'] || response.meta.total_pages || response.pagination?.total_pages || 1;
                     const totalRecords = response.meta['total-count'] || response.meta.total_count || response.pagination?.total_count || newRecords.length;
-                    
+
                     setTotalPages(totalPages);
                     setCurrentPage(page);
-                    
+
                     setPagination({
                         hasNext: page < totalPages,
                         hasPrev: page > 1,
@@ -410,15 +410,15 @@ export const useModule_List = (moduleName) => {
                     setRecords([]);
                 }
             }
-            
+
             if (!initialRecordsLoaded) {
                 setInitialRecordsLoaded(true);
             }
-            
+
         } catch (err) {
             console.error(`Error fetching ${moduleName} records:`, err);
             setError(`Failed to load ${moduleName} records`);
-            
+
             if (page === 1) {
                 setRecords([]);
             }
@@ -494,7 +494,7 @@ export const useModule_List = (moduleName) => {
         setFiltersInitialized(false);
         setIsInitializing(true);
         setInitialRecordsLoaded(false);
-        
+
         // Re-initialize
         const initialize = async () => {
             await Promise.all([
@@ -502,7 +502,7 @@ export const useModule_List = (moduleName) => {
                 initializeFilters()
             ]);
         };
-        
+
         initialize();
     }, [moduleName, initializeFieldsAndLanguage, initializeFilters]);
 
@@ -513,40 +513,40 @@ export const useModule_List = (moduleName) => {
         }
     }, [filtersInitialized, nameFields, initialRecordsLoaded, fetchRecords]);
 
-        const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
-        const [viewPerm, setViewPerm] = useState([]);
-       // const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
-        // Get list permissions
-        useEffect(() => {
+    const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
+    const [viewPerm, setViewPerm] = useState([]);
+    // const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
+    // Get list permissions
+    useEffect(() => {
         if (!userRoles) return;
-            const roleName = userRoles?.roleName?.toLowerCase?.() ?? '';
-            const listPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'list');
-            setRoleInfo({ roleName, listPerm });
-        }, [userRoles]);
-        // Get view permissions
-        useEffect(() => {
-            if (!userRoles) return;
-            const viewPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'view');
-            setRoleInfo(prev => ({ ...prev, viewPerm }));
-        }, [userRoles]);
-        // Get delete permissions
-        useEffect(() => {
-            if (!userRoles) return;
-            const deletePerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'delete');
-            setRoleInfo(prev => ({ ...prev, deletePerm }));
-        }, [userRoles]);
-        // Get edit permissions
-        useEffect(() => {
-            if (!userRoles) return;
-            const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
-            setRoleInfo(prev => ({ ...prev, editPerm }));
-        }, [userRoles]);
+        const roleName = userRoles?.roleName?.toLowerCase?.() ?? '';
+        const listPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'list');
+        setRoleInfo({ roleName, listPerm });
+    }, [userRoles]);
+    // Get view permissions
+    useEffect(() => {
+        if (!userRoles) return;
+        const viewPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'view');
+        setRoleInfo(prev => ({ ...prev, viewPerm }));
+    }, [userRoles]);
+    // Get delete permissions
+    useEffect(() => {
+        if (!userRoles) return;
+        const deletePerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'delete');
+        setRoleInfo(prev => ({ ...prev, deletePerm }));
+    }, [userRoles]);
+    // Get edit permissions
+    useEffect(() => {
+        if (!userRoles) return;
+        const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
+        setRoleInfo(prev => ({ ...prev, editPerm }));
+    }, [userRoles]);
 
-        
-       // Role processing
-        const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
 
-        const getOwnersAndId = (rec) => {
+    // Role processing
+    const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
+
+    const getOwnersAndId = (rec) => {
         const r = normalizeRecord(rec);
         return {
             id: r?.id ?? r?.record_id,
@@ -555,126 +555,126 @@ export const useModule_List = (moduleName) => {
             securitygroup_id: r?.securitygroup_id,
             securitygroups: Array.isArray(r?.securitygroups) ? r.securitygroups : [],
         };
-        };
+    };
 
-        const buildSetsFromGroups = (list = []) => ({
+    const buildSetsFromGroups = (list = []) => ({
         memberIdSet: new Set(
             list.flatMap(g => (g?.members ?? []).map(m => m?.id).filter(Boolean))
         ),
         groupIdSet: new Set(
             list.map(g => g?.group_id ?? g?.id).filter(Boolean)
         ),
-        });
+    });
 
-        const filterRecordsByGroupOrOwner = (records = [], memberIdSet, groupIdSet) => {
+    const filterRecordsByGroupOrOwner = (records = [], memberIdSet, groupIdSet) => {
         return records.filter(rec => {
             const { created_by, assigned_user_id, securitygroup_id, securitygroups } = getOwnersAndId(rec);
             return (
-            (!!securitygroup_id && groupIdSet.has(securitygroup_id)) ||
-            securitygroups.some(id => groupIdSet.has(id)) ||
-            memberIdSet.has(assigned_user_id) ||
-            memberIdSet.has(created_by)
+                (!!securitygroup_id && groupIdSet.has(securitygroup_id)) ||
+                securitygroups.some(id => groupIdSet.has(id)) ||
+                memberIdSet.has(assigned_user_id) ||
+                memberIdSet.has(created_by)
             );
         });
-        };
+    };
 
-        const uniqueIds = (records = []) =>
+    const uniqueIds = (records = []) =>
         Array.from(new Set(records.map(r => getOwnersAndId(r).id).filter(Boolean)));
 
-        const uniqueRecordsById = (records = []) =>
+    const uniqueRecordsById = (records = []) =>
         Array.from(new Map(records.map(r => [getOwnersAndId(r).id, r])).values())
             .filter(r => !!getOwnersAndId(r).id);
 
-        const getUserIdSafe = async () => {
+    const getUserIdSafe = async () => {
         const token = await AsyncStorage.getItem('token');
         return getUserIdFromToken(token);
-        };
+    };
 
-        // Evaluate records by permission
-        const evaluateRecordsByPerm = async ({ permInfo, roleName, records }) => {
+    // Evaluate records by permission
+    const evaluateRecordsByPerm = async ({ permInfo, roleName, records }) => {
         if (!permInfo || !Array.isArray(records) || records.length === 0) return [];
 
         const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
         switch (level) {
             case 'all':
             case 'default':
-            return uniqueRecordsById(records);
+                return uniqueRecordsById(records);
 
             case 'owner': {
-            const userId = await getUserIdSafe();
-            const ownerRecords = records.filter(r => {
-                const { created_by, assigned_user_id } = getOwnersAndId(r);
-                return created_by === userId || assigned_user_id === userId;
-            });
-            return uniqueRecordsById(ownerRecords);
+                const userId = await getUserIdSafe();
+                const ownerRecords = records.filter(r => {
+                    const { created_by, assigned_user_id } = getOwnersAndId(r);
+                    return created_by === userId || assigned_user_id === userId;
+                });
+                return uniqueRecordsById(ownerRecords);
             }
 
             case 'unknown': {
-            const data = await initializationSecurityGroupsRelationsApi(roleName);
-            if (!data) return [];
-            const list = await getUserSecurityGroupsMember(data);
-            if (!Array.isArray(list) || list.length === 0) return [];
+                const data = await initializationSecurityGroupsRelationsApi(roleName);
+                if (!data) return [];
+                const list = await getUserSecurityGroupsMember(data);
+                if (!Array.isArray(list) || list.length === 0) return [];
 
-            const { memberIdSet, groupIdSet } = buildSetsFromGroups(list);
-            const filtered = filterRecordsByGroupOrOwner(records, memberIdSet, groupIdSet);
-            return uniqueRecordsById(filtered);
+                const { memberIdSet, groupIdSet } = buildSetsFromGroups(list);
+                const filtered = filterRecordsByGroupOrOwner(records, memberIdSet, groupIdSet);
+                return uniqueRecordsById(filtered);
             }
 
             case 'none':
             default:
-            return [];
+                return [];
         }
-        };
+    };
 
-        // LIST records by permission
-        const listSeqRef = useRef(0);
-        useEffect(() => {
+    // LIST records by permission
+    const listSeqRef = useRef(0);
+    useEffect(() => {
         let alive = true;
         const seq = ++listSeqRef.current;
 
         (async () => {
             try {
 
-             const allowed = await evaluateRecordsByPerm({
-                permInfo: roleInfo?.listPerm,
-                roleName: roleInfo?.roleName,
-                records,
-            });
-            if (!alive || seq !== listSeqRef.current) return;
-            setRecordsRole(allowed); // <-- MẢNG RECORD
+                const allowed = await evaluateRecordsByPerm({
+                    permInfo: roleInfo?.listPerm,
+                    roleName: roleInfo?.roleName,
+                    records,
+                });
+                if (!alive || seq !== listSeqRef.current) return;
+                setRecordsRole(allowed); // <-- MẢNG RECORD
             } catch (e) {
-            console.error('initializeRecordsRole error:', e);
-            if (alive && seq === listSeqRef.current) setRecordsRole([]);
+                console.error('initializeRecordsRole error:', e);
+                if (alive && seq === listSeqRef.current) setRecordsRole([]);
             }
         })();
 
         return () => { alive = false; };
-        }, [roleInfo?.roleName, roleInfo?.listPerm, records]);
+    }, [roleInfo?.roleName, roleInfo?.listPerm, records]);
 
-        // VIEW IDs by permission
-        const viewSeqRef = useRef(0);
-        useEffect(() => {
+    // VIEW IDs by permission
+    const viewSeqRef = useRef(0);
+    useEffect(() => {
         let alive = true;
         const seq = ++viewSeqRef.current;
 
         (async () => {
             try {
-             const allowed = await evaluateRecordsByPerm({
-                permInfo: roleInfo?.viewPerm,
-                roleName: roleInfo?.roleName,
-                records,
-            });
-            const ids = uniqueIds(allowed); // <-- MẢNG ID
-            if (!alive || seq !== viewSeqRef.current) return;
-            setViewPerm(ids);
+                const allowed = await evaluateRecordsByPerm({
+                    permInfo: roleInfo?.viewPerm,
+                    roleName: roleInfo?.roleName,
+                    records,
+                });
+                const ids = uniqueIds(allowed); // <-- MẢNG ID
+                if (!alive || seq !== viewSeqRef.current) return;
+                setViewPerm(ids);
             } catch (e) {
-            console.error('Error checking view permissions:', e);
-            if (alive && seq === viewSeqRef.current) setViewPerm([]);
+                console.error('Error checking view permissions:', e);
+                if (alive && seq === viewSeqRef.current) setViewPerm([]);
             }
         })();
 
         return () => { alive = false; };
-        }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
+    }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
 
     return {
         // Data
@@ -682,24 +682,24 @@ export const useModule_List = (moduleName) => {
         columns,
         recordsRole,
         viewPerm,
-        
+
         // States
         loading,
         refreshing,
         error,
         isInitializing,
-        
+
         // Pagination
         currentPage,
         totalPages,
         pagination,
-        
+
         // Search and Filter
         searchText,
         timeFilter,
         timeFilterOptions,
         filtersInitialized,
-        
+
         // Actions
         handleSearch,
         handleFilter,
@@ -707,7 +707,7 @@ export const useModule_List = (moduleName) => {
         loadMore,
         goToPage,
         clearSearchAndFilters,
-        
+
         // Metadata
         moduleName,
         nameFields
