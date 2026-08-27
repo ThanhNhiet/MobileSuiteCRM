@@ -35,11 +35,12 @@ const SearchModulesScreen = () => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+    const [translatedTitle, setTranslatedTitle] = useState(title || 'Tìm kiếm');
     // Define columns - fixed for all types
     const [columns, setColumns] = useState([
         { key: 'name', label: 'Tên', flex: 3 },
         { key: 'date_entered', label: 'Ngày tạo', flex: 2 },
-        { key: 'id', label: 'ID', flex: 3}
+        { key: 'id', label: 'ID', flex: 3 }
     ]);
 
     // Translations
@@ -70,7 +71,7 @@ const SearchModulesScreen = () => {
 
                 setTranslations({
                     search: translated.LBL_SEARCH_BUTTON_LABEL || 'Tìm',
-                    searchPlaceholder: `${translated.LBL_IMPORT || 'Nhập'} ${translated.LBL_SUBJECT || 'từ khóa'}...`,
+                    searchPlaceholder: `Type to search...`,
                     loading: translated.LBL_EMAIL_LOADING || 'Đang tải...',
                     noData: translated.LBL_NO_DATA || 'Không có dữ liệu',
                     loadMore: translated.LBL_LOAD_MORE || 'Tải thêm',
@@ -83,6 +84,21 @@ const SearchModulesScreen = () => {
                     { key: 'date_entered', label: translated.LBL_DATE_ENTERED || 'Ngày tạo', flex: 2 },
                     { key: 'id', label: 'ID', flex: 2 }
                 ]);
+
+                // Try to translate parentType for title
+                if (parentType) {
+                    const translatedModule = await systemLanguageUtils.translate(parentType);
+                    if (translatedModule && translatedModule !== parentType) {
+                        setTranslatedTitle(translatedModule);
+                    } else {
+                        // Fallback: try moduleList
+                        const langData = await systemLanguageUtils.loadLanguageData();
+                        if (langData && langData.appListStrings && langData.appListStrings.moduleList && langData.appListStrings.moduleList[parentType]) {
+                            setTranslatedTitle(langData.appListStrings.moduleList[parentType]);
+                        }
+                    }
+                }
+
             } catch (error) {
                 console.warn('Translation initialization error:', error);
             }
@@ -118,7 +134,7 @@ const SearchModulesScreen = () => {
                     }
                     return true;
                 });
-                
+
                 if (isLoadMore) {
                     setData(prevData => [...prevData, ...newData]);
                 } else {
@@ -128,7 +144,7 @@ const SearchModulesScreen = () => {
                 // Use correct response structure
                 const totalPages = response.pagination?.total_pages || 1;
                 const currentPageFromResponse = response.pagination?.current_page || page;
-                
+
                 setTotalPages(totalPages);
                 setCurrentPage(currentPageFromResponse);
                 setHasSearched(true);
@@ -166,7 +182,7 @@ const SearchModulesScreen = () => {
             console.warn('Invalid item selected:', item);
             return;
         }
-        
+
         if (onSelect) {
             // Special handling for Users module - use user_name instead of name
             let itemName = '';
@@ -175,15 +191,15 @@ const SearchModulesScreen = () => {
             } else {
                 itemName = item.name !== null && item.name !== undefined ? String(item.name) : '';
             }
-            
+
             const itemId = item.id !== null && item.id !== undefined ? String(item.id) : '';
-            
+
             onSelect({
                 id: itemId,
                 name: itemName
             });
         }
-        
+
         // Safe navigation check
         if (navigation && typeof navigation.goBack === 'function') {
             navigation.goBack();
@@ -195,7 +211,7 @@ const SearchModulesScreen = () => {
     // Format field value for display
     const formatFieldValue = (key, value) => {
         if (!value || value === null || value === undefined) return '';
-        
+
         switch (key) {
             case 'date_entered':
                 try {
@@ -221,13 +237,13 @@ const SearchModulesScreen = () => {
     // Get field value from item
     const getFieldValue = (item, key) => {
         if (!item || item === null || item === undefined) return '';
-        
+
         // Special handling for Users module - use user_name instead of name
         if (key === 'name' && parentType === 'Users') {
             const userNameValue = item.user_name;
             return userNameValue !== null && userNameValue !== undefined ? String(userNameValue) : '';
         }
-        
+
         const value = item[key];
         return value !== null && value !== undefined ? String(value) : '';
     };
@@ -238,7 +254,7 @@ const SearchModulesScreen = () => {
             console.warn('Null item in renderItem:', item);
             return null;
         }
-        
+
         return (
             <TouchableOpacity
                 style={styles.tableRow}
@@ -357,7 +373,7 @@ const SearchModulesScreen = () => {
                     >
                         <Ionicons name="arrow-back" size={24} color={AppTheme.colors.navIcon} />
                     </TouchableOpacity>
-                    <Text style={styles.title}>{title || 'Tìm kiếm'}</Text>
+                    <Text style={styles.title}>{translatedTitle}</Text>
                     <View style={styles.placeholder} />
                 </View>
 

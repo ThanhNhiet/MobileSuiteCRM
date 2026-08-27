@@ -25,6 +25,7 @@ import { useModuleUpdate } from '../../services/useApi/module/UseModule_Update';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
+import axiosInstance from '../../configs/AxiosConfig';
 
 export default function ModuleUpdateScreen() {
   const styles = getStyles();
@@ -53,9 +54,16 @@ export default function ModuleUpdateScreen() {
                   try {
                       // Extract all required fields from relateConfig to pass to the API
                       let requiredFields = ['id', 'name'];
+                      let autosearchapiUrl = null;
                       if (searchModal.relateConfig) {
                           for (const mapping of Object.values(searchModal.relateConfig)) {
-                              const parts = mapping.split('.');
+                              if (mapping.includes('.autosearchapi[')) {
+                                  const match = mapping.match(/\.autosearchapi\[\[GET\](.*?)\]/);
+                                  if (match && match[1]) {
+                                      autosearchapiUrl = match[1];
+                                  }
+                              }
+                              const parts = mapping.replace(/\.autosearchapi\[.*?\]/, '').split('.');
                               if (parts.length >= 2 && parts[0] === searchModal.moduleToSearch) {
                                   requiredFields.push(parts[1]);
                               }
@@ -65,7 +73,32 @@ export default function ModuleUpdateScreen() {
 
                       const response = await searchModuleByKeywordApi_noAssignedUser(searchModal.moduleToSearch, searchModal.query, 1, fieldsParam);
                       if (response && response.data) {
-                      setSearchModal(prev => ({ ...prev, results: response.data, loading: false }));
+                          let mainResults = response.data;
+                          if (autosearchapiUrl) {
+                              autosearchapiUrl = autosearchapiUrl.replace(/%([^%]+)%/g, (match, fieldName) => {
+                                  if (fieldName === 'keyword') return encodeURIComponent(searchModal.query);
+                                  const val = getFieldValue(fieldName);
+                                  return encodeURIComponent(val || '');
+                              });
+                              
+                            try {
+                                const autoRes = await axiosInstance.get(autosearchapiUrl);
+                                if (autoRes && autoRes.data && autoRes.data.data) {
+                                    const autoData = autoRes.data.data;
+                                    const idKey = searchModal.moduleToSearch + '_id';
+                                    mainResults = mainResults.map(item => {
+                                        const extra = autoData.find(a => a[idKey] === item.id);
+                                        if (extra) {
+                                            return { ...item, ...extra };
+                                        }
+                                        return item;
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('autosearchapi error:', e);
+                            }
+                          }
+                          setSearchModal(prev => ({ ...prev, results: mainResults, loading: false }));
                   } else {
                       setSearchModal(prev => ({ ...prev, results: [], loading: false }));
                   }
@@ -238,11 +271,20 @@ export default function ModuleUpdateScreen() {
       // ModuleLanguageUtils instance if we need to translate
       const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
 
-      for (const [colName, mapping] of Object.entries(relateConfig)) {
+      for (const [colName, rawMapping] of Object.entries(relateConfig)) {
+          const mapping = rawMapping.replace(/\.autosearchapi\[.*?\]/, '');
           const parts = mapping.split('.');
           const targetModule = parts[0];
           const sourceField = parts[1];
-          let value = selectedItem.attributes ? selectedItem.attributes[sourceField] : selectedItem[sourceField];
+          let value = selectedItem.attributes && selectedItem.attributes[sourceField] !== undefined ? selectedItem.attributes[sourceField] : selectedItem[sourceField];
+          
+          if (value === undefined && selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
+              value = selectedItem[`${targetModule}_${sourceField}`];
+          }
+          
+          if (Array.isArray(value)) {
+              value = value[0];
+          }
           
           if (parts.includes('translate')) {
               try {
@@ -256,7 +298,7 @@ export default function ModuleUpdateScreen() {
                   console.warn('Translate error:', e);
               }
           }
-          rowToUpdate[colName] = value || '';
+          rowToUpdate[colName] = value !== undefined && value !== null ? String(value) : '';
       }
       
       const newRows = [...rows];
@@ -378,6 +420,52 @@ export default function ModuleUpdateScreen() {
   const handleSave = async () => {
     try {
       setSaving(true);
+      
+      // Custom LineItem Validation
+      if (moduleMetadata && moduleMetadata.lineitems_field) {
+          for (const fieldKey of Object.keys(moduleMetadata.lineitems_field)) {
+              const config = moduleMetadata.lineitems_field[fieldKey];
+              const editView = config['edit-view'] || {};
+              const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
+              
+              for (let i = 0; i < rows.length; i++) {
+                  const row = rows[i];
+                  for (const [colKey, labelConfig] of Object.entries(editView)) {
+                      if (labelConfig.includes('$num:[')) {
+                          const match = labelConfig.match(/\$num:\[(.*?)(<=|<|>=|>|==|!=)(.*?)\]/);
+                          if (match) {
+                              const leftCol = match[1].trim();
+                              const operator = match[2].trim();
+                              const rightCol = match[3].trim();
+                              
+                              const leftVal = parseFloat(row[leftCol] || 0);
+                              const rightVal = parseFloat(row[rightCol] || 0);
+                              
+                              let isValid = true;
+                              switch (operator) {
+                                  case '<': isValid = leftVal < rightVal; break;
+                                  case '<=': isValid = leftVal <= rightVal; break;
+                                  case '>': isValid = leftVal > rightVal; break;
+                                  case '>=': isValid = leftVal >= rightVal; break;
+                                  case '==': isValid = leftVal == rightVal; break;
+                                  case '!=': isValid = leftVal != rightVal; break;
+                              }
+                              
+                              if (!isValid) {
+                                  Alert.alert(
+                                      translations.errorTitle || 'Lỗi',
+                                      `Dòng ${i + 1}: Trường ${colKey} (giá trị: ${leftVal}) không thoả mãn điều kiện ${operator} ${rightVal}`
+                                  );
+                                  setSaving(false);
+                                  return;
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      }
+
       // Upload file trước nếu có
       let uploadedFilename = null;
       let mime_type = null;
@@ -999,6 +1087,8 @@ export default function ModuleUpdateScreen() {
           updateField(fieldKey, newRows);
       };
 
+      const cleanLabel = (label) => typeof label === 'string' ? label.replace(/\$num:\[.*?\]/g, '') : label;
+
       return (
           <View key={fieldKey} style={styles.row}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -1014,7 +1104,7 @@ export default function ModuleUpdateScreen() {
                       <View style={{ flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 1, borderColor: '#e2e8f0' }}>
                           {columns.map(col => (
                               <Text key={col} style={{ width: 120, padding: 8, fontWeight: 'bold', fontSize: 12 }}>
-                                  {editView[col]}
+                                  {cleanLabel(editView[col])}
                               </Text>
                           ))}
                           <Text style={{ width: 60, padding: 8, fontWeight: 'bold', fontSize: 12, textAlign: 'center' }}>Thao tác</Text>
@@ -1047,7 +1137,7 @@ export default function ModuleUpdateScreen() {
                                                   }}
                                               >
                                                   <Text style={{ fontSize: 12, color: row[col] ? '#000' : '#999' }} numberOfLines={1}>
-                                                      {row[col] ? String(row[col]) : editView[col]}
+                                                      {row[col] ? String(row[col]) : cleanLabel(editView[col])}
                                                   </Text>
                                               </TouchableOpacity>
                                           ) : (
@@ -1055,7 +1145,7 @@ export default function ModuleUpdateScreen() {
                                                   style={[styles.input, { padding: 4, fontSize: 12, height: 30, color: col === 'no' ? '#6b7280' : '#000', backgroundColor: col === 'no' ? '#f3f4f6' : '#fff', borderWidth: 1, borderColor: '#ccc' }]}
                                                   value={col === 'no' ? String(rowIndex + 1) : (row[col] !== undefined && row[col] !== null ? String(row[col]) : '')}
                                                   onChangeText={(text) => handleCellChange(text, rowIndex, col)}
-                                                  placeholder={editView[col]}
+                                                  placeholder={cleanLabel(editView[col])}
                                                   editable={col !== 'no'}
                                               />
                                           )}
@@ -1754,12 +1844,12 @@ export default function ModuleUpdateScreen() {
                         placeholder="Nhập từ khóa tìm kiếm..."
                         value={searchModal.query}
                         onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
-                        autoFocus={true}
-                    />
+                                autoFocus={true}
+                            />
 
-                    {searchModal.loading ? (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                            <ActivityIndicator size="large" color="#007AFF" />
+                            {searchModal.loading ? (
+                                <View style={{ padding: 20, alignItems: 'center' }}>
+                                    <ActivityIndicator size="large" color="#007AFF" />
                         </View>
                     ) : (
                         <FlatList
@@ -1776,6 +1866,11 @@ export default function ModuleUpdateScreen() {
                                             Mã: {item.attributes ? item.attributes.part_number : item.part_number}
                                         </Text>
                                     )}
+                                    {Object.keys(item).filter(k => Array.isArray(item[k]) && item[k].length === 2 && typeof item[k][1] === 'string').map(k => (
+                                        <Text key={k} style={{ color: '#007AFF', fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
+                                            {item[k][1]}
+                                        </Text>
+                                    ))}
                                 </TouchableOpacity>
                             )}
                             ListEmptyComponent={() => (
