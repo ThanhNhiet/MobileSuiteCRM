@@ -30,6 +30,7 @@ import { SystemLanguageUtils } from "../../utils/cacheViewManagement/SystemLangu
 import { getUserIdFromToken } from "../../utils/DecodeToken";
 import { formatCurrency } from "../../utils/format/FormatCurrencies";
 import { formatDateBySelectedLanguage, formatDateTimeBySelectedLanguage } from "../../utils/format/FormatDateTime_Zones";
+import { shouldHideFieldByRule } from '../feature/smartsea/rule';
 
 // Component to handle async field value formatting
 const FormattedFieldValue = ({ fieldKey, value, translations, systemLanguageUtils, fieldType }) => {
@@ -203,6 +204,7 @@ export default function RelationshipDetailScreen_New() {
         getDurationValue,
         fileMeta,
         relaFor,
+        userRoles,
     } = useRelationshipDetail(moduleName, recordId);
     const [lang, setLang] = useState(null);
     useEffect(() => {
@@ -479,6 +481,11 @@ export default function RelationshipDetailScreen_New() {
         const value = getFieldValue(field.key);
 
         if (!shouldDisplayField(field.key)) {
+            return null;
+        }
+
+        // Apply business rule to hide fields (e.g., price fields for 'thuyền' roles)
+        if (shouldHideFieldByRule(field.key, userRoles)) {
             return null;
         }
 

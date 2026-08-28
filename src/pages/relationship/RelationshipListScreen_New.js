@@ -1,5 +1,5 @@
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -19,6 +19,7 @@ import BottomNavigation from '../../components/navigations/BottomNavigation';
 import TopNavigationRelationship from '../../components/navigations/TopNavigationRelationship';
 import { useRelationshipList } from '../../services/useApi/relationship/UseRelationshipList';
 import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLanguageUtils';
+import { shouldHideFieldByRule } from '../feature/smartsea/rule';
 
 /**
  * RelationshipListScreen_New component
@@ -95,7 +96,8 @@ export default function RelationshipListScreen_New() {
         loadMore,
         handleFilter,
         clearSearchAndFilters,
-        formatCellValue
+        formatCellValue,
+        userRoles
     } = useRelationshipList(moduleName, relatedLink);
 
     // Initialize translations
@@ -296,6 +298,15 @@ export default function RelationshipListScreen_New() {
         });
     };
 
+    // Get visible columns by applying business rules and removing 'id'
+    const visibleColumns = useMemo(() => {
+        if (!Array.isArray(columns)) return [];
+        return columns
+            .filter(column => column && column.key && column.key !== 'id')
+            .filter(column => !shouldHideFieldByRule(column.key, userRoles))
+            .slice(0, 3);
+    }, [columns, userRoles]);
+
     // Render individual record item with alternating colors like ModuleListScreen
     const renderItem = ({ item, index }) => {
         // Get field value function
@@ -323,7 +334,7 @@ export default function RelationshipListScreen_New() {
                 style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}
                 onPress={() => navigateToDetailScreen(item)}
             >
-                {columns.map((column, columnIndex) => {
+                {visibleColumns.map((column, columnIndex) => {
                     const rawValue = getFieldValue(item, column.key);
                     const formattedValue = formatCellValue ? formatCellValue(column.key, rawValue) : rawValue;
                     console.log('Rendering cell:', { columnKey: column.key, rawValue, formattedValue });
@@ -432,9 +443,7 @@ export default function RelationshipListScreen_New() {
                         ) : !Array.isArray(columns) || columns.length === 0 ? (
                             <Text style={styles.headerCell}>Loading columns...</Text>
                         ) : (
-                            columns
-                                .filter(column => column && column.key && column.key !== 'id')
-                                .slice(0, 3)
+                            visibleColumns
                                 .map((column, index) => (
                                     <Text key={index} style={styles.headerCell}>
                                         {(column.label && typeof column.label === 'string') ? column.label : column.key}
