@@ -119,24 +119,16 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
     // Initialize update fields and language - similar to initializeCreateFields in useModule_Create
     const initializeUpdateFields = useCallback(async () => {
         try {
-            if (!moduleName) {
-                throw new Error('Module name is required');
-            }
-
-            // 1. Check cache editviewdefs.json
-            let fieldsData;
-            const cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
-
+            // 1. First check if field cache exists
+            let cachedFields = await ReadCacheView.getModuleField(moduleName, 'editviewdefs');
+            
             if (!cachedFields) {
-                // If no cache, fetch from API
-                const fieldsResponse = await getModuleEditFieldsApi(moduleName);
-                fieldsData = fieldsResponse;
-
-                // Save to cache
-                await WriteCacheView.saveModuleField(moduleName, 'editviewdefs', fieldsData);
-            } else {
-                // Use cached data
-                fieldsData = cachedFields;
+                // If not cached, fetch from API
+                const response = await getModuleEditFieldsApi(moduleName);
+                if (response && response.fields) {
+                    await WriteCacheView.saveModuleField(moduleName, 'editviewdefs', response.fields);
+                    cachedFields = response.fields;
+                }
             }
 
             // 2. Get current language
@@ -147,7 +139,15 @@ export const useRelationshipUpdate = (moduleName, initialRecordData = null) => {
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
-                    // Language cache missing - user needs to login to fetch data
+                    try {
+                        const langData = await getLanguageApi(moduleName, selectedLanguage);
+                        if (langData) {
+                            await cacheManager.saveModuleLanguage(moduleName, selectedLanguage, langData);
+                            languageData = { data: langData };
+                        }
+                    } catch (langErr) {
+                        console.warn(`Failed to fetch language for ${moduleName}:`, langErr);
+                    }
                 }
             }
 

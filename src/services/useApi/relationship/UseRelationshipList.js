@@ -10,6 +10,8 @@ import {
     getRelationshipListViewFieldsApi,
     getRelationshipsDataApi
 } from '../../api/relationship/RelationshipApi_New';
+import { getUserRolesApi } from '../../api/external/ExternalApi';
+import { getLanguageApi } from '../../api/login/Login_outApi';
 
 /**
  * Custom hook for relationship list functionality
@@ -49,6 +51,31 @@ export const useRelationshipList = (moduleName, relatedLink) => {
     const [timeFilterOptions, setTimeFilterOptions] = useState([]);
     const [filtersInitialized, setFiltersInitialized] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
+    
+    // User Roles State
+    const [userRoles, setUserRoles] = useState([]);
+
+    const initializeUserRoles = useCallback(async () => {
+        try {
+            const data = await getUserRolesApi();
+            if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
+                setUserRoles({ roleName: 'full_access', roles: [] });
+                return;
+            }
+            const roles = data.roles[0] || [];
+            setUserRoles({
+                roleName: roles.role_name,
+                roles: roles.actions || []
+            });
+        } catch (error) {
+            console.error('Error initializing user roles:', error);
+            setUserRoles({ roleName: 'fallback_full_access', roles: [] });
+        }
+    }, []);
+
+    useEffect(() => {
+        initializeUserRoles();
+    }, [initializeUserRoles]);
     
     // Validation
     if (!moduleName) {
@@ -103,7 +130,16 @@ export const useRelationshipList = (moduleName, relatedLink) => {
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
-                    console.warn(`Language cache not found for ${moduleName} in ${selectedLanguage}`);
+                    console.log(`Language cache not found for ${moduleName} in ${selectedLanguage}. Fetching from API...`);
+                    try {
+                        const langData = await getLanguageApi(moduleName, selectedLanguage);
+                        if (langData) {
+                            await cacheManager.saveModuleLanguage(moduleName, selectedLanguage, langData);
+                            languageData = { data: langData };
+                        }
+                    } catch (langErr) {
+                        console.warn(`Failed to fetch language for ${moduleName}:`, langErr);
+                    }
                 }
             }
             
@@ -541,6 +577,7 @@ export const useRelationshipList = (moduleName, relatedLink) => {
         filtersInitialized,
         searchText,
         timeFilter,
+        userRoles,
         
         // Actions
         handleSearch,

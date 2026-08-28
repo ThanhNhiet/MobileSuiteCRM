@@ -16,6 +16,7 @@ import {
     getRelateModuleApi,
     postFileModuleApi
 } from '../../api/module/ModuleApi';
+import { getLanguageApi } from '../../api/login/Login_outApi';
 import { getRecordByIdApi } from '../../api/relationship/RelationshipApi_New';
 
 export const useRelationshipCreate = (moduleName, relaFor) => {
@@ -172,7 +173,15 @@ export const useRelationshipCreate = (moduleName, relaFor) => {
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
-                    // Language cache missing - user needs to login to fetch data
+                    try {
+                        const langData = await getLanguageApi(moduleName, selectedLanguage);
+                        if (langData) {
+                            await cacheManager.saveModuleLanguage(moduleName, selectedLanguage, langData);
+                            languageData = { data: langData };
+                        }
+                    } catch (langErr) {
+                        console.warn(`Failed to fetch language for ${moduleName}:`, langErr);
+                    }
                 }
             }
 

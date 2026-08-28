@@ -7,6 +7,7 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi } from '../../api/external/ExternalApi';
+import { getLanguageApi } from '../../api/login/Login_outApi';
 import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 export const useRelationshipDetail = (moduleName, recordId) => {
     const [record, setRecord] = useState(null);
@@ -47,7 +48,15 @@ export const useRelationshipDetail = (moduleName, recordId) => {
             if (!languageData) {
                 const languageExists = await cacheManager.checkModuleLanguageExists(moduleName, selectedLanguage);
                 if (!languageExists) {
-                    // Language cache missing - user needs to login to fetch data
+                    try {
+                        const langData = await getLanguageApi(moduleName, selectedLanguage);
+                        if (langData) {
+                            await cacheManager.saveModuleLanguage(moduleName, selectedLanguage, langData);
+                            languageData = { data: langData };
+                        }
+                    } catch (langErr) {
+                        console.warn(`Failed to fetch language for ${moduleName}:`, langErr);
+                    }
                 }
             }
             
@@ -744,6 +753,7 @@ export const useRelationshipDetail = (moduleName, recordId) => {
         deleting,
         haveParent,
         relaFor,
+        userRoles,
         
         // Actions
         fetchRecord,
