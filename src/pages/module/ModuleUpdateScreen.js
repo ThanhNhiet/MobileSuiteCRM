@@ -26,6 +26,7 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import { formatDateTimeBySelectedLanguage } from '../../utils/format/FormatDateTime_Zones';
 import axiosInstance from '../../configs/AxiosConfig';
+import { updateViewBtnRegistry } from '../feature/smartsea/UpdateViewButtonRegistry';
 
 export default function ModuleUpdateScreen() {
   const styles = getStyles();
@@ -36,81 +37,81 @@ export default function ModuleUpdateScreen() {
 
   // Dynamic line item search modal state
   const [searchModal, setSearchModal] = useState({
-      visible: false,
-      rowIndex: null,
-      colKey: null,
-      query: '',
-      results: [],
-      loading: false,
-      relateConfig: null,
-      moduleToSearch: null,
-      fieldKey: null
+    visible: false,
+    rowIndex: null,
+    colKey: null,
+    query: '',
+    results: [],
+    loading: false,
+    relateConfig: null,
+    moduleToSearch: null,
+    fieldKey: null
   });
 
   useEffect(() => {
-      const timeoutId = setTimeout(async () => {
-              if (searchModal.visible && searchModal.query.length >= 1 && searchModal.moduleToSearch) {
-                  setSearchModal(prev => ({ ...prev, loading: true }));
-                  try {
-                      // Extract all required fields from relateConfig to pass to the API
-                      let requiredFields = ['id', 'name'];
-                      let autosearchapiUrl = null;
-                      if (searchModal.relateConfig) {
-                          for (const mapping of Object.values(searchModal.relateConfig)) {
-                              if (mapping.includes('.autosearchapi[')) {
-                                  const match = mapping.match(/\.autosearchapi\[\[GET\](.*?)\]/);
-                                  if (match && match[1]) {
-                                      autosearchapiUrl = match[1];
-                                  }
-                              }
-                              const parts = mapping.replace(/\.autosearchapi\[.*?\]/, '').split('.');
-                              if (parts.length >= 2 && parts[0] === searchModal.moduleToSearch) {
-                                  requiredFields.push(parts[1]);
-                              }
-                          }
-                      }
-                      const fieldsParam = Array.from(new Set(requiredFields)).join(',');
-
-                      const response = await searchModuleByKeywordApi_noAssignedUser(searchModal.moduleToSearch, searchModal.query, 1, fieldsParam);
-                      if (response && response.data) {
-                          let mainResults = response.data;
-                          if (autosearchapiUrl) {
-                              autosearchapiUrl = autosearchapiUrl.replace(/%([^%]+)%/g, (match, fieldName) => {
-                                  if (fieldName === 'keyword') return encodeURIComponent(searchModal.query);
-                                  const val = getFieldValue(fieldName);
-                                  return encodeURIComponent(val || '');
-                              });
-                              
-                            try {
-                                const autoRes = await axiosInstance.get(autosearchapiUrl);
-                                if (autoRes && autoRes.data && autoRes.data.data) {
-                                    const autoData = autoRes.data.data;
-                                    const idKey = searchModal.moduleToSearch + '_id';
-                                    mainResults = mainResults.map(item => {
-                                        const extra = autoData.find(a => a[idKey] === item.id);
-                                        if (extra) {
-                                            return { ...item, ...extra };
-                                        }
-                                        return item;
-                                    });
-                                }
-                            } catch (e) {
-                                console.warn('autosearchapi error:', e);
-                            }
-                          }
-                          setSearchModal(prev => ({ ...prev, results: mainResults, loading: false }));
-                  } else {
-                      setSearchModal(prev => ({ ...prev, results: [], loading: false }));
-                  }
-              } catch (error) {
-                  console.warn('Lineitem search error:', error);
-                  setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+    const timeoutId = setTimeout(async () => {
+      if (searchModal.visible && searchModal.query.length >= 1 && searchModal.moduleToSearch) {
+        setSearchModal(prev => ({ ...prev, loading: true }));
+        try {
+          // Extract all required fields from relateConfig to pass to the API
+          let requiredFields = ['id', 'name'];
+          let autosearchapiUrl = null;
+          if (searchModal.relateConfig) {
+            for (const mapping of Object.values(searchModal.relateConfig)) {
+              if (mapping.includes('.autosearchapi[')) {
+                const match = mapping.match(/\.autosearchapi\[\[GET\](.*?)\]/);
+                if (match && match[1]) {
+                  autosearchapiUrl = match[1];
+                }
               }
-          } else if (searchModal.visible && searchModal.query.length === 0) {
-              setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+              const parts = mapping.replace(/\.autosearchapi\[.*?\]/, '').split('.');
+              if (parts.length >= 2 && parts[0] === searchModal.moduleToSearch) {
+                requiredFields.push(parts[1]);
+              }
+            }
           }
-      }, 500);
-      return () => clearTimeout(timeoutId);
+          const fieldsParam = Array.from(new Set(requiredFields)).join(',');
+
+          const response = await searchModuleByKeywordApi_noAssignedUser(searchModal.moduleToSearch, searchModal.query, 1, fieldsParam);
+          if (response && response.data) {
+            let mainResults = response.data;
+            if (autosearchapiUrl) {
+              autosearchapiUrl = autosearchapiUrl.replace(/%([^%]+)%/g, (match, fieldName) => {
+                if (fieldName === 'keyword') return encodeURIComponent(searchModal.query);
+                const val = getFieldValue(fieldName);
+                return encodeURIComponent(val || '');
+              });
+
+              try {
+                const autoRes = await axiosInstance.get(autosearchapiUrl);
+                if (autoRes && autoRes.data && autoRes.data.data) {
+                  const autoData = autoRes.data.data;
+                  const idKey = searchModal.moduleToSearch + '_id';
+                  mainResults = mainResults.map(item => {
+                    const extra = autoData.find(a => a[idKey] === item.id);
+                    if (extra) {
+                      return { ...item, ...extra };
+                    }
+                    return item;
+                  });
+                }
+              } catch (e) {
+                console.warn('autosearchapi error:', e);
+              }
+            }
+            setSearchModal(prev => ({ ...prev, results: mainResults, loading: false }));
+          } else {
+            setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+          }
+        } catch (error) {
+          console.warn('Lineitem search error:', error);
+          setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+        }
+      } else if (searchModal.visible && searchModal.query.length === 0) {
+        setSearchModal(prev => ({ ...prev, results: [], loading: false }));
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
   }, [searchModal.query, searchModal.visible, searchModal.moduleToSearch]);
 
   const pickFile = async () => {
@@ -262,63 +263,69 @@ export default function ModuleUpdateScreen() {
 
   // Local loading state for save button
   const [saving, setSaving] = useState(false);
+  const [activeCustomModal, setActiveCustomModal] = useState(null);
 
   const handleSelectLineItemSearch = async (selectedItem) => {
-      const { rowIndex, relateConfig, fieldKey } = searchModal;
-      const rows = Array.isArray(formData[fieldKey]) ? [...formData[fieldKey]] : [];
-      const rowToUpdate = { ...rows[rowIndex] };
+    const { rowIndex, relateConfig, fieldKey } = searchModal;
+    const rows = Array.isArray(formData[fieldKey]) ? [...formData[fieldKey]] : [];
+    const rowToUpdate = { ...rows[rowIndex] };
 
-      // ModuleLanguageUtils instance if we need to translate
-      const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
+    // ModuleLanguageUtils instance if we need to translate
+    const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
 
-      for (const [colName, rawMapping] of Object.entries(relateConfig)) {
-          const mapping = rawMapping.replace(/\.autosearchapi\[.*?\]/, '');
-          const parts = mapping.split('.');
-          const targetModule = parts[0];
-          const sourceField = parts[1];
-          let value;
-          if (selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
-              value = selectedItem[`${targetModule}_${sourceField}`];
-          } else if (selectedItem.attributes && selectedItem.attributes[sourceField] !== undefined) {
-              value = selectedItem.attributes[sourceField];
-          } else {
-              value = selectedItem[sourceField];
-          }
-          
-          if (Array.isArray(value)) {
-              value = value[0];
-          }
-          
-          if (parts.includes('translate')) {
-              try {
-                  // Try to load translation and translate
-                  await moduleLanguageUtils.loadLanguageData(targetModule);
-                  const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
-                  // Search enum list key
-                  const translated = moduleLanguageUtils.searchNestedValue(listStrings, value);
-                  if (translated) value = translated;
-              } catch (e) {
-                  console.warn('Translate error:', e);
-              }
-          }
-          rowToUpdate[colName] = value !== undefined && value !== null ? String(value) : '';
+    for (const [colName, rawMapping] of Object.entries(relateConfig)) {
+      const mapping = rawMapping.replace(/\.autosearchapi\[.*?\]/, '');
+      const parts = mapping.split('.');
+      const targetModule = parts[0];
+      const sourceField = parts[1];
+      let value;
+      if (selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
+        value = selectedItem[`${targetModule}_${sourceField}`];
+      } else if (selectedItem.attributes && selectedItem.attributes[sourceField] !== undefined) {
+        value = selectedItem.attributes[sourceField];
+      } else {
+        value = selectedItem[sourceField];
       }
-      
-      const newRows = [...rows];
-      newRows[rowIndex] = rowToUpdate;
-      updateField(fieldKey, newRows);
-      
-      setSearchModal({
-          visible: false,
-          rowIndex: null,
-          colKey: null,
-          query: '',
-          results: [],
-          loading: false,
-          relateConfig: null,
-          moduleToSearch: null,
-          fieldKey: null
-      });
+
+      if (Array.isArray(value)) {
+        value = value[0];
+      }
+
+      if (parts.includes('translate')) {
+        try {
+          // Try to load translation and translate
+          await moduleLanguageUtils.loadLanguageData(targetModule);
+          const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
+          // Search enum list key
+          const translated = moduleLanguageUtils.searchNestedValue(listStrings, value);
+          if (translated) {
+            value = translated;
+          } else {
+            const sysTranslated = await systemLanguageUtils.translate(value, value);
+            if (sysTranslated) value = sysTranslated;
+          }
+        } catch (e) {
+          console.warn('Translate error:', e);
+        }
+      }
+      rowToUpdate[colName] = value !== undefined && value !== null ? String(value) : '';
+    }
+
+    const newRows = [...rows];
+    newRows[rowIndex] = rowToUpdate;
+    updateField(fieldKey, newRows);
+
+    setSearchModal({
+      visible: false,
+      rowIndex: null,
+      colKey: null,
+      query: '',
+      results: [],
+      loading: false,
+      relateConfig: null,
+      moduleToSearch: null,
+      fieldKey: null
+    });
   };
 
   // Modal state for parent_type selection
@@ -423,50 +430,50 @@ export default function ModuleUpdateScreen() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      
+
       // Custom LineItem Validation
       if (moduleMetadata && moduleMetadata.lineitems_field) {
-          for (const fieldKey of Object.keys(moduleMetadata.lineitems_field)) {
-              const config = moduleMetadata.lineitems_field[fieldKey];
-              const editView = config['edit-view'] || {};
-              const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
-              
-              for (let i = 0; i < rows.length; i++) {
-                  const row = rows[i];
-                  for (const [colKey, labelConfig] of Object.entries(editView)) {
-                      if (labelConfig.includes('$num:[')) {
-                          const match = labelConfig.match(/\$num:\[(.*?)(<=|<|>=|>|==|!=)(.*?)\]/);
-                          if (match) {
-                              const leftCol = match[1].trim();
-                              const operator = match[2].trim();
-                              const rightCol = match[3].trim();
-                              
-                              const leftVal = parseFloat(row[leftCol] || 0);
-                              const rightVal = parseFloat(row[rightCol] || 0);
-                              
-                              let isValid = true;
-                              switch (operator) {
-                                  case '<': isValid = leftVal < rightVal; break;
-                                  case '<=': isValid = leftVal <= rightVal; break;
-                                  case '>': isValid = leftVal > rightVal; break;
-                                  case '>=': isValid = leftVal >= rightVal; break;
-                                  case '==': isValid = leftVal == rightVal; break;
-                                  case '!=': isValid = leftVal != rightVal; break;
-                              }
-                              
-                              if (!isValid) {
-                                  Alert.alert(
-                                      translations.errorTitle || 'Lỗi',
-                                      `Dòng ${i + 1}: Trường ${colKey} (giá trị: ${leftVal}) không thoả mãn điều kiện ${operator} ${rightVal}`
-                                  );
-                                  setSaving(false);
-                                  return;
-                              }
-                          }
-                      }
+        for (const fieldKey of Object.keys(moduleMetadata.lineitems_field)) {
+          const config = moduleMetadata.lineitems_field[fieldKey];
+          const editView = config['edit-view'] || {};
+          const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
+
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            for (const [colKey, labelConfig] of Object.entries(editView)) {
+              if (labelConfig.includes('$num:[')) {
+                const match = labelConfig.match(/\$num:\[(.*?)(<=|<|>=|>|==|!=)(.*?)\]/);
+                if (match) {
+                  const leftCol = match[1].trim();
+                  const operator = match[2].trim();
+                  const rightCol = match[3].trim();
+
+                  const leftVal = parseFloat(row[leftCol] || 0);
+                  const rightVal = parseFloat(row[rightCol] || 0);
+
+                  let isValid = true;
+                  switch (operator) {
+                    case '<': isValid = leftVal < rightVal; break;
+                    case '<=': isValid = leftVal <= rightVal; break;
+                    case '>': isValid = leftVal > rightVal; break;
+                    case '>=': isValid = leftVal >= rightVal; break;
+                    case '==': isValid = leftVal == rightVal; break;
+                    case '!=': isValid = leftVal != rightVal; break;
                   }
+
+                  if (!isValid) {
+                    Alert.alert(
+                      translations.errorTitle || 'Lỗi',
+                      `Dòng ${i + 1}: Trường ${colKey} (giá trị: ${leftVal}) không thoả mãn điều kiện ${operator} ${rightVal}`
+                    );
+                    setSaving(false);
+                    return;
+                  }
+                }
               }
+            }
           }
+        }
       }
 
       // Upload file trước nếu có
@@ -585,7 +592,7 @@ export default function ModuleUpdateScreen() {
   // Get currency name by ID with special handling for -99 (Dollar)
   const getCurrencyName = async (currencyId) => {
     if (!currencyId) return '';
-    
+
     // Special case: -99 is Dollar
     if (currencyId === '-99' || currencyId === -99) {
       return 'Dollar';
@@ -650,13 +657,13 @@ export default function ModuleUpdateScreen() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
-      
+
       // For date-only fields, save only the date part (YYYY-MM-DD)
       if (getFieldType(currentDateField) === 'date') {
         const formattedDate = formatDate(currentDate);
         updateField(currentDateField, formattedDate);
       }
-      
+
       // For datetime fields, just save the date with midnight time (00:00:00)
       if (getFieldType(currentDateField) === 'datetime') {
         // Create a new date with time set to midnight for consistent format
@@ -704,7 +711,7 @@ export default function ModuleUpdateScreen() {
     if (currentDateField) {
       // Mark this field as user-modified
       setUserModifiedDateFields(prev => new Set([...prev, currentDateField]));
-      
+
       const currentValue = getFieldValue(currentDateField);
 
       let baseDate = new Date();
@@ -827,22 +834,22 @@ export default function ModuleUpdateScreen() {
     try {
       // Use formatDateTimeBySelectedLanguage to get formatted datetime
       const fullFormatted = formatDateTimeBySelectedLanguage(datetimeValue);
-      
+
       // Try to extract time part from formatted string
       // The formatted string might be in different formats depending on language
       // Common patterns: "DD/MM/YYYY HH:MM" or "MM/DD/YYYY HH:MM AM/PM" etc.
       const parts = fullFormatted.split(' ');
-      
+
       // Look for time pattern (contains ":")
       const timePart = parts.find(part => part.includes(':'));
-      
+
       if (timePart) {
         const timeParts = timePart.split(':');
         if (timeParts.length >= 2) {
           return isHours ? timeParts[0] : timeParts[1];
         }
       }
-      
+
       // Fallback: parse from original value
       if (datetimeValue.includes(' ')) {
         const originalTimePart = datetimeValue.split(' ')[1];
@@ -851,7 +858,7 @@ export default function ModuleUpdateScreen() {
           return isHours ? timeParts[0] : timeParts[1];
         }
       }
-      
+
       return '';
     } catch (error) {
       // Fallback to parsing original value
@@ -901,7 +908,7 @@ export default function ModuleUpdateScreen() {
     try {
       const hours = formatTimeFromDateTime(datetimeValue, true);
       const minutes = formatTimeFromDateTime(datetimeValue, false);
-      return { 
+      return {
         hours: hours ? String(parseInt(hours, 10)).padStart(2, '0') : '00',
         minutes: minutes ? String(parseInt(minutes, 10)).padStart(2, '0') : '00'
       };
@@ -914,7 +921,7 @@ export default function ModuleUpdateScreen() {
   const updateTimeComponent = (fieldKey, value, isHours) => {
     // Mark this field as user-modified
     setUserModifiedDateFields(prev => new Set([...prev, fieldKey]));
-    
+
     if (!value.trim()) value = '0'; // Default to 0 if empty
     const numValue = parseInt(value, 10);
 
@@ -1041,132 +1048,132 @@ export default function ModuleUpdateScreen() {
 
   // Render Editable Line Items Table
   const renderEditableLineItems = (fieldKey, fieldLabel, fieldError) => {
-      if (!moduleMetadata || !moduleMetadata.lineitems_field || !moduleMetadata.lineitems_field[fieldKey]) {
-          return null;
+    if (!moduleMetadata || !moduleMetadata.lineitems_field || !moduleMetadata.lineitems_field[fieldKey]) {
+      return null;
+    }
+
+    const config = moduleMetadata.lineitems_field[fieldKey];
+    const editView = config['edit-view'] || {};
+    const columns = Object.keys(editView);
+    const editDataKeys = config['edit-data'] || columns; // Fallback to columns if edit-data is missing
+
+    const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
+
+    const updateRowsWithNo = (newRows) => {
+      return newRows.map((row, index) => ({
+        ...row,
+        ...(columns.includes('no') ? { no: String(index + 1) } : {})
+      }));
+    };
+
+    const handleAddRow = () => {
+      const newRow = {};
+      editDataKeys.forEach(key => {
+        newRow[key] = key === 'no' ? String(rows.length + 1) : '';
+      });
+      updateField(fieldKey, updateRowsWithNo([...rows, newRow]));
+    };
+
+    const handleRemoveRow = (index) => {
+      const newRows = [...rows];
+      newRows.splice(index, 1);
+      updateField(fieldKey, updateRowsWithNo(newRows));
+    };
+
+    const relateConfig = config['relate-modules'];
+
+    const getSearchModule = (col) => {
+      if (!relateConfig || !relateConfig[col]) return null;
+      const mapping = relateConfig[col];
+      if (mapping.includes('.searchmain') || mapping.includes('.search')) {
+        return mapping.split('.')[0];
       }
+      return null;
+    };
 
-      const config = moduleMetadata.lineitems_field[fieldKey];
-      const editView = config['edit-view'] || {};
-      const columns = Object.keys(editView);
-      const editDataKeys = config['edit-data'] || columns; // Fallback to columns if edit-data is missing
+    const handleCellChange = (text, rowIndex, colKey) => {
+      const newRows = [...rows];
+      newRows[rowIndex] = { ...newRows[rowIndex], [colKey]: text };
+      updateField(fieldKey, newRows);
+    };
 
-      const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
+    const cleanLabel = (label) => typeof label === 'string' ? label.replace(/\$num:\[.*?\]/g, '') : label;
 
-      const updateRowsWithNo = (newRows) => {
-          return newRows.map((row, index) => ({
-              ...row,
-              ...(columns.includes('no') ? { no: String(index + 1) } : {})
-          }));
-      };
+    return (
+      <View key={fieldKey} style={styles.row}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.label}>{fieldLabel}</Text>
+          <TouchableOpacity onPress={handleAddRow} style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12 }]}>
+            <Text style={[styles.btnPrimaryText, { fontSize: 12 }]}>+ Thêm dòng</Text>
+          </TouchableOpacity>
+        </View>
 
-      const handleAddRow = () => {
-          const newRow = {};
-          editDataKeys.forEach(key => {
-              newRow[key] = key === 'no' ? String(rows.length + 1) : '';
-          });
-          updateField(fieldKey, updateRowsWithNo([...rows, newRow]));
-      };
-
-      const handleRemoveRow = (index) => {
-          const newRows = [...rows];
-          newRows.splice(index, 1);
-          updateField(fieldKey, updateRowsWithNo(newRows));
-      };
-
-      const relateConfig = config['relate-modules'];
-
-      const getSearchModule = (col) => {
-          if (!relateConfig || !relateConfig[col]) return null;
-          const mapping = relateConfig[col];
-          if (mapping.includes('.searchmain') || mapping.includes('.search')) {
-              return mapping.split('.')[0];
-          }
-          return null;
-      };
-
-      const handleCellChange = (text, rowIndex, colKey) => {
-          const newRows = [...rows];
-          newRows[rowIndex] = { ...newRows[rowIndex], [colKey]: text };
-          updateField(fieldKey, newRows);
-      };
-
-      const cleanLabel = (label) => typeof label === 'string' ? label.replace(/\$num:\[.*?\]/g, '') : label;
-
-      return (
-          <View key={fieldKey} style={styles.row}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={styles.label}>{fieldLabel}</Text>
-                  <TouchableOpacity onPress={handleAddRow} style={[styles.btnPrimary, { paddingVertical: 4, paddingHorizontal: 12 }]}>
-                      <Text style={[styles.btnPrimaryText, { fontSize: 12 }]}>+ Thêm dòng</Text>
-                  </TouchableOpacity>
+        <ScrollView horizontal style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4 }}>
+          <View>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 1, borderColor: '#e2e8f0' }}>
+              {columns.map(col => (
+                <Text key={col} style={{ width: 120, padding: 8, fontWeight: 'bold', fontSize: 12 }}>
+                  {cleanLabel(editView[col])}
+                </Text>
+              ))}
+              <Text style={{ width: 60, padding: 8, fontWeight: 'bold', fontSize: 12, textAlign: 'center' }}>Thao tác</Text>
+            </View>
+            {/* Rows */}
+            {rows.length === 0 ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa có dữ liệu</Text>
               </View>
-              
-              <ScrollView horizontal style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4 }}>
-                  <View>
-                      {/* Header */}
-                      <View style={{ flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 1, borderColor: '#e2e8f0' }}>
-                          {columns.map(col => (
-                              <Text key={col} style={{ width: 120, padding: 8, fontWeight: 'bold', fontSize: 12 }}>
-                                  {cleanLabel(editView[col])}
-                              </Text>
-                          ))}
-                          <Text style={{ width: 60, padding: 8, fontWeight: 'bold', fontSize: 12, textAlign: 'center' }}>Thao tác</Text>
-                      </View>
-                      {/* Rows */}
-                      {rows.length === 0 ? (
-                          <View style={{ padding: 16, alignItems: 'center' }}>
-                              <Text style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa có dữ liệu</Text>
-                          </View>
+            ) : (
+              rows.map((row, rowIndex) => (
+                <View key={rowIndex} style={{ flexDirection: 'row', borderBottomWidth: rowIndex === rows.length - 1 ? 0 : 1, borderColor: '#f1f5f9' }}>
+                  {columns.map(col => (
+                    <View key={col} style={{ width: 120, padding: 4, justifyContent: 'center' }}>
+                      {getSearchModule(col) ? (
+                        <TouchableOpacity
+                          style={[styles.input, { padding: 4, height: 30, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', justifyContent: 'center' }]}
+                          onPress={() => {
+                            setSearchModal(prev => ({
+                              ...prev,
+                              visible: true,
+                              rowIndex,
+                              colKey: col,
+                              relateConfig,
+                              moduleToSearch: getSearchModule(col),
+                              fieldKey,
+                              query: row[col] || '',
+                              results: []
+                            }));
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, color: row[col] ? '#000' : '#999' }} numberOfLines={1}>
+                            {row[col] ? String(row[col]) : cleanLabel(editView[col])}
+                          </Text>
+                        </TouchableOpacity>
                       ) : (
-                          rows.map((row, rowIndex) => (
-                              <View key={rowIndex} style={{ flexDirection: 'row', borderBottomWidth: rowIndex === rows.length - 1 ? 0 : 1, borderColor: '#f1f5f9' }}>
-                                  {columns.map(col => (
-                                      <View key={col} style={{ width: 120, padding: 4, justifyContent: 'center' }}>
-                                          {getSearchModule(col) ? (
-                                              <TouchableOpacity
-                                                  style={[styles.input, { padding: 4, height: 30, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', justifyContent: 'center' }]}
-                                                  onPress={() => {
-                                                      setSearchModal(prev => ({
-                                                          ...prev,
-                                                          visible: true,
-                                                          rowIndex,
-                                                          colKey: col,
-                                                          relateConfig,
-                                                          moduleToSearch: getSearchModule(col),
-                                                          fieldKey,
-                                                          query: row[col] || '',
-                                                          results: []
-                                                      }));
-                                                  }}
-                                              >
-                                                  <Text style={{ fontSize: 12, color: row[col] ? '#000' : '#999' }} numberOfLines={1}>
-                                                      {row[col] ? String(row[col]) : cleanLabel(editView[col])}
-                                                  </Text>
-                                              </TouchableOpacity>
-                                          ) : (
-                                              <TextInput
-                                                  style={[styles.input, { padding: 4, fontSize: 12, height: 30, color: col === 'no' ? '#6b7280' : '#000', backgroundColor: col === 'no' ? '#f3f4f6' : '#fff', borderWidth: 1, borderColor: '#ccc' }]}
-                                                  value={col === 'no' ? String(rowIndex + 1) : (row[col] !== undefined && row[col] !== null ? String(row[col]) : '')}
-                                                  onChangeText={(text) => handleCellChange(text, rowIndex, col)}
-                                                  placeholder={cleanLabel(editView[col])}
-                                                  editable={col !== 'no'}
-                                              />
-                                          )}
-                                      </View>
-                                  ))}
-                                  <View style={{ width: 60, padding: 4, justifyContent: 'center', alignItems: 'center' }}>
-                                      <TouchableOpacity onPress={() => handleRemoveRow(rowIndex)} style={{ backgroundColor: '#ef4444', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4 }}>
-                                          <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>Xóa</Text>
-                                      </TouchableOpacity>
-                                  </View>
-                              </View>
-                          ))
+                        <TextInput
+                          style={[styles.input, { padding: 4, fontSize: 12, height: 30, color: col === 'no' ? '#6b7280' : '#000', backgroundColor: col === 'no' ? '#f3f4f6' : '#fff', borderWidth: 1, borderColor: '#ccc' }]}
+                          value={col === 'no' ? String(rowIndex + 1) : (row[col] !== undefined && row[col] !== null ? String(row[col]) : '')}
+                          onChangeText={(text) => handleCellChange(text, rowIndex, col)}
+                          placeholder={cleanLabel(editView[col])}
+                          editable={col !== 'no'}
+                        />
                       )}
+                    </View>
+                  ))}
+                  <View style={{ width: 60, padding: 4, justifyContent: 'center', alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => handleRemoveRow(rowIndex)} style={{ backgroundColor: '#ef4444', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4 }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>Xóa</Text>
+                    </TouchableOpacity>
                   </View>
-              </ScrollView>
-              {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+                </View>
+              ))
+            )}
           </View>
-      );
+        </ScrollView>
+        {fieldError && <Text style={styles.fieldError}>{fieldError}</Text>}
+      </View>
+    );
   };
 
   // Show loading state
@@ -1215,7 +1222,7 @@ export default function ModuleUpdateScreen() {
               const fieldError = getFieldError(field.key);
               // Check if this is a custom lineitems_field
               if (moduleMetadata && moduleMetadata.lineitems_field && moduleMetadata.lineitems_field[field.key]) {
-                  return renderEditableLineItems(field.key, getFieldLabel(field.key), fieldError);
+                return renderEditableLineItems(field.key, getFieldLabel(field.key), fieldError);
               }
               const fieldValue = getFieldValue(field.key);
 
@@ -1588,8 +1595,8 @@ export default function ModuleUpdateScreen() {
                         styles.value,
                         field.key === 'description' && styles.multilineInput
                       ]}
-                      value={field.type === 'currency' && focusedField === field.key 
-                        ? fieldValue 
+                      value={field.type === 'currency' && focusedField === field.key
+                        ? fieldValue
                         : (field.type === 'currency' && formattedCurrencyValues[field.key] ? formattedCurrencyValues[field.key] : fieldValue)}
                       onFocus={() => {
                         if (field.type === 'currency') {
@@ -1641,6 +1648,31 @@ export default function ModuleUpdateScreen() {
               );
             })}
 
+            {/* Custom Buttons */}
+            {updateViewBtnRegistry[moduleName] && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 16 }}>
+                    {Object.entries(updateViewBtnRegistry[moduleName]).map(([key, config]) => (
+                        <TouchableOpacity
+                            key={key}
+                            style={{
+                                backgroundColor: config.color || '#1890ff',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 12,
+                                borderRadius: 8,
+                                flex: 1,
+                                marginHorizontal: 4,
+                            }}
+                            onPress={() => setActiveCustomModal(key)}
+                        >
+                            {config.icon && <Ionicons name={config.icon} size={20} color="#fff" style={{ marginRight: 8 }} />}
+                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{config.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+
             {/* Save Button */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -1679,6 +1711,67 @@ export default function ModuleUpdateScreen() {
             )}
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Custom Modals */}
+        {updateViewBtnRegistry[moduleName] && Object.entries(updateViewBtnRegistry[moduleName]).map(([key, config]) => {
+            const ModalComponent = config.modal;
+            if (!ModalComponent) return null;
+            
+            let parsedLineItems = [];
+            try {
+                if (formData?.lineitems_data) {
+                    parsedLineItems = typeof formData.lineitems_data === 'string' 
+                        ? JSON.parse(formData.lineitems_data) 
+                        : formData.lineitems_data;
+                }
+            } catch (e) {
+                console.warn("Failed to parse lineitems_data", e);
+            }
+
+            const handleCustomModalSave = async (newData, fieldKey) => {
+                let processedData = Array.isArray(newData) ? [...newData] : [];
+                const config = moduleMetadata?.lineitems_field?.[fieldKey];
+                if (config && config['relate-modules']) {
+                    const relateConfig = config['relate-modules'];
+                    const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
+                    
+                    for (let item of processedData) {
+                        for (const [colName, rawMapping] of Object.entries(relateConfig)) {
+                            if (rawMapping.includes('.translate') && item[colName]) {
+                                const parts = rawMapping.split('.');
+                                const targetModule = parts[0];
+                                try {
+                                    await moduleLanguageUtils.loadLanguageData(targetModule);
+                                    const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
+                                    const translated = moduleLanguageUtils.searchNestedValue(listStrings, item[colName]);
+                                    if (translated) {
+                                        item[colName] = translated;
+                                    } else {
+                                        const systemLanguageUtils = require('../../utils/cacheViewManagement/SystemLanguageUtils').SystemLanguageUtils.getInstance();
+                                        const sysTranslated = await systemLanguageUtils.translate(item[colName], item[colName]);
+                                        if (sysTranslated) item[colName] = sysTranslated;
+                                    }
+                                } catch (e) {
+                                    console.warn('Translate error:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+                updateField(fieldKey, processedData);
+            };
+
+            return (
+                <ModalComponent
+                    key={key}
+                    visible={activeCustomModal === key}
+                    onClose={() => setActiveCustomModal(null)}
+                    warehouseId={formData?.sgt_warehouse_id_c}
+                    initialLineItems={parsedLineItems}
+                    onSave={(newData) => handleCustomModalSave(newData, 'lineitems_data')}
+                />
+            );
+        })}
 
         {/* Parent Type Modal */}
         <Modal
@@ -1796,7 +1889,7 @@ export default function ModuleUpdateScreen() {
                 >
                   <Text style={styles.modalOptionText}>Dollar</Text>
                 </TouchableOpacity>
-                
+
                 {/* Regular currency options */}
                 {currencyOptions.map((currency) => (
                   <TouchableOpacity
@@ -1825,66 +1918,66 @@ export default function ModuleUpdateScreen() {
 
         {/* Line Item Search Modal */}
         <Modal
-            visible={searchModal.visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setSearchModal(prev => ({ ...prev, visible: false }))}
+          visible={searchModal.visible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setSearchModal(prev => ({ ...prev, visible: false }))}
         >
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' }}
-            >
-                <View style={{ backgroundColor: '#fff', margin: 20, borderRadius: 8, maxHeight: '80%', padding: 16 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tìm kiếm</Text>
-                        <TouchableOpacity onPress={() => setSearchModal(prev => ({ ...prev, visible: false }))}>
-                            <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
-                        </TouchableOpacity>
-                    </View>
-                    
-                    <TextInput
-                        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
-                        placeholder="Nhập từ khóa tìm kiếm..."
-                        value={searchModal.query}
-                        onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
-                                autoFocus={true}
-                            />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' }}
+          >
+            <View style={{ backgroundColor: '#fff', margin: 20, borderRadius: 8, maxHeight: '80%', padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tìm kiếm</Text>
+                <TouchableOpacity onPress={() => setSearchModal(prev => ({ ...prev, visible: false }))}>
+                  <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
+                </TouchableOpacity>
+              </View>
 
-                            {searchModal.loading ? (
-                                <View style={{ padding: 20, alignItems: 'center' }}>
-                                    <ActivityIndicator size="large" color="#007AFF" />
-                        </View>
-                    ) : (
-                        <FlatList
-                            data={searchModal.results}
-                            keyExtractor={(item, index) => item.id || String(index)}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity 
-                                    style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
-                                    onPress={() => handleSelectLineItemSearch(item)}
-                                >
-                                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.attributes ? item.attributes.name : item.name}</Text>
-                                    {(item.attributes?.part_number || item.part_number) && (
-                                        <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                                            Mã: {item.attributes ? item.attributes.part_number : item.part_number}
-                                        </Text>
-                                    )}
-                                    {Object.keys(item).filter(k => Array.isArray(item[k]) && item[k].length === 2 && typeof item[k][1] === 'string').map(k => (
-                                        <Text key={k} style={{ color: '#007AFF', fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
-                                            {item[k][1]}
-                                        </Text>
-                                    ))}
-                                </TouchableOpacity>
-                            )}
-                            ListEmptyComponent={() => (
-                                <View style={{ padding: 20, alignItems: 'center' }}>
-                                    <Text style={{ color: '#999' }}>Không tìm thấy kết quả nào</Text>
-                                </View>
-                            )}
-                        />
-                    )}
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
+                placeholder="Nhập từ khóa tìm kiếm..."
+                value={searchModal.query}
+                onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
+                autoFocus={true}
+              />
+
+              {searchModal.loading ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#007AFF" />
                 </View>
-            </KeyboardAvoidingView>
+              ) : (
+                <FlatList
+                  data={searchModal.results}
+                  keyExtractor={(item, index) => item.id || String(index)}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                      onPress={() => handleSelectLineItemSearch(item)}
+                    >
+                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.attributes ? item.attributes.name : item.name}</Text>
+                      {(item.attributes?.part_number || item.part_number) && (
+                        <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                          Mã: {item.attributes ? item.attributes.part_number : item.part_number}
+                        </Text>
+                      )}
+                      {Object.keys(item).filter(k => Array.isArray(item[k]) && item[k].length === 2 && typeof item[k][1] === 'string').map(k => (
+                        <Text key={k} style={{ color: '#007AFF', fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
+                          {item[k][1]}
+                        </Text>
+                      ))}
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={() => (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Text style={{ color: '#999' }}>Không tìm thấy kết quả nào</Text>
+                    </View>
+                  )}
+                />
+              )}
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
     </SafeAreaProvider>

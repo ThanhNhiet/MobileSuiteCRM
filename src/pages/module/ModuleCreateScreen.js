@@ -26,6 +26,8 @@ import { SystemLanguageUtils } from '../../utils/cacheViewManagement/SystemLangu
 import { cacheManager } from '../../utils/cacheViewManagement/CacheManager';
 import { formatCurrency } from '../../utils/format/FormatCurrencies';
 import axiosInstance from '../../configs/AxiosConfig';
+import { createViewBtnRegistry } from '../feature/smartsea/CreateViewButtonRegistry';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ModuleCreateScreen() {
     const styles = getStyles();
@@ -69,6 +71,7 @@ export default function ModuleCreateScreen() {
 
     // Local loading states
     const [saving, setSaving] = useState(false);
+    const [activeCustomModal, setActiveCustomModal] = useState(null);
 
     // Dynamic line item search modal state
     const [searchModal, setSearchModal] = useState({
@@ -116,7 +119,7 @@ export default function ModuleCreateScreen() {
                                 const val = getFieldValue(fieldName);
                                 return encodeURIComponent(val || '');
                             });
-                            
+
                             try {
                                 const autoRes = await axiosInstance.get(autosearchapiUrl);
                                 if (autoRes && autoRes.data && autoRes.data.data) {
@@ -162,7 +165,7 @@ export default function ModuleCreateScreen() {
             const parts = mapping.split('.');
             const targetModule = parts[0];
             const sourceField = parts[1];
-            
+
             let value;
             if (selectedItem[`${targetModule}_${sourceField}`] !== undefined) {
                 value = selectedItem[`${targetModule}_${sourceField}`];
@@ -171,11 +174,11 @@ export default function ModuleCreateScreen() {
             } else {
                 value = selectedItem[sourceField];
             }
-            
+
             if (Array.isArray(value)) {
                 value = value[0];
             }
-            
+
             if (parts.includes('translate')) {
                 try {
                     // Try to load translation and translate
@@ -183,18 +186,23 @@ export default function ModuleCreateScreen() {
                     const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
                     // Find enum list key for the field
                     const translated = moduleLanguageUtils.searchNestedValue(listStrings, value);
-                    if (translated) value = translated;
+                    if (translated) {
+                        value = translated;
+                    } else {
+                        const sysTranslated = await systemLanguageUtils.translate(value, value);
+                        if (sysTranslated) value = sysTranslated;
+                    }
                 } catch (e) {
                     console.warn('Translate error:', e);
                 }
             }
             rowToUpdate[colName] = value !== undefined && value !== null ? String(value) : '';
         }
-        
+
         const newRows = [...rows];
         newRows[rowIndex] = rowToUpdate;
         updateField(fieldKey, newRows);
-        
+
         setSearchModal({
             visible: false,
             rowIndex: null,
@@ -355,14 +363,14 @@ export default function ModuleCreateScreen() {
 
             const currencyFields = createFields.filter(field => field.type === 'currency');
             const newFormattedValues = {};
-            
+
             for (const field of currencyFields) {
                 const value = getFieldValue(field.key);
                 if (value) {
                     newFormattedValues[field.key] = await formatCurrencyValue(value);
                 }
             }
-            
+
             setFormattedCurrencyValues(newFormattedValues);
         };
 
@@ -432,7 +440,7 @@ export default function ModuleCreateScreen() {
     // Get currency name by ID with special handling for -99 (Dollar)
     const getCurrencyName = async (currencyId) => {
         if (!currencyId) return '';
-        
+
         // Special case: -99 is Dollar
         if (currencyId === '-99' || currencyId === -99) {
             return 'Dollar';
@@ -663,11 +671,11 @@ export default function ModuleCreateScreen() {
     // Handle relate field selection  
     const handleRelateFieldSelect = async (fieldKey, selectedItem) => {
         await updateField(fieldKey, selectedItem.name);
-        
+
         // Find field definition to get id_name
         const fieldDef = createFields.find(f => f.key === fieldKey);
         let idFieldKey = '';
-        
+
         // 1. Check custom id_name mapping in list_of_modules.json
         if (moduleMetadata && moduleMetadata['relate-modules-iddb'] && moduleMetadata['relate-modules-iddb'][fieldKey]) {
             idFieldKey = moduleMetadata['relate-modules-iddb'][fieldKey];
@@ -675,12 +683,12 @@ export default function ModuleCreateScreen() {
         // 2. Check field definition from API
         else if (fieldDef && fieldDef.id_name) {
             idFieldKey = fieldDef.id_name;
-        } 
+        }
         // 3. Fallback heuristic
         else if (!fieldKey.endsWith('_id')) {
             idFieldKey = fieldKey.replace(/_name$/, '_id');
         }
-        
+
         if (idFieldKey) {
             await updateField(idFieldKey, selectedItem.id);
         }
@@ -709,14 +717,14 @@ export default function ModuleCreateScreen() {
     const handleSave = async () => {
         try {
             setSaving(true);
-            
+
             // Custom LineItem Validation
             if (moduleMetadata && moduleMetadata.lineitems_field) {
                 for (const fieldKey of Object.keys(moduleMetadata.lineitems_field)) {
                     const config = moduleMetadata.lineitems_field[fieldKey];
                     const editView = config['edit-view'] || {};
                     const rows = Array.isArray(formData[fieldKey]) ? formData[fieldKey] : [];
-                    
+
                     for (let i = 0; i < rows.length; i++) {
                         const row = rows[i];
                         for (const [colKey, labelConfig] of Object.entries(editView)) {
@@ -726,10 +734,10 @@ export default function ModuleCreateScreen() {
                                     const leftCol = match[1].trim();
                                     const operator = match[2].trim();
                                     const rightCol = match[3].trim();
-                                    
+
                                     const leftVal = parseFloat(row[leftCol] || 0);
                                     const rightVal = parseFloat(row[rightCol] || 0);
-                                    
+
                                     let isValid = true;
                                     switch (operator) {
                                         case '<': isValid = leftVal < rightVal; break;
@@ -739,7 +747,7 @@ export default function ModuleCreateScreen() {
                                         case '==': isValid = leftVal == rightVal; break;
                                         case '!=': isValid = leftVal != rightVal; break;
                                     }
-                                    
+
                                     if (!isValid) {
                                         Alert.alert(
                                             translations.errorTitle || 'Lỗi',
@@ -883,7 +891,7 @@ export default function ModuleCreateScreen() {
                         <Text style={[styles.btnPrimaryText, { fontSize: 12 }]}>+ Thêm dòng</Text>
                     </TouchableOpacity>
                 </View>
-                
+
                 <ScrollView horizontal style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4 }}>
                     <View>
                         {/* Header */}
@@ -957,7 +965,7 @@ export default function ModuleCreateScreen() {
         return createFields.map((field) => {
             const fieldError = getFieldError(field.key);
             const fieldValue = getFieldValue(field.key);
-            
+
             // Check if this is a custom lineitems_field
             if (moduleMetadata && moduleMetadata.lineitems_field && moduleMetadata.lineitems_field[field.key]) {
                 return renderEditableLineItems(field.key, getFieldLabel(field.key), fieldError);
@@ -1435,7 +1443,33 @@ export default function ModuleCreateScreen() {
                         )}
 
                         {/* Form các trường */}
+                        {/* Form các trường */}
                         {renderFormFields()}
+
+                        {/* Custom Buttons */}
+                        {createViewBtnRegistry[moduleName] && (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 16 }}>
+                                {Object.entries(createViewBtnRegistry[moduleName]).map(([key, config]) => (
+                                    <TouchableOpacity
+                                        key={key}
+                                        style={{
+                                            backgroundColor: config.color || '#1890ff',
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: 12,
+                                            borderRadius: 8,
+                                            flex: 1,
+                                            marginHorizontal: 4,
+                                        }}
+                                        onPress={() => setActiveCustomModal(key)}
+                                    >
+                                        {config.icon && <Ionicons name={config.icon} size={20} color="#fff" style={{ marginRight: 8 }} />}
+                                        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{config.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
 
                         {/* Save Button */}
                         <View style={styles.buttonContainer}>
@@ -1456,6 +1490,66 @@ export default function ModuleCreateScreen() {
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
+
+                {/* Custom Modals */}
+                {createViewBtnRegistry[moduleName] && Object.entries(createViewBtnRegistry[moduleName]).map(([key, config]) => {
+                    const ModalComponent = config.modal;
+                    if (!ModalComponent) return null;
+                    
+                    let parsedLineItems = [];
+                    try {
+                        if (formData?.lineitems_data) {
+                            parsedLineItems = typeof formData.lineitems_data === 'string' 
+                                ? JSON.parse(formData.lineitems_data) 
+                                : formData.lineitems_data;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse lineitems_data", e);
+                    }
+
+                    const handleCustomModalSave = async (newData, fieldKey) => {
+                        let processedData = Array.isArray(newData) ? [...newData] : [];
+                        const config = moduleMetadata?.lineitems_field?.[fieldKey];
+                        if (config && config['relate-modules']) {
+                            const relateConfig = config['relate-modules'];
+                            const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
+                            
+                            for (let item of processedData) {
+                                for (const [colName, rawMapping] of Object.entries(relateConfig)) {
+                                    if (rawMapping.includes('.translate') && item[colName]) {
+                                        const parts = rawMapping.split('.');
+                                        const targetModule = parts[0];
+                                        try {
+                                            await moduleLanguageUtils.loadLanguageData(targetModule);
+                                            const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
+                                            const translated = moduleLanguageUtils.searchNestedValue(listStrings, item[colName]);
+                                            if (translated) {
+                                                item[colName] = translated;
+                                            } else {
+                                                const sysTranslated = await systemLanguageUtils.translate(item[colName], item[colName]);
+                                                if (sysTranslated) item[colName] = sysTranslated;
+                                            }
+                                        } catch (e) {
+                                            console.warn('Translate error:', e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        updateField(fieldKey, processedData);
+                    };
+
+                    return (
+                        <ModalComponent
+                            key={key}
+                            visible={activeCustomModal === key}
+                            onClose={() => setActiveCustomModal(null)}
+                            warehouseId={formData?.sgt_warehouse_id_c}
+                            initialLineItems={parsedLineItems}
+                            onSave={(newData) => handleCustomModalSave(newData, 'lineitems_data')}
+                        />
+                    );
+                })}
 
                 {/* Parent Type Modal */}
                 <Modal
@@ -1573,7 +1667,7 @@ export default function ModuleCreateScreen() {
                                 >
                                     <Text style={styles.modalOptionText}>Dollar</Text>
                                 </TouchableOpacity>
-                                
+
                                 {/* Regular currency options */}
                                 {currencyOptions.map((currency) => (
                                     <TouchableOpacity
@@ -1607,7 +1701,7 @@ export default function ModuleCreateScreen() {
                     transparent={true}
                     onRequestClose={() => setSearchModal(prev => ({ ...prev, visible: false }))}
                 >
-                    <KeyboardAvoidingView 
+                    <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' }}
                     >
@@ -1618,7 +1712,7 @@ export default function ModuleCreateScreen() {
                                     <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
                                 </TouchableOpacity>
                             </View>
-                            
+
                             <TextInput
                                 style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
                                 placeholder="Nhập từ khóa tìm kiếm..."
@@ -1636,7 +1730,7 @@ export default function ModuleCreateScreen() {
                                     data={searchModal.results}
                                     keyExtractor={(item, index) => item.id || String(index)}
                                     renderItem={({ item }) => (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
                                             onPress={() => handleSelectLineItemSearch(item)}
                                         >
