@@ -118,7 +118,7 @@ class RolesConfig {
         const accessLevel = modulePerms['access'];
         const accessLevels = this.getAccessLevels();
         
-        return accessLevel && accessLevel >= accessLevels.ACL_ALLOW_DEFAULT;
+        return accessLevel !== undefined && accessLevel !== null && accessLevel >= accessLevels.ACL_ALLOW_DEFAULT;
     }
 
     // Check if user has specific permission for a module (access, view, edit, etc.)
@@ -136,7 +136,7 @@ class RolesConfig {
         const permissionLevel = modulePerms[permission];
         const accessLevels = this.getAccessLevels();
         
-        return permissionLevel && permissionLevel >= accessLevels.ACL_ALLOW_DEFAULT;
+        return permissionLevel !== undefined && permissionLevel !== null && permissionLevel >= accessLevels.ACL_ALLOW_DEFAULT;
     }
 
     // Get all accessible modules for the user

@@ -21,7 +21,7 @@ export const useModule_Detail = (moduleName, recordId) => {
     // SystemLanguageUtils instance
     const systemLanguageUtils = SystemLanguageUtils.getInstance();
     const moduleLanguageUtils = ModuleLanguageUtils.getInstance();
-    
+
     // Fields and labels
     const [detailFields, setDetailFields] = useState([]);
     const [nameFields, setNameFields] = useState('');
@@ -32,11 +32,11 @@ export const useModule_Detail = (moduleName, recordId) => {
         try {
             let fieldsData;
             const cachedFields = await ReadCacheView.getModuleField(moduleName, 'detailviewdefs');
-            
+
             if (!cachedFields) {
                 const fieldsResponse = await getModuleDetailFieldsApi(moduleName);
                 fieldsData = fieldsResponse;
-                
+
                 await WriteCacheView.saveModuleField(moduleName, 'detailviewdefs', fieldsData);
             } else {
                 fieldsData = cachedFields;
@@ -75,25 +75,25 @@ export const useModule_Detail = (moduleName, recordId) => {
             if (!fieldsData || typeof fieldsData !== 'object' || Object.keys(fieldsData).length === 0) {
                 fieldsData = getDefaultFieldsForModule(moduleName);
             }
-            
+
             const fieldKeys = Object.keys(fieldsData);
-            
+
             // Special handling for duration field
             let finalFieldKeys = [...fieldKeys];
             if (fieldKeys.includes('duration')) {
                 // Add duration_hours and duration_minutes to fetch them from API
                 finalFieldKeys.push('duration_hours', 'duration_minutes');
             }
-            
+
             const nameFieldsString = finalFieldKeys.join(',');
             setNameFields(nameFieldsString);
-            
+
             const detailFieldsData = await Promise.all(Object.entries(fieldsData).map(async ([fieldKey, labelValue]) => {
                 let vietnameseLabel = labelValue || fieldKey;
-                
+
                 // Translate the field label
                 vietnameseLabel = await moduleLanguageUtils.translateFieldName(fieldKey, vietnameseLabel, moduleName);
-                
+
                 // Fallback for assigned_user_name if not translated
                 if (fieldKey === 'assigned_user_name' && (vietnameseLabel === fieldKey || vietnameseLabel === 'assigned_user_name' || !vietnameseLabel)) {
                     vietnameseLabel = await moduleLanguageUtils.translate('LBL_ASSIGNED_TO', 'Người phụ trách', moduleName);
@@ -106,7 +106,7 @@ export const useModule_Detail = (moduleName, recordId) => {
                 const fieldInfo = requiredFields[fieldKey] || {};
                 const fieldType = fieldInfo.type || 'text';
                 const fieldOptions = fieldInfo.options || null;
-                
+
                 return {
                     key: fieldKey,
                     label: vietnameseLabel,
@@ -115,7 +115,7 @@ export const useModule_Detail = (moduleName, recordId) => {
                     required: false
                 };
             }));
-            
+
             const idLabel = await moduleLanguageUtils.translate('LBL_ID', 'ID', moduleName);
             detailFieldsData.unshift({
                 key: 'id',
@@ -123,9 +123,9 @@ export const useModule_Detail = (moduleName, recordId) => {
                 type: 'text',
                 required: false
             });
-            
+
             setDetailFields(detailFieldsData);
-            
+
         } catch (err) {
             console.warn('Initialize detail fields error:', err);
             const errorMsg = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải cấu hình chi tiết';
@@ -138,7 +138,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         const defaultFields = {
             'Notes': {
                 "name": "LBL_NOTE_SUBJECT",
-                "parent_name": "LBL_RELATED_TO", 
+                "parent_name": "LBL_RELATED_TO",
                 "date_entered": "LBL_DATE_ENTERED",
                 "date_modified": "LBL_DATE_MODIFIED",
                 "created_by_name": "LBL_CREATED_BY",
@@ -241,11 +241,11 @@ export const useModule_Detail = (moduleName, recordId) => {
         }
 
         const processedRelationships = [];
-        
+
         // Map relationship data to display format
         for (const relationshipKey of Object.keys(relationshipsData)) {
             const relationshipInfo = relationshipsData[relationshipKey];
-            
+
             if (relationshipInfo && relationshipInfo.links && relationshipInfo.links.related) {
                 let moduleLabel = getModuleDisplayName(relationshipKey);
                 if (moduleLabel === relationshipKey) {
@@ -281,7 +281,7 @@ export const useModule_Detail = (moduleName, recordId) => {
     const getModuleDisplayName = (moduleName) => {
         const moduleLabels = {
             'Tasks': 'Nhiệm vụ',
-            'Meetings': 'Cuộc họp', 
+            'Meetings': 'Cuộc họp',
             'Notes': 'Ghi chú',
             'Contacts': 'Liên hệ',
             'Accounts': 'Khách hàng',
@@ -309,7 +309,7 @@ export const useModule_Detail = (moduleName, recordId) => {
     // Fetch record detail
     const fetchRecord = useCallback(async (isRefresh = false) => {
         if (!recordId || !nameFields || !moduleName) return;
-        
+
         try {
             if (isRefresh) {
                 setRefreshing(true);
@@ -332,22 +332,22 @@ export const useModule_Detail = (moduleName, recordId) => {
                 parent_type: parentInfo.parent_type || null,
                 ...response.data.attributes
             };
-            
+
             // Apply duration processing
             const processedRecordData = processDurationField(recordData);
-            
+
             setRecord(processedRecordData);
-            if(parentInfo.parent_id && parentInfo.parent_type) {
+            if (parentInfo.parent_id && parentInfo.parent_type) {
                 setHaveParent(true);
             }
 
             // Process relationships from response
             if (response.data.relationships) {
                 const systemModules = ['AOS_Line_Item_Groups', 'AOS_Products_Quotes'];
-                const modules = ['AOS_Quotes','AOS_Invoices','AOS_Contracts'];
-                
+                const modules = ['AOS_Quotes', 'AOS_Invoices', 'AOS_Contracts'];
+
                 let processedRelationships = await processRelationships(response.data.relationships);
-                
+
                 processedRelationships = processedRelationships.filter(r => r.moduleName !== 'Users');
 
                 if (modules.includes(moduleName)) {
@@ -357,7 +357,7 @@ export const useModule_Detail = (moduleName, recordId) => {
             } else {
                 setRelationships([]);
             }
-            
+
         } catch (err) {
             const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể tải chi tiết bản ghi';
             const errorMessage = err.response?.data?.message || err.message || fallbackError;
@@ -372,13 +372,13 @@ export const useModule_Detail = (moduleName, recordId) => {
     // Delete record
     const deleteRecord = useCallback(async () => {
         if (!recordId || !moduleName) return false;
-        
+
         try {
             setDeleting(true);
             setError(null);
-            
+
             await deleteModuleRecordApi(moduleName, recordId);
-            
+
             return true;
         } catch (err) {
             const fallbackError = await systemLanguageUtils.translate('ERR_AJAX_LOAD_FAILURE') || 'Không thể xóa bản ghi';
@@ -411,18 +411,18 @@ export const useModule_Detail = (moduleName, recordId) => {
     // Check if field should be displayed
     const shouldDisplayField = useCallback((fieldKey) => {
         const value = getFieldValue(fieldKey);
-        
+
         // Hide certain system fields
         const hiddenFields = [
-            'id_c', 'deleted', 'SecurityGroups', 
+            'id_c', 'deleted', 'SecurityGroups',
             'created_by_link', 'modified_user_link', 'assigned_user_link'
         ];
-        
+
         if (hiddenFields.includes(fieldKey)) return false;
-        
+
         // Hide duration_hours and duration_minutes since we display the processed duration field
         if (fieldKey === 'duration_hours' || fieldKey === 'duration_minutes') return false;
-        
+
         // Hide empty fields except for required ones
         const field = detailFields.find(f => f.key === fieldKey);
         return value || (field && field.required);
@@ -465,153 +465,153 @@ export const useModule_Detail = (moduleName, recordId) => {
         }
     }, []);
     //role
-        const [userRoles, setUserRoles] = useState([]);
-        const [recordsRole, setRecordsRole] = useState([]);
-        const nameRole = ['delete','list','edit','create','view'];
-    
-        const initializeUserRoles = useCallback(async () => {
-            try {
-                const data = await getUserRolesApi();
-                
-                // Check if user has no roles (empty array or null/undefined)
-                if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
-                    // Create full permission object when user has no roles
-                    const fullPermissions = nameRole.map(permission => ({
-                        name: permission,
-                        action_name: permission,
-                        category: moduleName,
-                        access_level_name: 'all',
-                        access_override: 100 // Admin level access
-                    }));
-                    
-                    const roleOptions = {
-                        roleName: 'full_access',
-                        roles: fullPermissions
-                    };
-                    setUserRoles(roleOptions);
-                    return;
-                }
-                
-                const roles = data.roles[0] || [];
-                const roleOptions = {
-                    roleName: roles.role_name,
-                    roles: roles.actions.filter(role => {
-                        return role.category === moduleName && nameRole.includes(role.name);
-                    })
-                };
-                setUserRoles(roleOptions);
-            } catch (error) {
-                console.error('Error initializing user roles:', error);
-                // On error, provide full access as fallback to avoid blocking users
+    const [userRoles, setUserRoles] = useState([]);
+    const [recordsRole, setRecordsRole] = useState([]);
+    const nameRole = ['delete', 'list', 'edit', 'create', 'view'];
+
+    const initializeUserRoles = useCallback(async () => {
+        try {
+            const data = await getUserRolesApi();
+
+            // Check if user has no roles (empty array or null/undefined)
+            if (!data || !data.roles || data.roles.length === 0 || data.total_roles === 0) {
+                // Create full permission object when user has no roles
                 const fullPermissions = nameRole.map(permission => ({
                     name: permission,
-                    action_name: permission, 
+                    action_name: permission,
                     category: moduleName,
                     access_level_name: 'all',
-                    access_override: 100
+                    access_override: 100 // Admin level access
                 }));
-                
-                setUserRoles({
-                    roleName: 'fallback_full_access',
+
+                const roleOptions = {
+                    roleName: 'full_access',
                     roles: fullPermissions
-                });
+                };
+                setUserRoles(roleOptions);
+                return;
             }
-        }, [moduleName]);
-        const initializationSecurityGroupsRelationsApi = async (name) => {
-            try {
-               const data = await getUserSecurityGroupsRelationsApi(name);
-                    if (!data) {
-                        console.warn(`No security groups found for role: ${name}`);
-                        return [];
-                    }
-                    return data;
-            } catch (error) {
-                console.error('Error initializing security groups relations:', error);
+
+            const roles = data.roles[0] || [];
+            const roleOptions = {
+                roleName: roles.role_name,
+                roles: roles.actions.filter(role => {
+                    return role.category === moduleName && nameRole.includes(role.name);
+                })
+            };
+            setUserRoles(roleOptions);
+        } catch (error) {
+            console.error('Error initializing user roles:', error);
+            // On error, provide full access as fallback to avoid blocking users
+            const fullPermissions = nameRole.map(permission => ({
+                name: permission,
+                action_name: permission,
+                category: moduleName,
+                access_level_name: 'all',
+                access_override: 100
+            }));
+
+            setUserRoles({
+                roleName: 'fallback_full_access',
+                roles: fullPermissions
+            });
+        }
+    }, [moduleName]);
+    const initializationSecurityGroupsRelationsApi = async (name) => {
+        try {
+            const data = await getUserSecurityGroupsRelationsApi(name);
+            if (!data) {
+                console.warn(`No security groups found for role: ${name}`);
+                return [];
             }
+            return data;
+        } catch (error) {
+            console.error('Error initializing security groups relations:', error);
+        }
+    };
+    useEffect(() => {
+        initializeUserRoles();
+    }, [moduleName]);
+
+    const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
+    const [editPerm, setEditPerm] = useState(false);
+    const [deletePerm, setDeletePerm] = useState(false);
+    //const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
+    // lấy quyền xoá
+    useEffect(() => {
+        if (!userRoles) return;
+        const roleName = userRoles?.roleName?.toLowerCase?.() ?? '';
+        const deletePerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'delete');
+        setRoleInfo(({ roleName, deletePerm }));
+    }, [userRoles]);
+    // lấy quyền sửa
+    useEffect(() => {
+        if (!userRoles) return;
+        const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
+        setRoleInfo(prev => ({ ...prev, editPerm }));
+    }, [userRoles]);
+    // helpers.ts
+    const getUserIdSafe = async () => {
+        const token = await AsyncStorage.getItem('token');
+        return getUserIdFromToken(token);
+    };
+
+    const getRecordFieldSafe = (record) => {
+        // Một số API đặt data trong attributes
+        const r = (record && typeof record === 'object') ? (record.attributes ?? record) : {};
+        return {
+            created_by: r?.created_by ?? r?.created_by_id,
+            assigned_user_id: r?.assigned_user_id ?? r?.owner_id,
         };
-        useEffect(() => {
-            initializeUserRoles();
-        }, [moduleName]);
+    };
 
-        const [roleInfo, setRoleInfo] = useState({ roleName: '', listAccess: 'none' });
-        const [editPerm, setEditPerm] = useState(false);
-        const [deletePerm, setDeletePerm] = useState(false);
-        //const { groups, roles, actions, roleInfoGroup } = useModule_Role(moduleName);
-        // lấy quyền xoá
-        useEffect(() => {
-            if (!userRoles) return;
-            const roleName = userRoles?.roleName?.toLowerCase?.() ?? '';
-            const deletePerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'delete');
-            setRoleInfo(({ roleName, deletePerm }));
-        }, [userRoles]);
-        // lấy quyền sửa
-        useEffect(() => {
-            if (!userRoles) return;
-            const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
-            setRoleInfo(prev => ({ ...prev, editPerm }));
-        }, [userRoles]);
-        // helpers.ts
-            const getUserIdSafe = async () => {
-            const token = await AsyncStorage.getItem('token');
-            return getUserIdFromToken(token);
-            };
-
-            const getRecordFieldSafe = (record) => {
-            // Một số API đặt data trong attributes
-            const r = (record && typeof record === 'object') ? (record.attributes ?? record) : {};
-            return {
-                created_by: r?.created_by ?? r?.created_by_id,
-                assigned_user_id: r?.assigned_user_id ?? r?.owner_id,
-            };
-            };
-
-            const buildMemberIdSet = (groupsList = []) => {
-            return new Set(
-                groupsList.flatMap(g => (g?.members ?? [])
+    const buildMemberIdSet = (groupsList = []) => {
+        return new Set(
+            groupsList.flatMap(g => (g?.members ?? [])
                 .map(m => m?.id)
                 .filter(Boolean)
-                )
-            );
-            };
+            )
+        );
+    };
 
-            const fetchGroupMemberIdSet = async (roleName) => {
-            const data = await initializationSecurityGroupsRelationsApi(roleName);
-            if (!data) {
-                console.warn(`No security groups found for role: ${roleName}`);
-                return new Set();
-            }
-            const list = await getUserSecurityGroupsMember(data);
-            if (!Array.isArray(list) || list.length === 0) {
-                console.warn('No members found for security groups:', data);
-                return new Set();
-            }
-            return buildMemberIdSet(list);
-            };
+    const fetchGroupMemberIdSet = async (roleName) => {
+        const data = await initializationSecurityGroupsRelationsApi(roleName);
+        if (!data) {
+            console.warn(`No security groups found for role: ${roleName}`);
+            return new Set();
+        }
+        const list = await getUserSecurityGroupsMember(data);
+        if (!Array.isArray(list) || list.length === 0) {
+            console.warn('No members found for security groups:', data);
+            return new Set();
+        }
+        return buildMemberIdSet(list);
+    };
 
-            // ---- Hàm chung kiểm tra quyền theo kiểu (delete/edit) ----
-            const checkPermGeneric = async ({
-            permInfo,      // roleInfo.deletePerm hoặc roleInfo.editPerm
-            roleName,      // roleInfo.roleName
-            record,
-            setter,        // setDeletePerm hoặc setEditPerm
-            myUserId,      // user_id của bạn
-            }) => {
-            // Nếu thiếu permInfo hoặc thiếu record -> không đủ dữ kiện, return
-            if (!permInfo || !record) return;
+    // ---- Hàm chung kiểm tra quyền theo kiểu (delete/edit) ----
+    const checkPermGeneric = async ({
+        permInfo,      // roleInfo.deletePerm hoặc roleInfo.editPerm
+        roleName,      // roleInfo.roleName
+        record,
+        setter,        // setDeletePerm hoặc setEditPerm
+        myUserId,      // user_id của bạn
+    }) => {
+        // Nếu thiếu permInfo hoặc thiếu record -> không đủ dữ kiện, return
+        if (!permInfo || !record) return;
 
-            const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
-            const { created_by, assigned_user_id } = getRecordFieldSafe(record);
+        const level = permInfo?.access_level_name?.toLowerCase?.() ?? '';
+        const { created_by, assigned_user_id } = getRecordFieldSafe(record);
 
-            switch (level) {
-                case 'all':
+        switch (level) {
+            case 'all':
                 setter(true);
                 return;
 
-                case 'owner':
+            case 'owner':
                 setter(!!(myUserId && (created_by === myUserId || assigned_user_id === myUserId)));
                 return;
 
-                case 'unknown': {
+            case 'unknown': {
                 // Diễn giải: cho phép nếu chủ sở hữu (created_by/assigned_user_id)
                 // thuộc một Security Group mà role này được phép thao tác
                 const memberIdSet = await fetchGroupMemberIdSet(roleName);
@@ -622,83 +622,83 @@ export const useModule_Detail = (moduleName, recordId) => {
                 const can = memberIdSet.has(assigned_user_id) || memberIdSet.has(created_by);
                 setter(!!can);             // KHÔNG đảo ngược!
                 return;
-                }
+            }
 
-                case 'default':
+            case 'default':
                 setter(true);
                 return;
 
-                case 'none':
+            case 'none':
                 setter(false);
                 return;
 
-                default:
+            default:
                 setter(false);
                 return;
-            }
-            };
-            // component.jsx
-        useEffect(() => {
+        }
+    };
+    // component.jsx
+    useEffect(() => {
         let alive = true;
         (async () => {
             try {
-            // Nếu thiếu deletePerm hoặc record -> không kiểm tra
-            if (!roleInfo?.deletePerm || !record) return;
-            const user_id = await getUserIdSafe();
-            if (!alive) return;
+                // Nếu thiếu deletePerm hoặc record -> không kiểm tra
+                if (!roleInfo?.deletePerm || !record) return;
+                const user_id = await getUserIdSafe();
+                if (!alive) return;
                 await checkPermGeneric({
-                permInfo: roleInfo.deletePerm,
-                roleName: roleInfo.roleName,
-                record,
-                setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
-                myUserId: user_id,
-            });          
+                    permInfo: roleInfo.deletePerm,
+                    roleName: roleInfo.roleName,
+                    record,
+                    setter: (v) => alive && typeof setDeletePerm === 'function' && setDeletePerm(!!v),
+                    myUserId: user_id,
+                });
             } catch (e) {
-            console.error('Error checking delete permissions:', e);
+                console.error('Error checking delete permissions:', e);
             }
         })();
         return () => { alive = false; };
         // Chỉ phụ thuộc thứ thật sự cần
-        }, [roleInfo?.deletePerm, roleInfo?.roleName, record?.id]);
+    }, [roleInfo?.deletePerm, roleInfo?.roleName, record?.id]);
 
-        useEffect(() => {
+    useEffect(() => {
         let alive = true;
         (async () => {
             try {
-            if (!roleInfo?.editPerm || !record) return;
-            const user_id = await getUserIdSafe();
-            if (!alive) return;
+                if (!roleInfo?.editPerm || !record) return;
+                const user_id = await getUserIdSafe();
+                if (!alive) return;
                 await checkPermGeneric({
-                permInfo: roleInfo.editPerm,
-                roleName: roleInfo.roleName,
-                record,
-                setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
-                myUserId: user_id,
-            });
+                    permInfo: roleInfo.editPerm,
+                    roleName: roleInfo.roleName,
+                    record,
+                    setter: (v) => alive && typeof setEditPerm === 'function' && setEditPerm(!!v),
+                    myUserId: user_id,
+                });
             } catch (e) {
-            console.error('Error checking edit permissions:', e);
+                console.error('Error checking edit permissions:', e);
             }
         })();
         return () => { alive = false; };
-        }, [roleInfo?.editPerm, roleInfo?.roleName, record?.id]);
+    }, [roleInfo?.editPerm, roleInfo?.roleName, record?.id]);
 
-        // get link file
-        const [fileMeta, setFileMeta] = useState(null); // metadata of the file to preview
-        const fileName = getFieldValue('filename');
-        useEffect(() => {
-            const getLinkFile = async () => {
-                
-                if(!moduleName || !fileName) return '';
-                try {
-                    const data = await getLinkFileModuleApi(moduleName,fileName);
-                    if (!data || !data.success){
-                        console.warn(`No link file found for module: ${moduleName} and file: ${fileName}`);
-                        return '';
-                    }
+    // get link file
+    const [fileMeta, setFileMeta] = useState(null); // metadata of the file to preview
+    const fileName = getFieldValue('filename');
+    useEffect(() => {
+        const getLinkFile = async () => {
+
+            if (!moduleName || !fileName) return '';
+            try {
+                const data = await getLinkFileModuleApi(moduleName, fileName);
+                if (!data || !data.success) {
+                    console.warn(`No link file found for module: ${moduleName} and file: ${fileName}`);
+                    return '';
+                }
                 const link = {
                     link: data.native_url,
-                    downloadLink : data.download_url,
-                    downloadLinkNative : data.download_url_native,
+                    downloadLink: data.download_url,
+                    downloadLinkNative: data.download_url_native,
                     mime_type: data.mime_type,
                     is_image: data.is_image,
                 }
@@ -710,14 +710,14 @@ export const useModule_Detail = (moduleName, recordId) => {
             }
         };
         getLinkFile();
-    }, [moduleName,fileName]);
+    }, [moduleName, fileName]);
     // relationships change
     const [relaFor, setRelaFor] = useState(null);
 
     useEffect(() => {
         const fetchRelaFor = async () => {
             try {
-                if(!moduleName || !recordId){
+                if (!moduleName || !recordId) {
                     setRelaFor(null);
                     return;
                 }
@@ -727,11 +727,11 @@ export const useModule_Detail = (moduleName, recordId) => {
                 };
                 setRelaFor(rela);
             } catch (error) {
-            console.warn('Set relaFor error:', error);
+                console.warn('Set relaFor error:', error);
             }
-        };        
+        };
         fetchRelaFor();
-    },[moduleName, recordId]);
+    }, [moduleName, recordId]);
 
 
 
@@ -750,12 +750,12 @@ export const useModule_Detail = (moduleName, recordId) => {
         haveParent,
         relaFor,
         moduleMetadata,
-        
+
         // Actions
         fetchRecord,
         refreshRecord,
         deleteRecord,
-        
+
         // Helpers
         getFieldValue,
         getFieldLabel,
