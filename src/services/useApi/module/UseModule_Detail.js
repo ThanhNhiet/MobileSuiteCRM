@@ -7,6 +7,7 @@ import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLa
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { formatCurrency } from '../../../utils/format/FormatCurrencies';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi, getAllModulesApi } from '../../api/external/ExternalApi';
+import { shouldHideFieldByRule } from '../../../pages/feature/smartsea/rule';
 import { deleteModuleRecordApi, getLinkFileModuleApi, getModuleDetailApi, getModuleDetailFieldsApi, getModuleFieldsRequiredApi, getParentId_typeByModuleIdApi } from '../../api/module/ModuleApi';
 import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
 export const useModule_Detail = (moduleName, recordId) => {
@@ -410,6 +411,9 @@ export const useModule_Detail = (moduleName, recordId) => {
 
     // Check if field should be displayed
     const shouldDisplayField = useCallback((fieldKey) => {
+        // Apply custom rule for field visibility
+        if (shouldHideFieldByRule(fieldKey, userRoles)) return false;
+
         const value = getFieldValue(fieldKey);
 
         // Hide certain system fields
@@ -426,7 +430,7 @@ export const useModule_Detail = (moduleName, recordId) => {
         // Hide empty fields except for required ones
         const field = detailFields.find(f => f.key === fieldKey);
         return value || (field && field.required);
-    }, [getFieldValue, detailFields]);
+    }, [getFieldValue, detailFields, userRoles]);
 
     // Initialize on component mount
     useEffect(() => {

@@ -1,12 +1,13 @@
 import { getUserIdFromToken } from '@/src/utils/DecodeToken';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { cacheManager } from '../../../utils/cacheViewManagement/CacheManager';
 import { ModuleLanguageUtils } from '../../../utils/cacheViewManagement/ModuleLanguageUtils';
 import ReadCacheView from '../../../utils/cacheViewManagement/ReadCacheView';
 import { SystemLanguageUtils } from '../../../utils/cacheViewManagement/SystemLanguageUtils';
 import WriteCacheView from '../../../utils/cacheViewManagement/WriteCacheView';
 import { getUserRolesApi, getUserSecurityGroupsMember, getUserSecurityGroupsRelationsApi, getAllModulesApi } from '../../api/external/ExternalApi';
+import { shouldHideFieldByRule } from '../../../pages/feature/smartsea/rule';
 import {
     buildDateFilter,
     getModuleListFieldsApi,
@@ -676,10 +677,14 @@ export const useModule_List = (moduleName) => {
         return () => { alive = false; };
     }, [roleInfo?.roleName, roleInfo?.viewPerm, records]);
 
+    const filteredColumns = useMemo(() => {
+        return columns.filter(col => !shouldHideFieldByRule(col.key, userRoles));
+    }, [columns, userRoles]);
+
     return {
         // Data
         records,
-        columns,
+        columns: filteredColumns,
         recordsRole,
         viewPerm,
 
