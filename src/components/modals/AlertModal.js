@@ -27,7 +27,7 @@ const AlertModal = ({ visible, onClose }) => {
         const initializeTranslations = async () => {
             try {
                 const translationKeys = [
-                    'LBL_NOTIFICATIONS',
+                    'NOTIFICATIONS',
                     'LBL_EMAIL_OK',
                     'LBL_EMAIL_ERROR_GENERAL_TITLE',
                     'LBL_EMAIL_SUCCESS',
@@ -50,7 +50,7 @@ const AlertModal = ({ visible, onClose }) => {
                 ];
 
                 const translated = await systemLanguageUtils.translateKeys(translationKeys);
-                
+
                 setTranslations({
                     title: translated.LBL_NOTIFICATIONS || 'Thông báo',
                     notReadYet: translated.unread || 'chưa đọc',
@@ -65,15 +65,15 @@ const AlertModal = ({ visible, onClose }) => {
                     time: translated.LBL_EMAIL_DATE_SENT_BY_SENDER || 'Thời gian',
                     markReadError: translated.LBL_EMAIL_NOT_SENT || 'Không thể đánh dấu đã đọc',
                     markAllReadSuccess: translated.LBL_EMAIL_MENU_HELP_MARK_READ || 'Đã đánh dấu tất cả thông báo là đã đọc',
-                    markAllReadError:  translated.LBL_EMAIL_NOT_SENT || 'Không thể đánh dấu tất cả đã đọc',
-                    confirmDelete: translated.LBL_DELETE ||'Xác nhận xóa',
+                    markAllReadError: translated.LBL_EMAIL_NOT_SENT || 'Không thể đánh dấu tất cả đã đọc',
+                    confirmDelete: translated.LBL_DELETE || 'Xác nhận xóa',
                     confirmDeleteMsg: translated.LBL_DELETE_DASHBOARD1 || 'Bạn có chắc chắn muốn xóa thông báo này không?',
                     deleteError: translated.LBL_EMAIL_NOT_SENT || 'Không thể xóa thông báo',
-                    confirmDeleteAll:  translated.LBL_DELETE || 'Xác nhận xóa tất cả',
+                    confirmDeleteAll: translated.LBL_DELETE || 'Xác nhận xóa tất cả',
                     confirmDeleteAllMsg: translated.LBL_DELETE_DASHBOARD1 || 'Bạn có chắc chắn muốn xóa tất cả thông báo không? Hành động này không thể hoàn tác.',
                     deleteAll: translated.LBL_ID_FF_CLEAR || 'Xóa tất cả',
                     deleteAllSuccess: translated.LBL_DELETED || 'Đã xóa tất cả thông báo',
-                    deleteAllError: translated.LBL_EMAIL_NOT_SENT ||'Không thể xóa tất cả thông báo',
+                    deleteAllError: translated.LBL_EMAIL_NOT_SENT || 'Không thể xóa tất cả thông báo',
                     markAllRead: translated.LBL_EMAIL_MENU_HELP_MARK_READ || 'Đánh dấu đã đọc tất cả',
                     noNotifications: translated.noData || 'Không có thông báo nào',
                     refreshPull: 'Pull to refresh...'
@@ -146,9 +146,9 @@ const AlertModal = ({ visible, onClose }) => {
                 `${translations.type || 'Type'}: ${alert.type}\n${translations.creator || 'Creator'}: ${alert.created_by_name}\n${translations.time || 'Time'}: ${formatDateTimeBySelectedLanguage(alert.date_entered)}`,
                 [
                     { text: translations.cancel || 'Cancel', style: 'cancel' },
-                    { 
+                    {
                         text: 'More',
-                        onPress: () => { 
+                        onPress: () => {
                             navigation.navigate('ModuleDetailScreen', { moduleName: alert.type, recordId: alert.target_module });
                         }
                     }
@@ -244,7 +244,7 @@ const AlertModal = ({ visible, onClose }) => {
             </Text>
 
             {/* Nút xóa */}
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDeleteAlert(item.id)}
             >
@@ -338,17 +338,17 @@ const AlertModal = ({ visible, onClose }) => {
                                 onPress={goToPrevPage}
                                 disabled={!pagination.hasPrev}
                             >
-                                <Ionicons 
-                                    name="chevron-back" 
-                                    size={16} 
-                                    color={!pagination.hasPrev ? '#ccc' : '#4B84FF'} 
+                                <Ionicons
+                                    name="chevron-back"
+                                    size={16}
+                                    color={!pagination.hasPrev ? '#ccc' : '#4B84FF'}
                                 />
                             </TouchableOpacity>
-                            
+
                             <Text style={styles.paginationText}>
                                 {currentPage}
                             </Text>
-                            
+
                             <TouchableOpacity
                                 style={[
                                     styles.paginationButton,
@@ -357,10 +357,10 @@ const AlertModal = ({ visible, onClose }) => {
                                 onPress={goToNextPage}
                                 disabled={!pagination.hasNext}
                             >
-                                <Ionicons 
-                                    name="chevron-forward" 
-                                    size={16} 
-                                    color={!pagination.hasNext ? '#ccc' : '#4B84FF'} 
+                                <Ionicons
+                                    name="chevron-forward"
+                                    size={16}
+                                    color={!pagination.hasNext ? '#ccc' : '#4B84FF'}
                                 />
                             </TouchableOpacity>
                         </View>
@@ -375,7 +375,7 @@ const AlertModal = ({ visible, onClose }) => {
                                 <Text style={styles.markAllText}>{translations.markAllRead || 'Đánh dấu đã đọc tất cả'}</Text>
                             </TouchableOpacity>
                         )}
-                        
+
                         {alerts.length > 0 && (
                             <TouchableOpacity
                                 style={styles.deleteAllButton}
