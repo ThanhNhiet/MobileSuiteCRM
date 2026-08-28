@@ -124,7 +124,8 @@ export default function ModuleListScreen() {
         loadMore,
         goToPage: hookGoToPage,
         handleFilter,
-        clearSearchAndFilters
+        clearSearchAndFilters,
+        roleInfo
     } = useModule_List(moduleName);
 
     // Get dynamic styles
@@ -412,7 +413,16 @@ export default function ModuleListScreen() {
                         <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
                             <TouchableOpacity
                                 onPress={() => {
-                                    navigation.navigate('ModuleCreateScreen', { moduleName: moduleName });
+                                    const editLevel = roleInfo?.editPerm?.access_level_name?.toLowerCase?.() ?? '';
+                                    if (roleInfo && roleInfo.editPerm && editLevel !== 'none') {
+                                        navigation.navigate('ModuleCreateScreen', { moduleName: moduleName });
+                                    } else {
+                                        Alert.alert(
+                                            'Không có quyền',
+                                            'Bạn không có quyền tạo bản ghi cho module này.',
+                                            [{ text: 'OK' }]
+                                        );
+                                    }
                                 }}
                                 style={[styles.addNewBtn]}
                             >

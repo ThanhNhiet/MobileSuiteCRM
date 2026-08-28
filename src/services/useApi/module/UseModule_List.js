@@ -542,7 +542,12 @@ export const useModule_List = (moduleName) => {
         const editPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'edit');
         setRoleInfo(prev => ({ ...prev, editPerm }));
     }, [userRoles]);
-
+    // Get create permissions
+    useEffect(() => {
+        if (!userRoles) return;
+        const createPerm = (userRoles?.roles ?? []).find(a => (a?.name || a?.action_name) === 'create');
+        setRoleInfo(prev => ({ ...prev, createPerm }));
+    }, [userRoles]);
 
     // Role processing
     const normalizeRecord = (rec) => (rec?.attributes ?? rec ?? {});
@@ -693,6 +698,7 @@ export const useModule_List = (moduleName) => {
         refreshing,
         error,
         isInitializing,
+        roleInfo,
 
         // Pagination
         currentPage,

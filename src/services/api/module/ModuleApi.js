@@ -107,6 +107,8 @@ export const getModuleDetailApi = async (moduleName, recordId, nameFields) => {
 // body: { "data": { "type": "{ModuleName}", "attributes": { "name": "", "description": "", ... } } }
 export const createModuleRecordApi = async (moduleName, recordData) => {
     try {
+        // console.log("modulename: ", moduleName);
+        // console.log("recordData: ", recordData);
         const token = await AsyncStorage.getItem('token');
         let response;
         if (recordData.assigned_user_id == null) {
@@ -137,6 +139,9 @@ export const createModuleRecordApi = async (moduleName, recordData) => {
         }
         return response.data;
     } catch (error) {
+        // if (error.response && error.response.data) {
+        //     console.warn(`Create ${moduleName} API error response:`, JSON.stringify(error.response.data, null, 2));
+        // }
         console.warn(`Create ${moduleName} API error:`, error);
         throw error;
     }

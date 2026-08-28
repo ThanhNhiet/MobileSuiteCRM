@@ -28,7 +28,7 @@ export const useModule_Create = (moduleName) => {
 
     // Form fields - will be initialized dynamically based on editviewdefs
     const [formData, setFormData] = useState({});
-    
+
     // Module metadata for custom configs like lineitems_field
     const [moduleMetadata, setModuleMetadata] = useState(null);
 

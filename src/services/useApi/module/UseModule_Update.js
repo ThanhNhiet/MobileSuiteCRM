@@ -504,12 +504,12 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         const excludeFields = []; // No fields to exclude
         return Object.keys(formData).some(key => {
             if (excludeFields.includes(key)) return false;
-            
+
             // Compare objects/arrays deeply
             if (typeof formData[key] === 'object' || typeof originalData[key] === 'object') {
                 return JSON.stringify(formData[key]) !== JSON.stringify(originalData[key]);
             }
-            
+
             return formData[key] !== originalData[key];
         });
     }, [formData, originalData]);
@@ -628,7 +628,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
                     const totalMinutes = parseInt(updateData.duration_hours, 10) || 0;
                     const hours = Math.floor(totalMinutes / 60);
                     const minutes = totalMinutes % 60;
-                    
+
                     updateData.duration_hours = hours;
                     updateData.duration_minutes = minutes;
                 }
@@ -1001,7 +1001,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         // Find field definition to get id_name
         const fieldDef = updateFields.find(f => f.key === fieldKey);
         let idFieldKey = '';
-        
+
         // 1. Check custom id_name mapping in list_of_modules.json
         if (moduleMetadata && moduleMetadata['relate-modules-iddb'] && moduleMetadata['relate-modules-iddb'][fieldKey]) {
             idFieldKey = moduleMetadata['relate-modules-iddb'][fieldKey];
@@ -1009,7 +1009,7 @@ export const useModuleUpdate = (moduleName, initialRecordData = null) => {
         // 2. Check field definition from API
         else if (fieldDef && fieldDef.id_name) {
             idFieldKey = fieldDef.id_name;
-        } 
+        }
         // 3. Fallback heuristics
         else if (fieldKey.includes('_name')) {
             idFieldKey = fieldKey.replace('_name', '_id');
