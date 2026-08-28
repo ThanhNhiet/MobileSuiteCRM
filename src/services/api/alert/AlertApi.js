@@ -8,7 +8,7 @@ export const getAlertsApi = async (pageSize = 6, pageNumber = 1) => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         const response = await axiosInstance.get(`/Api/V8/module/Alerts`, {
             params: {
                 'filter[assigned_user_id][eq]': userId,
@@ -30,7 +30,7 @@ export const getUnreadAlertsCountApi = async () => {
     try {
         const token = await AsyncStorage.getItem('token');
         const userId = getUserIdFromToken(token);
-        
+
         const response = await axiosInstance.get(`/Api/V8/module/Alerts`, {
             params: {
                 'filter[assigned_user_id][eq]': userId,

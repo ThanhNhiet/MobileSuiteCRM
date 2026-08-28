@@ -24,13 +24,14 @@ export const callDetailViewApi = async (apiConfigString, params = {}) => {
             finalUrl = finalUrl.replace(regex, encodeURIComponent(valueStr));
         }
 
-        // Remove any unreplaced placeholders
-        finalUrl = finalUrl.replace(/&?[a-zA-Z0-9_]+=%[a-zA-Z0-9_]+%/g, '');
+        // Remove any unreplaced placeholders (safely, ensuring it's followed by & or end of string)
+        finalUrl = finalUrl.replace(/&?[a-zA-Z0-9_]+=%[a-zA-Z0-9_]+%(?=&|$)/g, '');
         finalUrl = finalUrl.replace(/[\?&]$/, '');
 
         const response = await axiosInstance({
             method,
             url: finalUrl,
+            data: ['POST', 'PUT', 'PATCH'].includes(method) ? params : undefined
         });
 
         return response.data;

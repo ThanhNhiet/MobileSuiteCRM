@@ -6,6 +6,7 @@ import { detailViewBtnConfirmInProcess } from '../process/detailview-btn-confirm
 const ConfirmInModal = ({ visible, onClose, recordId, record, apiConfig, onSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [lineItems, setLineItems] = useState([]);
+    const [statusDetail, setStatusDetail] = useState('in_full');
     
     useEffect(() => {
         if (visible && record?.lineitems_data) {
@@ -44,18 +45,8 @@ const ConfirmInModal = ({ visible, onClose, recordId, record, apiConfig, onSucce
                 actual_receive: item.actual_receive
             }));
 
-            // Calculate if full or partial
-            let isFull = true;
-            for (let item of lineItems) {
-                if (parseFloat(item.actual_receive || 0) < parseFloat(item.qty || 0)) {
-                    isFull = false;
-                    break;
-                }
-            }
-            const status_detail = isFull ? 'in_full' : 'in_part';
-
             const payload = {
-                status_detail,
+                status_detail: statusDetail,
                 actual_receive: actual_receive_payload
             };
 
@@ -110,6 +101,27 @@ const ConfirmInModal = ({ visible, onClose, recordId, record, apiConfig, onSucce
                         </TouchableOpacity>
                     </View>
                     
+                    <View style={styles.statusGroup}>
+                        <Text style={styles.statusLabel}>Trạng thái chi tiết:</Text>
+                        <View style={styles.radioRow}>
+                            <TouchableOpacity 
+                                style={[styles.radioBtn, statusDetail === 'in_full' && styles.radioBtnActive]} 
+                                onPress={() => setStatusDetail('in_full')}>
+                                <Text style={[styles.radioText, statusDetail === 'in_full' && styles.radioTextActive]}>Đúng/Đủ</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.radioBtn, statusDetail === 'in_lack' && styles.radioBtnActive]} 
+                                onPress={() => setStatusDetail('in_lack')}>
+                                <Text style={[styles.radioText, statusDetail === 'in_lack' && styles.radioTextActive]}>Thiếu 1 phần</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.radioBtn, statusDetail === 'in_false' && styles.radioBtnActive]} 
+                                onPress={() => setStatusDetail('in_false')}>
+                                <Text style={[styles.radioText, statusDetail === 'in_false' && styles.radioTextActive]}>Không đúng/Trả lại</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     <FlatList
                         data={lineItems}
                         renderItem={renderItem}
@@ -225,6 +237,42 @@ const styles = StyleSheet.create({
     },
     btnSubmitText: {
         color: '#fff',
+        fontWeight: '600'
+    },
+    statusGroup: {
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+    },
+    statusLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#374151',
+        marginBottom: 8
+    },
+    radioRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap'
+    },
+    radioBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        backgroundColor: '#fff'
+    },
+    radioBtnActive: {
+        backgroundColor: '#eff6ff',
+        borderColor: '#3b82f6'
+    },
+    radioText: {
+        fontSize: 13,
+        color: '#4b5563'
+    },
+    radioTextActive: {
+        color: '#2563eb',
         fontWeight: '600'
     }
 });
