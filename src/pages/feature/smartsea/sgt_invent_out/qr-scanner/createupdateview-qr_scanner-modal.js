@@ -16,17 +16,17 @@ import { mergeScannedProduct } from './createupdateview-qr_scanner-process';
 import QRScannerScreen from './QRScannerScreen';
 import { systemLanguageUtils } from '../../../../../utils/cacheViewManagement/SystemLanguageUtils';
 
-export default function QRScannerModal({ 
-    visible, 
-    onClose, 
-    onSave, 
-    initialLineItems = [], 
-    warehouseId 
+export default function QRScannerModal({
+    visible,
+    onClose,
+    onSave,
+    initialLineItems = [],
+    warehouseId
 }) {
     const [lineItems, setLineItems] = useState([]);
     const [scannerVisible, setScannerVisible] = useState(false);
     const [uomTranslations, setUomTranslations] = useState({});
-    
+
     // Quantity Dialog State
     const [qtyDialogVisible, setQtyDialogVisible] = useState(false);
     const [scannedProduct, setScannedProduct] = useState(null);
@@ -36,7 +36,7 @@ export default function QRScannerModal({
     useEffect(() => {
         if (visible) {
             setLineItems(Array.isArray(initialLineItems) ? [...initialLineItems] : []);
-            
+
             // Load UOM translations
             const loadTranslations = async () => {
                 const langData = await systemLanguageUtils.loadLanguageData();
@@ -53,7 +53,7 @@ export default function QRScannerModal({
         setScannerVisible(false); // Close camera
         setScannedProduct(productData);
         setInputQty('1'); // Default qty
-        
+
         // Slight delay to allow camera modal to close before opening qty dialog
         setTimeout(() => {
             setQtyDialogVisible(true);
@@ -63,13 +63,13 @@ export default function QRScannerModal({
     // Handle confirming quantity
     const handleConfirmQty = () => {
         if (!scannedProduct) return;
-        
+
         const qty = parseFloat(inputQty);
         if (isNaN(qty) || qty <= 0) {
             Alert.alert('Lỗi', 'Vui lòng nhập số lượng hợp lệ!');
             return;
         }
-        
+
         // Kiểm tra số lượng tồn kho (nếu có yêu cầu chặn)
         const inventoryQty = parseFloat(scannedProduct.inventory_qty || scannedProduct.qty_cansell || 0);
         if (qty > inventoryQty) {
@@ -96,12 +96,15 @@ export default function QRScannerModal({
     // Render 1 dòng line item
     const renderItem = ({ item, index }) => {
         const uomText = uomTranslations[item.uom] || item.uom || '';
-        
+
         return (
             <View style={styles.itemRow}>
                 <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={2}>{index + 1}. {item.name}</Text>
-                    <Text style={styles.itemCode}>Mã: {item.code_name || 'N/A'} - ĐVT: {uomText}</Text>
+                    <Text style={styles.itemCode}>Part number: {item.code_name || 'N/A'} - ĐVT: {uomText}</Text>
+                    {item.impa ? (
+                        <Text style={styles.itemCode}>IMPA: {item.impa}</Text>
+                    ) : null}
                     <Text style={styles.itemPrice}>Available: {item.inventory_qty}</Text>
                 </View>
                 <View style={styles.itemActions}>
@@ -109,8 +112,8 @@ export default function QRScannerModal({
                         <Text style={styles.itemQtyLabel}>SL</Text>
                         <Text style={styles.itemQtyValue}>{item.qty}</Text>
                     </View>
-                    <TouchableOpacity 
-                        style={styles.deleteBtn} 
+                    <TouchableOpacity
+                        style={styles.deleteBtn}
                         onPress={() => handleDeleteItem(index)}
                     >
                         <Ionicons name="trash-outline" size={24} color="#ef4444" />
@@ -126,7 +129,7 @@ export default function QRScannerModal({
                 <View style={styles.modalContainer}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.headerTitle}>Sản Phẩm Đã Quét</Text>
+                        <Text style={styles.headerTitle}>Products Scanned</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                             <Ionicons name="close" size={24} color="#333" />
                         </TouchableOpacity>
@@ -137,8 +140,8 @@ export default function QRScannerModal({
                         {lineItems.length === 0 ? (
                             <View style={styles.emptyContainer}>
                                 <Ionicons name="barcode-outline" size={50} color="#ccc" />
-                                <Text style={styles.emptyText}>Chưa có sản phẩm nào.</Text>
-                                <Text style={styles.emptySubText}>Bấm Quét mã để thêm sản phẩm</Text>
+                                <Text style={styles.emptyText}>Products not found</Text>
+                                <Text style={styles.emptySubText}>Press Scan to add a product</Text>
                             </View>
                         ) : (
                             <FlatList
@@ -152,37 +155,37 @@ export default function QRScannerModal({
 
                     {/* Footer Buttons */}
                     <View style={styles.footer}>
-                        <TouchableOpacity 
-                            style={styles.scanButton} 
+                        <TouchableOpacity
+                            style={styles.scanButton}
                             onPress={() => {
                                 if (!warehouseId) {
-                                    Alert.alert('Thông báo', 'Vui lòng chọn Kho xuất ở màn hình trước khi quét mã.');
+                                    Alert.alert('Alert', 'Vui lòng chọn Kho xuất ở màn hình trước khi quét mã.');
                                     return;
                                 }
                                 setScannerVisible(true);
                             }}
                         >
-                            <Ionicons name="qr-code-outline" size={20} color="#fff" style={{marginRight: 8}}/>
-                            <Text style={styles.scanButtonText}>Quét mã</Text>
+                            <Ionicons name="qr-code-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.scanButtonText}>Scan</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
-                            style={styles.saveButton} 
+                        <TouchableOpacity
+                            style={styles.saveButton}
                             onPress={() => {
                                 onSave(lineItems);
                                 onClose();
                             }}
                         >
-                            <Ionicons name="save-outline" size={20} color="#fff" style={{marginRight: 8}}/>
-                            <Text style={styles.saveButtonText}>Lưu & Đóng</Text>
+                            <Ionicons name="save-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.saveButtonText}>Save & Close</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </View>
 
             {/* Camera Screen Modal */}
-            <QRScannerScreen 
-                visible={scannerVisible} 
+            <QRScannerScreen
+                visible={scannerVisible}
                 onClose={() => setScannerVisible(false)}
                 onScanSuccess={handleScanSuccess}
                 warehouseId={warehouseId}
@@ -190,18 +193,21 @@ export default function QRScannerModal({
 
             {/* Quantity Input Dialog */}
             <Modal visible={qtyDialogVisible} transparent={true} animationType="fade">
-                <KeyboardAvoidingView 
+                <KeyboardAvoidingView
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
                     style={styles.dialogBackground}
                 >
                     <View style={styles.dialogContainer}>
                         <Text style={styles.dialogTitle}>Nhập số lượng xuất</Text>
-                        
+
                         {scannedProduct && (
                             <View style={styles.dialogProductInfo}>
                                 <Text style={styles.dialogProductName}>{scannedProduct.name}</Text>
-                                <Text style={styles.dialogProductSub}>Mã: {scannedProduct.part_number || scannedProduct.code_name}</Text>
-                                <Text style={styles.dialogProductSub}>Tồn kho: {scannedProduct.qty_cansell || scannedProduct.inventory_qty}</Text>
+                                <Text style={styles.dialogProductSub}>Part number: {scannedProduct.part_number || scannedProduct.code_name}</Text>
+                                {scannedProduct.impa ? (
+                                    <Text style={styles.dialogProductSub}>IMPA: {scannedProduct.impa}</Text>
+                                ) : null}
+                                <Text style={styles.dialogProductSub}>Available: {scannedProduct.qty_cansell || scannedProduct.inventory_qty}</Text>
                             </View>
                         )}
 
@@ -215,14 +221,14 @@ export default function QRScannerModal({
                         />
 
                         <View style={styles.dialogButtons}>
-                            <TouchableOpacity 
-                                style={[styles.dialogBtn, styles.dialogCancelBtn]} 
+                            <TouchableOpacity
+                                style={[styles.dialogBtn, styles.dialogCancelBtn]}
                                 onPress={() => setQtyDialogVisible(false)}
                             >
                                 <Text style={styles.dialogCancelText}>Hủy</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.dialogBtn, styles.dialogConfirmBtn]} 
+                            <TouchableOpacity
+                                style={[styles.dialogBtn, styles.dialogConfirmBtn]}
                                 onPress={handleConfirmQty}
                             >
                                 <Text style={styles.dialogConfirmText}>Xác nhận</Text>
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-    
+
     // Dialog styles
     dialogBackground: {
         flex: 1,

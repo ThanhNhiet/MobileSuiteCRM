@@ -42,6 +42,7 @@ export const mergeScannedProduct = (currentLineItems, scannedProduct, inputQty) 
             product_id: productId,
             name: scannedProduct.name || '',
             code_name: scannedProduct.code_name || scannedProduct.part_number || '',
+            impa: scannedProduct.impa || '',
             uom: scannedProduct.uom || '',
             qty: qty,
             price: price,

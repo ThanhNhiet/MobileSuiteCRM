@@ -35,7 +35,7 @@ export const searchProductByBarcode = async (keyword, warehouseId) => {
             }
 
             // Lấy thêm thông tin chi tiết sản phẩm (name, part_number, uom, price)
-            const productResponse = await searchModuleByKeywordApi_noAssignedUser('AOS_Products', keyword, 1, 'id,name,part_number,uom,price');
+            const productResponse = await searchModuleByKeywordApi_noAssignedUser('AOS_Products', keyword, 1, 'id,name,part_number,uom,price,impa');
 
             let productData = null;
             if (productResponse && productResponse.data && productResponse.data.length > 0) {
@@ -57,6 +57,7 @@ export const searchProductByBarcode = async (keyword, warehouseId) => {
                 id: productData.id,
                 name: productData.name,
                 part_number: productData.part_number,
+                impa: productData.impa,
                 uom: productData.uom,
                 price: productData.price,
                 procurment_inventory_id: inventoryData.sgt_procurment_inventory_id,
