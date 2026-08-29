@@ -1495,12 +1495,12 @@ export default function ModuleCreateScreen() {
                 {createViewBtnRegistry[moduleName] && Object.entries(createViewBtnRegistry[moduleName]).map(([key, config]) => {
                     const ModalComponent = config.modal;
                     if (!ModalComponent) return null;
-                    
+
                     let parsedLineItems = [];
                     try {
                         if (formData?.lineitems_data) {
-                            parsedLineItems = typeof formData.lineitems_data === 'string' 
-                                ? JSON.parse(formData.lineitems_data) 
+                            parsedLineItems = typeof formData.lineitems_data === 'string'
+                                ? JSON.parse(formData.lineitems_data)
                                 : formData.lineitems_data;
                         }
                     } catch (e) {
@@ -1513,7 +1513,7 @@ export default function ModuleCreateScreen() {
                         if (config && config['relate-modules']) {
                             const relateConfig = config['relate-modules'];
                             const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
-                            
+
                             for (let item of processedData) {
                                 for (const [colName, rawMapping] of Object.entries(relateConfig)) {
                                     if (rawMapping.includes('.translate') && item[colName]) {
@@ -1707,15 +1707,15 @@ export default function ModuleCreateScreen() {
                     >
                         <View style={{ backgroundColor: '#fff', margin: 20, borderRadius: 8, maxHeight: '80%', padding: 16 }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tìm kiếm</Text>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Search</Text>
                                 <TouchableOpacity onPress={() => setSearchModal(prev => ({ ...prev, visible: false }))}>
-                                    <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
+                                    <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Close</Text>
                                 </TouchableOpacity>
                             </View>
 
                             <TextInput
                                 style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
-                                placeholder="Nhập từ khóa tìm kiếm..."
+                                placeholder="Type to search..."
                                 value={searchModal.query}
                                 onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
                                 autoFocus={true}
@@ -1737,7 +1737,12 @@ export default function ModuleCreateScreen() {
                                             <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.attributes ? item.attributes.name : item.name}</Text>
                                             {(item.attributes?.part_number || item.part_number) && (
                                                 <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                                                    Mã: {item.attributes ? item.attributes.part_number : item.part_number}
+                                                    Part number: {item.attributes ? item.attributes.part_number : item.part_number}
+                                                </Text>
+                                            )}
+                                            {(item.attributes?.impa || item.impa) && (
+                                                <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                                                    IMPA: {item.attributes ? item.attributes.impa : item.impa}
                                                 </Text>
                                             )}
                                             {Object.keys(item).filter(k => Array.isArray(item[k]) && item[k].length === 2 && typeof item[k][1] === 'string').map(k => (
@@ -1749,7 +1754,7 @@ export default function ModuleCreateScreen() {
                                     )}
                                     ListEmptyComponent={() => (
                                         <View style={{ padding: 20, alignItems: 'center' }}>
-                                            <Text style={{ color: '#999' }}>Không tìm thấy kết quả nào</Text>
+                                            <Text style={{ color: '#999' }}>No results found</Text>
                                         </View>
                                     )}
                                 />

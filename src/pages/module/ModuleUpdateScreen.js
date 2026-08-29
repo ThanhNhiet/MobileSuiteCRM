@@ -1650,27 +1650,27 @@ export default function ModuleUpdateScreen() {
 
             {/* Custom Buttons */}
             {updateViewBtnRegistry[moduleName] && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 16 }}>
-                    {Object.entries(updateViewBtnRegistry[moduleName]).map(([key, config]) => (
-                        <TouchableOpacity
-                            key={key}
-                            style={{
-                                backgroundColor: config.color || '#1890ff',
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: 12,
-                                borderRadius: 8,
-                                flex: 1,
-                                marginHorizontal: 4,
-                            }}
-                            onPress={() => setActiveCustomModal(key)}
-                        >
-                            {config.icon && <Ionicons name={config.icon} size={20} color="#fff" style={{ marginRight: 8 }} />}
-                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{config.label}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 16 }}>
+                {Object.entries(updateViewBtnRegistry[moduleName]).map(([key, config]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={{
+                      backgroundColor: config.color || '#1890ff',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 12,
+                      borderRadius: 8,
+                      flex: 1,
+                      marginHorizontal: 4,
+                    }}
+                    onPress={() => setActiveCustomModal(key)}
+                  >
+                    {config.icon && <Ionicons name={config.icon} size={20} color="#fff" style={{ marginRight: 8 }} />}
+                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{config.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
 
             {/* Save Button */}
@@ -1714,63 +1714,63 @@ export default function ModuleUpdateScreen() {
 
         {/* Custom Modals */}
         {updateViewBtnRegistry[moduleName] && Object.entries(updateViewBtnRegistry[moduleName]).map(([key, config]) => {
-            const ModalComponent = config.modal;
-            if (!ModalComponent) return null;
-            
-            let parsedLineItems = [];
-            try {
-                if (formData?.lineitems_data) {
-                    parsedLineItems = typeof formData.lineitems_data === 'string' 
-                        ? JSON.parse(formData.lineitems_data) 
-                        : formData.lineitems_data;
-                }
-            } catch (e) {
-                console.warn("Failed to parse lineitems_data", e);
+          const ModalComponent = config.modal;
+          if (!ModalComponent) return null;
+
+          let parsedLineItems = [];
+          try {
+            if (formData?.lineitems_data) {
+              parsedLineItems = typeof formData.lineitems_data === 'string'
+                ? JSON.parse(formData.lineitems_data)
+                : formData.lineitems_data;
             }
+          } catch (e) {
+            console.warn("Failed to parse lineitems_data", e);
+          }
 
-            const handleCustomModalSave = async (newData, fieldKey) => {
-                let processedData = Array.isArray(newData) ? [...newData] : [];
-                const config = moduleMetadata?.lineitems_field?.[fieldKey];
-                if (config && config['relate-modules']) {
-                    const relateConfig = config['relate-modules'];
-                    const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
-                    
-                    for (let item of processedData) {
-                        for (const [colName, rawMapping] of Object.entries(relateConfig)) {
-                            if (rawMapping.includes('.translate') && item[colName]) {
-                                const parts = rawMapping.split('.');
-                                const targetModule = parts[0];
-                                try {
-                                    await moduleLanguageUtils.loadLanguageData(targetModule);
-                                    const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
-                                    const translated = moduleLanguageUtils.searchNestedValue(listStrings, item[colName]);
-                                    if (translated) {
-                                        item[colName] = translated;
-                                    } else {
-                                        const systemLanguageUtils = require('../../utils/cacheViewManagement/SystemLanguageUtils').SystemLanguageUtils.getInstance();
-                                        const sysTranslated = await systemLanguageUtils.translate(item[colName], item[colName]);
-                                        if (sysTranslated) item[colName] = sysTranslated;
-                                    }
-                                } catch (e) {
-                                    console.warn('Translate error:', e);
-                                }
-                            }
-                        }
+          const handleCustomModalSave = async (newData, fieldKey) => {
+            let processedData = Array.isArray(newData) ? [...newData] : [];
+            const config = moduleMetadata?.lineitems_field?.[fieldKey];
+            if (config && config['relate-modules']) {
+              const relateConfig = config['relate-modules'];
+              const moduleLanguageUtils = require('../../utils/cacheViewManagement/ModuleLanguageUtils').ModuleLanguageUtils.getInstance();
+
+              for (let item of processedData) {
+                for (const [colName, rawMapping] of Object.entries(relateConfig)) {
+                  if (rawMapping.includes('.translate') && item[colName]) {
+                    const parts = rawMapping.split('.');
+                    const targetModule = parts[0];
+                    try {
+                      await moduleLanguageUtils.loadLanguageData(targetModule);
+                      const listStrings = moduleLanguageUtils.cachedLanguageData[`${targetModule}-${moduleLanguageUtils.currentLanguage}`]?.appListStrings;
+                      const translated = moduleLanguageUtils.searchNestedValue(listStrings, item[colName]);
+                      if (translated) {
+                        item[colName] = translated;
+                      } else {
+                        const systemLanguageUtils = require('../../utils/cacheViewManagement/SystemLanguageUtils').SystemLanguageUtils.getInstance();
+                        const sysTranslated = await systemLanguageUtils.translate(item[colName], item[colName]);
+                        if (sysTranslated) item[colName] = sysTranslated;
+                      }
+                    } catch (e) {
+                      console.warn('Translate error:', e);
                     }
+                  }
                 }
-                updateField(fieldKey, processedData);
-            };
+              }
+            }
+            updateField(fieldKey, processedData);
+          };
 
-            return (
-                <ModalComponent
-                    key={key}
-                    visible={activeCustomModal === key}
-                    onClose={() => setActiveCustomModal(null)}
-                    warehouseId={formData?.sgt_warehouse_id_c}
-                    initialLineItems={parsedLineItems}
-                    onSave={(newData) => handleCustomModalSave(newData, 'lineitems_data')}
-                />
-            );
+          return (
+            <ModalComponent
+              key={key}
+              visible={activeCustomModal === key}
+              onClose={() => setActiveCustomModal(null)}
+              warehouseId={formData?.sgt_warehouse_id_c}
+              initialLineItems={parsedLineItems}
+              onSave={(newData) => handleCustomModalSave(newData, 'lineitems_data')}
+            />
+          );
         })}
 
         {/* Parent Type Modal */}
@@ -1929,15 +1929,15 @@ export default function ModuleUpdateScreen() {
           >
             <View style={{ backgroundColor: '#fff', margin: 20, borderRadius: 8, maxHeight: '80%', padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Tìm kiếm</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Search</Text>
                 <TouchableOpacity onPress={() => setSearchModal(prev => ({ ...prev, visible: false }))}>
-                  <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Đóng</Text>
+                  <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: 'bold' }}>Close</Text>
                 </TouchableOpacity>
               </View>
 
               <TextInput
                 style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 10, marginBottom: 10, fontSize: 16 }}
-                placeholder="Nhập từ khóa tìm kiếm..."
+                placeholder="Type to search..."
                 value={searchModal.query}
                 onChangeText={(text) => setSearchModal(prev => ({ ...prev, query: text }))}
                 autoFocus={true}
@@ -1962,6 +1962,11 @@ export default function ModuleUpdateScreen() {
                           Mã: {item.attributes ? item.attributes.part_number : item.part_number}
                         </Text>
                       )}
+                      {(item.attributes?.impa || item.impa) && (
+                        <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                          IMPA: {item.attributes ? item.attributes.impa : item.impa}
+                        </Text>
+                      )}
                       {Object.keys(item).filter(k => Array.isArray(item[k]) && item[k].length === 2 && typeof item[k][1] === 'string').map(k => (
                         <Text key={k} style={{ color: '#007AFF', fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
                           {item[k][1]}
@@ -1971,7 +1976,7 @@ export default function ModuleUpdateScreen() {
                   )}
                   ListEmptyComponent={() => (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Text style={{ color: '#999' }}>Không tìm thấy kết quả nào</Text>
+                      <Text style={{ color: '#999' }}>No results found</Text>
                     </View>
                   )}
                 />
